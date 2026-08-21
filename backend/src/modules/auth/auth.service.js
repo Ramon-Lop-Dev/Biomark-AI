@@ -6,17 +6,41 @@ const registerUser = async (email, password, fullName) => {
         email,
         password,
         options: {
-            data: { full_name: fullName } // Metadatos que luego pueden alimentar la tabla 'perfiles' vía Triggers de Supabase
+            data: { full_name: fullName }
         }
     });
 
     if (error) {
         throw new Error(error.message);
     }
-    
+
+    const authId = data.user.id;
+
+    // 2. Crear la fila correspondiente en public.usuarios (vinculada por auth_id).
+    //    IMPORTANTE: esto ya NO depende de un trigger de Supabase — se hace
+    //    explicitamente aqui porque no hay trigger configurado en el proyecto.
+    const { data: usuario, error: usuarioError } = await supabase
+        .from('usuarios')
+        .insert({ auth_id: authId, correo: email })
+        .select()
+        .single();
+
+    if (usuarioError) {
+        throw new Error(`No se pudo crear el registro en 'usuarios': ${usuarioError.message}`);
+    }
+
+    // 3. Crear la fila correspondiente en public.perfiles
+    const { error: perfilError } = await supabase
+        .from('perfiles')
+        .insert({ usuario_id: usuario.id, nombre_completo: fullName });
+
+    if (perfilError) {
+        throw new Error(`No se pudo crear el registro en 'perfiles': ${perfilError.message}`);
+    }
+
     // Devolvemos lo que exige la documentación para una respuesta 201
     return {
-        user_id: data.user.id,
+        user_id: usuario.id,
         token: data.session?.access_token || null
     };
 };
@@ -29,9 +53,7 @@ const loginUser = async (email, password) => {
     });
 
     if (error) {
-        
-       
-        console.error("Error real de Supabase en login:", error); 
+        console.error("Error real de Supabase en login:", error);
         throw new Error("Credenciales inválidas");
     }
 
