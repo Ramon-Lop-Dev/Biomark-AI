@@ -29,7 +29,15 @@ app.get('/health', (req, res) => {
 // --- IMPORTAR RUTAS DE MÓDULOS ---
 const authRoutes = require('./modules/auth/auth.routes');
 const usersRoutes = require('./modules/users/users.routes');
+const medicalRoutes = require('./modules/medical/medical.routes');
+const symptomsRoutes = require('./modules/symptoms/symptoms.routes');
+const vaccinesRoutes = require('./modules/vaccines/vaccines.routes');
+const remindersRoutes = require('./modules/reminders/reminders.routes');
 // --- APLICAR RUTAS ---
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/medical-history', medicalRoutes);
+app.use('/api/symptoms', symptomsRoutes);
+app.use('/api/vaccines', vaccinesRoutes);
+app.use('/api/reminders', remindersRoutes);
 module.exports = app;
