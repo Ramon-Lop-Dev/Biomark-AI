@@ -33,6 +33,9 @@ const medicalRoutes = require('./modules/medical/medical.routes');
 const symptomsRoutes = require('./modules/symptoms/symptoms.routes');
 const vaccinesRoutes = require('./modules/vaccines/vaccines.routes');
 const remindersRoutes = require('./modules/reminders/reminders.routes');
+const communityRoutes = require('./modules/community/community.routes');
+const gisRoutes = require('./modules/gis/gis.routes');
+const epidemiologyRoutes=require('./modules/epidemiology/epidemiology.routes')
 // --- APLICAR RUTAS ---
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
@@ -40,4 +43,7 @@ app.use('/api/medical-history', medicalRoutes);
 app.use('/api/symptoms', symptomsRoutes);
 app.use('/api/vaccines', vaccinesRoutes);
 app.use('/api/reminders', remindersRoutes);
+app.use('/api/community', communityRoutes);
+app.use('/api/gis', gisRoutes);
+app.use('/api/epidemiology', epidemiologyRoutes);
 module.exports = app;
