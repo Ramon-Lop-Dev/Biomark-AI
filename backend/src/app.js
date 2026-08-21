@@ -28,7 +28,8 @@ app.get('/health', (req, res) => {
 });
 // --- IMPORTAR RUTAS DE MÓDULOS ---
 const authRoutes = require('./modules/auth/auth.routes');
-
+const usersRoutes = require('./modules/users/users.routes');
 // --- APLICAR RUTAS ---
 app.use('/api/auth', authRoutes);
+app.use('/api/users', usersRoutes);
 module.exports = app;
