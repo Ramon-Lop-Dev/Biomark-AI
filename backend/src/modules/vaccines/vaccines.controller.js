@@ -3,11 +3,11 @@ const supabase = require('../../config/supabase');
 // Obtener las vacunas aplicadas del usuario
 const getVaccines = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const usuarioId = req.usuarioId;
         const { data, error } = await supabase
             .from('vacunas')
             .select('*')
-            .eq('usuario_id', userId)
+            .eq('usuario_id', usuarioId)
             .order('fecha_aplicacion', { ascending: false });
 
         if (error) throw error;
@@ -18,10 +18,11 @@ const getVaccines = async (req, res) => {
 };
 
 // Registrar una vacuna aplicada
+// Columnas reales de vacunas: nombre_vacuna, numero_dosis, fecha_aplicacion, fecha_proxima_dosis
 const addVaccine = async (req, res) => {
     try {
-        const userId = req.user.id;
-        const { nombre_vacuna, fecha_aplicacion, dosis, notas } = req.body;
+        const usuarioId = req.usuarioId;
+        const { nombre_vacuna, fecha_aplicacion, numero_dosis, fecha_proxima_dosis } = req.body;
 
         if (!nombre_vacuna || !fecha_aplicacion) {
             return res.status(400).json({ error: "Nombre y fecha son obligatorios", code: "400" });
@@ -29,7 +30,13 @@ const addVaccine = async (req, res) => {
 
         const { data, error } = await supabase
             .from('vacunas')
-            .insert([{ usuario_id: userId, nombre_vacuna, fecha_aplicacion, dosis, notas }])
+            .insert([{
+                usuario_id: usuarioId,
+                nombre_vacuna,
+                fecha_aplicacion,
+                numero_dosis: numero_dosis || 1,
+                fecha_proxima_dosis
+            }])
             .select();
 
         if (error) throw error;

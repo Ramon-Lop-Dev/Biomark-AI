@@ -3,12 +3,13 @@ const supabase = require('../../config/supabase');
 // Obtener el historial del usuario autenticado
 const getMedicalHistory = async (req, res) => {
     try {
-        const userId = req.user.id; // Extraído de forma segura por el middleware JWT
+        const usuarioId = req.usuarioId; // id interno (public.usuarios.id), no el auth_id
 
         const { data, error } = await supabase
             .from('historial_medico')
             .select('*')
-            .eq('usuario_id', userId);
+            .eq('usuario_id', usuarioId)
+            .order('fecha_creacion', { ascending: false });
 
         if (error) throw error;
 
@@ -19,23 +20,24 @@ const getMedicalHistory = async (req, res) => {
 };
 
 // Crear un nuevo registro en el historial
+// Columnas reales de historial_medico: nombre_condicion, fecha_diagnostico, notas
 const createMedicalRecord = async (req, res) => {
     try {
-        const userId = req.user.id;
-        const { tipo_registro, descripcion, fecha_diagnostico } = req.body;
+        const usuarioId = req.usuarioId;
+        const { nombre_condicion, notas, fecha_diagnostico } = req.body;
 
-        if (!tipo_registro || !descripcion) {
-            return res.status(400).json({ error: "Faltan campos obligatorios", code: "400" });
+        if (!nombre_condicion) {
+            return res.status(400).json({ error: "El campo 'nombre_condicion' es obligatorio", code: "400" });
         }
 
         const { data, error } = await supabase
             .from('historial_medico')
             .insert([
-                { 
-                    usuario_id: userId, 
-                    tipo_registro, 
-                    descripcion, 
-                    fecha_diagnostico 
+                {
+                    usuario_id: usuarioId,
+                    nombre_condicion,
+                    fecha_diagnostico,
+                    notas
                 }
             ])
             .select();

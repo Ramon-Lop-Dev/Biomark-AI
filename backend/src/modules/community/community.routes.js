@@ -1,10 +1,14 @@
 const express = require('express');
-const { getPosts, createPost } = require('./community.controller');
+const { getEvents, createEvent, createReport, getStatistics, getHeatmap } = require('./community.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
 const router = express.Router();
 
-router.use(verifyToken);
-router.get('/', getPosts);
-router.post('/', createPost);
+// GET /api/community/events es publico (consultar jornadas no requiere login);
+// crear evento, reportar y ver estadisticas si requiere autenticacion.
+router.get('/events', getEvents);
+router.post('/events', verifyToken, createEvent);
+router.post('/reports', verifyToken, createReport);
+router.get('/statistics', verifyToken, getStatistics);
+router.get('/heatmap', verifyToken, getHeatmap);
 
 module.exports = router;
