@@ -26,5 +26,9 @@ app.use(limiter);
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', message: 'BIOMARK AI Backend up and running' });
 });
+// --- IMPORTAR RUTAS DE MÓDULOS ---
+const authRoutes = require('./modules/auth/auth.routes');
 
+// --- APLICAR RUTAS ---
+app.use('/api/auth', authRoutes);
 module.exports = app;
