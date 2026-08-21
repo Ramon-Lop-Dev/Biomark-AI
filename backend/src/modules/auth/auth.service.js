@@ -1,8 +1,11 @@
-const supabase = require('../../config/supabase');
+const supabase = require('../../config/supabase');       // service_role: solo para tablas
+const supabaseAuth = require('../../config/supabaseAuth'); // anon: solo para signUp/signIn
 
 const registerUser = async (email, password, fullName) => {
-    // 1. Supabase Auth maneja la creación segura del usuario y el hashing de la contraseña
-    const { data, error } = await supabase.auth.signUp({
+    // 1. Supabase Auth maneja la creación segura del usuario y el hashing de la contraseña.
+    // Usamos supabaseAuth (anon key) para esto — así el cliente "supabase" (service_role)
+    // nunca se ve afectado por el cambio de sesión que provoca signUp().
+    const { data, error } = await supabaseAuth.auth.signUp({
         email,
         password,
         options: {
@@ -17,8 +20,8 @@ const registerUser = async (email, password, fullName) => {
     const authId = data.user.id;
 
     // 2. Crear la fila correspondiente en public.usuarios (vinculada por auth_id).
-    //    IMPORTANTE: esto ya NO depende de un trigger de Supabase — se hace
-    //    explicitamente aqui porque no hay trigger configurado en el proyecto.
+    // Este insert usa "supabase" (service_role), que NUNCA cambia de identidad
+    // porque nunca se usa para signUp/signIn.
     const { data: usuario, error: usuarioError } = await supabase
         .from('usuarios')
         .insert({ auth_id: authId, correo: email })
@@ -38,7 +41,6 @@ const registerUser = async (email, password, fullName) => {
         throw new Error(`No se pudo crear el registro en 'perfiles': ${perfilError.message}`);
     }
 
-    // Devolvemos lo que exige la documentación para una respuesta 201
     return {
         user_id: usuario.id,
         token: data.session?.access_token || null
@@ -46,8 +48,9 @@ const registerUser = async (email, password, fullName) => {
 };
 
 const loginUser = async (email, password) => {
-    // Autenticar al usuario ya existente
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // También usamos supabaseAuth (anon key) para login, por consistencia
+    // y para no tocar jamás la identidad del cliente service_role.
+    const { data, error } = await supabaseAuth.auth.signInWithPassword({
         email,
         password
     });
@@ -57,7 +60,6 @@ const loginUser = async (email, password) => {
         throw new Error("Credenciales inválidas");
     }
 
-    // Devolvemos lo que exige la documentación para una respuesta 200
     return {
         token: data.session.access_token,
         expires_in: data.session.expires_in || 3600
