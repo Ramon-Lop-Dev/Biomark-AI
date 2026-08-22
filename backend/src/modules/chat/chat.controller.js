@@ -30,7 +30,7 @@ const enviarMensajeChat = async (req, res) => {
                 'X-Internal-Key': internalKey,
                 'Content-Type': 'application/json'
             },
-            timeout: 30000 // Timeout de 30 segundos por la inferencia del modelo
+            timeout: 180000 // Timeout de 30 segundos por la inferencia del modelo
         });
 
         const { reply, risk_level, sources } = aiResponse.data;
