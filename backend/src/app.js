@@ -36,6 +36,7 @@ const remindersRoutes = require('./modules/reminders/reminders.routes');
 const communityRoutes = require('./modules/community/community.routes');
 const gisRoutes = require('./modules/gis/gis.routes');
 const epidemiologyRoutes=require('./modules/epidemiology/epidemiology.routes')
+const chatRoutes = require('./modules/chat/chat.routes');
 // --- APLICAR RUTAS ---
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
@@ -46,4 +47,5 @@ app.use('/api/reminders', remindersRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/gis', gisRoutes);
 app.use('/api/epidemiology', epidemiologyRoutes);
+app.use('/api/chat', chatRoutes);
 module.exports = app;
