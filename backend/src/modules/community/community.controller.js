@@ -1,11 +1,5 @@
 const supabase = require('../../config/supabase');
 
-// La version anterior de este archivo escribia a una tabla "comunidad_posts"
-// que NO existe en el esquema real. El esquema real separa dos conceptos:
-//   - eventos_comunitarios: jornadas/eventos de salud (GET/POST /community-events)
-//   - reportes_comunitarios: señales reportadas por brigadistas/promotores
-//     (POST /community/reports), que SIEMPRE nacen en estado
-//     PENDIENTE_VALIDACION (nunca se asumen como brote confirmado).
 
 // GET /api/community/events
 const getEvents = async (req, res) => {
