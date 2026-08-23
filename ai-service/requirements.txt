@@ -11,4 +11,7 @@ sentence-transformers>=3.1.1
 chromadb>=0.5.5
 pypdf==4.3.1
 supabase==2.8.0
+
+# Solo necesarios mientras pruebas en Google Colab (no se usan en VPS):
 pyngrok==7.2.7
+nest_asyncio==1.6.0
