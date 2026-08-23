@@ -1,8 +1,10 @@
-import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from config import MODEL_ID, DEVICE, TORCH_DTYPE
+
+
 class ModelLoader:
-    def __init__(self, model_id: str = "BiomarkAI/Biomark-AI-Produccion"):
+    def __init__(self, model_id: str = MODEL_ID):
         self.model_id = model_id
         self.tokenizer = None
         self.model = None
@@ -10,16 +12,16 @@ class ModelLoader:
 
     def load_model(self):
         try:
-            print(f"Cargando tokenizador para {self.model_id}...")
+            print(f"[Biomark AI] Cargando tokenizador para {self.model_id}...")
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
-            
-            print(f"Cargando modelo especializado en GPU...")
+
+            print(f"[Biomark AI] Cargando modelo en {DEVICE.upper()}...")
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_id,
-                torch_dtype=torch.bfloat16,
-                device_map="auto"
+                torch_dtype=TORCH_DTYPE,
+                device_map="auto",
             )
-            print("¡Modelo cargado exitosamente en el motor de inferencia!")
+            print(f"[Biomark AI] Modelo cargado exitosamente en {DEVICE.upper()}.")
         except Exception as e:
             print(f"[ERROR CRÍTICO] No se pudo cargar el modelo principal: {e}")
             self.model = None
@@ -27,8 +29,10 @@ class ModelLoader:
     def get_instance(self):
         return self.model, self.tokenizer
 
-# Instancia global exportable
+
+# Instancia global exportable (patrón singleton simple)
 _loader = None
+
 
 def get_model_and_tokenizer():
     global _loader

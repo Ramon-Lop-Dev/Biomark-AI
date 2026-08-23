@@ -1,35 +1,52 @@
-import torch
+from typing import Optional
+
+from config import DEVICE, PERSONA_BIOMARK
+
 
 class TextGenerator:
     def __init__(self, model, tokenizer):
         self.model = model
         self.tokenizer = tokenizer
 
-    def generate_response(self, mensaje_usuario: str, contexto_rag: str) -> str:
-        if self.model is None or self.tokenizer is None:
-            return f"Modo de respaldo (Modelo no disponible en memoria). Contexto encontrado: {contexto_encontrado[:200]}"
-
-        # Construir el prompt clínico estructurado
-        prompt = (
-            f"Contexto normativo oficial MINSA:\n{contexto_rag}\n\n"
+    def _construir_prompt(self, mensaje_usuario: str, contexto_rag: Optional[str]) -> str:
+        """Arma el prompt final. Si hay contexto RAG relevante lo usa como
+        referencia adicional; si no, deja que el modelo responda con su
+        propio conocimiento médico (ya viene de su fine-tuning), pidiéndole
+        cautela. En ambos casos se mantiene la identidad de Biomark AI."""
+        if contexto_rag:
+            return (
+                f"{PERSONA_BIOMARK}\n\n"
+                f"Tienes información de referencia relevante para esta consulta:\n"
+                f"{contexto_rag}\n\n"
+                f"Paciente: {mensaje_usuario}\n"
+                f"Asistente preventivo (usa la referencia si aplica, y tu conocimiento médico si es necesario):"
+            )
+        return (
+            f"{PERSONA_BIOMARK}\n\n"
+            f"No tienes normativa oficial específica cargada para esta consulta puntual, "
+            f"así que responde con tu conocimiento médico general, siendo cauteloso.\n\n"
             f"Paciente: {mensaje_usuario}\n"
             f"Asistente preventivo:"
         )
 
-        inputs = self.tokenizer(prompt, return_tensors="pt").to("cuda")
-        
-        # Generar tokens con parámetros de control de calidad y temperatura
+    def generate_response(self, mensaje_usuario: str, contexto_rag: Optional[str]) -> str:
+        if self.model is None or self.tokenizer is None:
+            # Bug corregido: antes referenciaba una variable inexistente
+            # (contexto_encontrado) y esto tronaba con NameError.
+            contexto_preview = contexto_rag[:200] if contexto_rag else "ninguno"
+            return f"Modo de respaldo (modelo no disponible en memoria). Contexto encontrado: {contexto_preview}"
+
+        prompt = self._construir_prompt(mensaje_usuario, contexto_rag)
+        inputs = self.tokenizer(prompt, return_tensors="pt").to(DEVICE)
+
         outputs = self.model.generate(
-            **inputs, 
-            max_new_tokens=256, 
-            temperature=0.7, 
+            **inputs,
+            max_new_tokens=256,
+            temperature=0.7,
             do_sample=True,
-            pad_token_id=self.tokenizer.eos_token_id
+            pad_token_id=self.tokenizer.eos_token_id,
         )
 
         respuesta_completa = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-        
-        # Limpiar el prompt de la salida para devolver únicamente la respuesta del asistente
         respuesta_limpia = respuesta_completa.replace(prompt, "").strip()
-        
         return respuesta_limpia
