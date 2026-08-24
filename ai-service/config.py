@@ -50,6 +50,21 @@ UMBRAL_RELEVANCIA = float(os.getenv("UMBRAL_RELEVANCIA", "0.75"))
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 TORCH_DTYPE = torch.bfloat16 if DEVICE == "cuda" else torch.float32
 
+# --- Voz: ASR (voz -> texto) y TTS (texto -> voz) ---
+ASR_MODEL_ID = os.getenv("ASR_MODEL_ID", "openai/whisper-small")
+TTS_MODEL_ID = os.getenv("TTS_MODEL_ID", "facebook/mms-tts-spa")
+
+# --- Visión: piel y garganta ---
+# El modelo de piel se descarga de Hugging Face Hub (un solo .keras).
+SKIN_MODEL_REPO = os.getenv("SKIN_MODEL_REPO", "Tanishq77/skin-condition-classifier")
+SKIN_MODEL_FILE = os.getenv("SKIN_MODEL_FILE", "skin_model.keras")
+
+# El modelo de garganta es un pipeline de dos archivos (extractor MobileNetV2
+# + clasificador KNN) publicado como Hugging Face Space, no un .keras único.
+THROAT_MODEL_REPO = os.getenv("THROAT_MODEL_REPO", "engrharis/Throat_Image_Classifier")
+THROAT_EXTRACTOR_FILE = os.getenv("THROAT_EXTRACTOR_FILE", "mobilenetv2_feature_extractor.h5")
+THROAT_KNN_FILE = os.getenv("THROAT_KNN_FILE", "knn_pharyngitis_model.pkl")
+
 # --- Identidad de Biomark AI ---
 # Se inyecta en cada prompt para mantener tono e identidad consistentes,
 # sobre todo cuando preguntan quién o qué es el asistente.
