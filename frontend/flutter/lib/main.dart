@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'register_screen.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -36,11 +39,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   // Colores base del diseño (ajusta a tu marca)
-  static const Color bgTop = Color(0xFFEFF3FB);
-  static const Color bgBottom = Color(0xFFE4EAF7);
-  static const Color primaryPurple = Color(0xFF7C6CF2);
+  static const Color bgTop = Color(0xFFE0E7F2);
+  static const Color bgMid = Color(0xFF8EA8D0);
+  static const Color bgBottom = Color(0xFF3260A9);
+  static const Color primaryGreen = Color(0xFF46AB39);
   static const Color textDark = Color(0xFF1F2542);
-  static const Color textGray = Color(0xFF8A90A6);
+  static const Color textGray = Color.fromARGB(255, 36, 36, 37);
 
   @override
   void dispose() {
@@ -60,9 +64,8 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Login de prueba exitoso')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Login de prueba exitoso')));
   }
 
   @override
@@ -71,76 +74,79 @@ class _LoginScreenState extends State<LoginScreen> {
       resizeToAvoidBottomInset: true,
 
       body: Container(
-  width: double.infinity,
-  height: double.infinity,
-  decoration: const BoxDecoration(
-    gradient: LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [bgTop, bgBottom],
-    ),
-  ),
-  child: SafeArea(
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: constraints.maxHeight,
-            ),
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 24),
-                  _buildLogo(),
-                  const SizedBox(height: 24),
-                  _buildTitle(),
-                  const SizedBox(height: 28),
-                  _buildFormCard(),
-                  const SizedBox(height: 24),
-                  _buildFooter(),
-                  const SizedBox(height: 12),
-                ],
-              ),
-            ),
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [bgTop, bgMid, bgBottom],
+            stops: [0.0, 0.55, 1.0],
           ),
-        );
-      },
-    ),
-  ),
-),
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 24),
+                        _buildLogo(),
+                        const SizedBox(height: 24),
+                        _buildTitle(),
+                        const SizedBox(height: 28),
+                        _buildFormCard(),
+                        const SizedBox(height: 24),
+                        _buildFooter(),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 
   // ---------------- LOGO ----------------
   Widget _buildLogo() {
-  return Container(
-    width: 96,
-    height: 96,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: Colors.white,
-      boxShadow: [
-        BoxShadow(
-          color: Colors.grey.withOpacity(0.25),
-          blurRadius: 20,
-          offset: const Offset(0, 10),
-        ),
-      ],
-    ),
-    child: ClipOval(
-      child: Image.asset(
-        'assets/images/logo.png',
-        width: 96,
-        height: 96,
-        fit: BoxFit.cover,
+    return Container(
+      width: 96,
+      height: 96,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-    ),
-  );
-}
+      child: ClipOval(
+        child: Image.asset(
+          'assets/images/logo.png',
+          width: 96,
+          height: 96,
+          fit: BoxFit.cover,
+        ),
+      ),
+    );
+  }
+
   // ---------------- TÍTULO ----------------
   Widget _buildTitle() {
     return Column(
@@ -246,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text(
                   '¿Olvidaste tu contraseña?',
                   style: TextStyle(
-                    color: primaryPurple,
+                    color: primaryGreen,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -313,10 +319,15 @@ class _LoginScreenState extends State<LoginScreen> {
           prefixIcon: Icon(icon, color: textGray, size: 20),
           suffixIcon: suffixIcon,
           hintText: hint,
-          hintStyle: TextStyle(color: textGray.withValues(alpha: 0.8), fontSize: 14),
+          hintStyle: TextStyle(
+            color: textGray.withValues(alpha: 0.8),
+            fontSize: 14,
+          ),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: 16,
+          ),
         ),
       ),
     );
@@ -330,10 +341,10 @@ class _LoginScreenState extends State<LoginScreen> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleLogin,
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryPurple,
+          backgroundColor: primaryGreen,
           foregroundColor: Colors.white,
           elevation: 6,
-          shadowColor: primaryPurple.withValues(alpha: 0.5),
+          shadowColor: primaryGreen.withValues(alpha: 0.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -361,72 +372,81 @@ class _LoginScreenState extends State<LoginScreen> {
         Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text('o continúa con',
-              style: TextStyle(color: textGray, fontSize: 12)),
+          child: Text(
+            'o continúa con',
+            style: TextStyle(color: textGray, fontSize: 12),
+          ),
         ),
         Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
       ],
     );
   }
 
- Widget _buildSocialButtons() {
-  return Row(
-    children: [
-      Expanded(
-        child: _socialButton(
-          label: 'Google',
-          icon: Icons.g_mobiledata_rounded,
-          onTap: () {},
+  Widget _buildSocialButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: _socialButton(
+            label: 'Google',
+            icon: Icons.g_mobiledata_rounded,
+            onTap: () {},
+          ),
         ),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: _socialButton(
-          label: 'Apple',
-          icon: Icons.apple, // icon de Apple
-          onTap: () {},
+        const SizedBox(width: 12),
+        Expanded(
+          child: _socialButton(
+            label: 'Apple',
+            icon: Icons.apple, // icon de Apple
+            onTap: () {},
+          ),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
- Widget _socialButton({
-  required String label,
-  required IconData icon,
-  required VoidCallback onTap,
-}) {
-  return OutlinedButton.icon(
-    onPressed: onTap,
-    icon: Icon(icon, size: 20, color: textDark),
-    label: Text(label,
-        style: const TextStyle(color: textDark, fontWeight: FontWeight.w600)),
-    style: OutlinedButton.styleFrom(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      side: BorderSide(color: Colors.grey.withOpacity(0.3)),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+  Widget _socialButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 20, color: textDark),
+      label: Text(
+        label,
+        style: const TextStyle(color: textDark, fontWeight: FontWeight.w600),
       ),
-    ),
-  );
-}
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        side: BorderSide(color: Colors.grey.withOpacity(0.3)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+
   // ---------------- FOOTER ----------------
   Widget _buildFooter() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text('¿No tienes una cuenta? ',
-            style: TextStyle(color: textGray, fontSize: 13)),
+        Text(
+          '¿No tienes una cuenta? ',
+          style: TextStyle(color: textGray, fontSize: 13),
+        ),
+
         GestureDetector(
           onTap: () {
-            // TODO: navegar a pantalla de registro
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const RegisterScreen()),
+            );
           },
           child: const Text(
             'Registrarse',
             style: TextStyle(
-              color: primaryPurple,
+              color: Color.fromRGBO(244, 245, 243, 1),
               fontWeight: FontWeight.w700,
-              fontSize: 13,
+              fontSize: 14,
             ),
           ),
         ),
