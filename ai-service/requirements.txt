@@ -6,11 +6,25 @@ torch>=2.1.0
 transformers>=4.45.0
 accelerate>=0.34.0
 peft>=0.12.0
+# bitsandbytes solo aporta valor con GPU + carga cuantizada (load_in_4bit/8bit).
+# model_loader.py no cuantiza, así que en un VPS sin GPU puedes comentar esta
+# línea si falla al instalar; el modelo igual corre en CPU sin ella.
 bitsandbytes>=0.43.3
 sentence-transformers>=3.1.1
 chromadb>=0.5.5
 pypdf==4.3.1
 supabase==2.8.0
+
+# Voz: ASR (Whisper) y TTS (VITS)
+scipy>=1.11.0
+
+# Visión: piel y garganta
+tensorflow>=2.16.0
+huggingface_hub>=0.24.0
+Pillow>=10.0.0
+numpy>=1.26.0
+scikit-learn>=1.4.0
+joblib>=1.3.0
 
 # Solo necesarios mientras pruebas en Google Colab (no se usan en VPS):
 pyngrok==7.2.7
