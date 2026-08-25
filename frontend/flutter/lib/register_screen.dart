@@ -1,5 +1,8 @@
 import 'dart:typed_data';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_biomark/home_screen.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// ---------------------------------------------------------------
@@ -33,12 +36,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _birthDateController = TextEditingController();
+  final _ageController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  DateTime? _selectedBirthDate;
-  int? _calculatedAge;
+  // Edad seleccionada con la rueda
+  int? _selectedAge;
+  static const int _minAge = 13;
+  static const int _maxAge = 99;
+  static const int _defaultAge = 18;
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -50,10 +56,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final ImagePicker _imagePicker = ImagePicker();
 
   // Fondo con más carácter — degradado en tonos azules de marca
-  static const Color bgTop = Color(0xFFE0E7F2);
-  static const Color bgMid = Color(0xFF8EA8D0);
-  static const Color bgBottom = Color(0xFF46AB39);
-  static const Color primaryPurple = Color(0xFF46AB39);
+  static const Color bgTop = Color.fromARGB(255, 244, 245, 246);
+  static const Color bgMid = Color.fromARGB(255, 239, 239, 240);
+  static const Color primaryPurple = Color.fromARGB(255, 254, 254, 254);
   static const Color textDark = Color(0xFF1F2542);
   static const Color textGray = Color.fromARGB(255, 36, 36, 37);
 
@@ -62,54 +67,133 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _nameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
-    _birthDateController.dispose();
+    _ageController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  int _calculateAge(DateTime birthDate) {
-    final today = DateTime.now();
-    int age = today.year - birthDate.year;
-    final hasHadBirthdayThisYear = (today.month > birthDate.month) ||
-        (today.month == birthDate.month && today.day >= birthDate.day);
-    if (!hasHadBirthdayThisYear) age--;
-    return age;
-  }
+  // ---------------- SELECTOR DE EDAD (RUEDA) ----------------
+  Future<void> _pickAge() async {
+    int tempAge = _selectedAge ?? _defaultAge;
 
-  String _formatDate(DateTime date) {
-    const months = [
-      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-    ];
-    return '${date.day} de ${months[date.month - 1]} de ${date.year}';
-  }
-
-  Future<void> _pickBirthDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
+    final int? result = await showModalBottomSheet<int>(
       context: context,
-      initialDate: _selectedBirthDate ?? DateTime(now.year - 18, now.month, now.day),
-      firstDate: DateTime(now.year - 120),
-      lastDate: now,
-      helpText: 'Selecciona tu fecha de nacimiento',
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: primaryPurple),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
-          child: child!,
+          padding: const EdgeInsets.only(top: 12, bottom: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '¿Qué edad tienes?',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: textDark,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 180,
+                child: CupertinoPicker(
+                  scrollController: FixedExtentScrollController(
+                    initialItem: tempAge - _minAge,
+                  ),
+                  itemExtent: 42,
+                  useMagnifier: true,
+                  magnification: 1.15,
+                  // Overlay SIN fondo sólido — solo dos líneas, así no tapa
+                  // el número que queda resaltado en el centro.
+                  selectionOverlay: Container(
+                    decoration: BoxDecoration(
+                      border: Border.symmetric(
+                        horizontal: BorderSide(
+                          color: const Color.fromARGB(
+                            255,
+                            50,
+                            96,
+                            169,
+                          ).withOpacity(0.35),
+                          width: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                  onSelectedItemChanged: (index) {
+                    tempAge = _minAge + index;
+                  },
+                  children: List.generate(_maxAge - _minAge + 1, (index) {
+                    final age = _minAge + index;
+                    return Center(
+                      child: Text(
+                        '$age años',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: textDark,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Devolvemos la edad seleccionada como resultado del
+                      // bottom sheet en vez de depender de setState aquí.
+                      Navigator.of(sheetContext).pop(tempAge);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 50, 96, 169),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Confirmar',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
 
-    if (picked == null) return;
+    if (result == null || !mounted) return;
 
     setState(() {
-      _selectedBirthDate = picked;
-      _calculatedAge = _calculateAge(picked);
-      _birthDateController.text =
-          '${_formatDate(picked)}  •  ${_calculatedAge} años';
+      _selectedAge = result;
+      _ageController.text = '$_selectedAge años';
     });
   }
 
@@ -117,7 +201,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final XFile? picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       maxWidth: 800,
-      imageQuality: 85,
+      imageQuality: 95,
     );
     if (picked == null) return;
 
@@ -139,6 +223,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Registro de prueba exitoso!')),
     );
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
+    );
   }
 
   @override
@@ -152,56 +241,64 @@ class _RegisterScreenState extends State<RegisterScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [bgTop, bgMid, bgBottom],
-            stops: const [0.0, 0.55, 1.0],
+            colors: [bgTop, bgMid, Color.fromARGB(255, 244, 245, 243)],
+            stops: [0.0, 0.55, 1.0],
           ),
         ),
         child: SafeArea(
-  child: Stack(
-    children: [
-      LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: IntrinsicHeight(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 40),
-                    _buildProfilePhotoPicker(),
-                    const SizedBox(height: 20),
-                    _buildTitle(),
-                    const SizedBox(height: 28),
-                    _buildFormCard(),
-                    const SizedBox(height: 24),
-                    _buildFooter(),
-                    const SizedBox(height: 12),
-                  ],
+          child: Stack(
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: IntrinsicHeight(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 40),
+                            _buildProfilePhotoPicker(),
+                            const SizedBox(height: 20),
+                            _buildTitle(),
+                            const SizedBox(height: 28),
+                            _buildFormCard(),
+                            const SizedBox(height: 24),
+                            _buildFooter(),
+                            const SizedBox(height: 12),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // Botón de regreso — va AL FINAL para quedar encima y ser tocable
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Material(
+                  color: Colors.transparent,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: textDark,
+                      size: 20,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-      ),
-      // Botón de regreso — va AL FINAL para quedar encima y ser tocable
-      Positioned(
-        top: 8,
-        left: 8,
-        child: Material(
-          color: Colors.transparent,
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: textDark, size: 20),
-            onPressed: () => Navigator.pop(context),
+            ],
           ),
         ),
-      ),
-    ],
-  ),
-),
       ),
     );
   }
@@ -217,10 +314,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
             height: 96,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white,
+              color: const Color.fromARGB(255, 242, 242, 242),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.25),
+                  color: const Color.fromARGB(
+                    255,
+                    11,
+                    56,
+                    125,
+                  ).withOpacity(0.25),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -234,8 +336,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       height: 96,
                       fit: BoxFit.cover,
                     )
-                  : Icon(Icons.person_outline_rounded,
-                      size: 44, color: textGray),
+                  : Icon(
+                      Icons.person_outline_rounded,
+                      size: 44,
+                      color: const Color.fromARGB(255, 3, 3, 63),
+                    ),
             ),
           ),
           Positioned(
@@ -249,8 +354,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 color: primaryPurple,
                 border: Border.all(color: Colors.white, width: 2),
               ),
-              child: const Icon(Icons.camera_alt_rounded,
-                  size: 15, color: Colors.white),
+              child: const Icon(
+                Icons.camera_alt_rounded,
+                size: 15,
+                color: Color.fromARGB(255, 5, 25, 122),
+              ),
             ),
           ),
         ],
@@ -289,12 +397,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.25),
+            color: const Color.fromARGB(255, 11, 8, 99).withOpacity(0.25),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
           const BoxShadow(
-            color: Colors.white,
+            color: Color.fromARGB(232, 189, 193, 193),
             blurRadius: 20,
             offset: Offset(-6, -6),
           ),
@@ -313,7 +421,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               icon: Icons.person_outline_rounded,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Ingresa tu nombre';
+                  return 'Ingresa tu nombre completo';
                 }
                 return null;
               },
@@ -323,7 +431,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 8),
             _buildClayTextField(
               controller: _usernameController,
-              hint: '@usuario',
+              hint: '@tunombre',
               icon: Icons.alternate_email_rounded,
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -340,32 +448,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const SizedBox(height: 8),
             _buildClayTextField(
               controller: _emailController,
-              hint: 'biomark2026@gmail.com',
+              hint: 'tunombre123@gmail.com',
               icon: Icons.mail_outline_rounded,
               keyboardType: TextInputType.emailAddress,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Ingresa tu correo';
+                  return 'Ingresa tu correo electrónico';
                 }
                 if (!value.contains('@')) return 'Correo inválido';
                 return null;
               },
             ),
             const SizedBox(height: 16),
-            _buildLabel('Fecha de nacimiento'),
+            _buildLabel('¿Qué edad tienes?'),
             const SizedBox(height: 8),
             _buildClayTextField(
-              controller: _birthDateController,
-              hint: 'Selecciona tu fecha de nacimiento',
+              controller: _ageController,
+              hint: 'Selecciona tu edad',
               icon: Icons.cake_outlined,
               readOnly: true,
-              onTap: _pickBirthDate,
+              onTap: _pickAge,
               validator: (value) {
-                if (_selectedBirthDate == null) {
-                  return 'Selecciona tu fecha de nacimiento';
+                if (_selectedAge == null) {
+                  return 'Selecciona tu edad';
                 }
-                if (_calculatedAge != null && _calculatedAge! < 13) {
-                  return 'Debes tener al menos 13 años';
+                if (_selectedAge! < _minAge) {
+                  return 'Debes tener al menos $_minAge años';
                 }
                 return null;
               },
@@ -415,8 +523,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   color: textGray,
                 ),
                 onPressed: () {
-                  setState(() =>
-                      _obscureConfirmPassword = !_obscureConfirmPassword);
+                  setState(
+                    () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                  );
                 },
               ),
               validator: (value) {
@@ -492,8 +601,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           hintText: hint,
           hintStyle: TextStyle(color: textGray.withOpacity(0.8), fontSize: 14),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 16,
+            horizontal: 16,
+          ),
         ),
       ),
     );
@@ -507,17 +618,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleRegister,
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryPurple,
+          backgroundColor: const Color.fromARGB(
+            255,
+            50,
+            96,
+            169,
+          ), // azul de marca
           foregroundColor: Colors.white,
           elevation: 6,
-          shadowColor: primaryPurple.withOpacity(0.5),
+          shadowColor: const Color.fromARGB(255, 50, 96, 169).withOpacity(0.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
         ),
         child: _isLoading
             ? const SizedBox(
-                width: 22,
+                width: 24,
                 height: 22,
                 child: CircularProgressIndicator(
                   color: Colors.white,
@@ -526,7 +642,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               )
             : const Text(
                 'Registrarme',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
               ),
       ),
     );
@@ -538,8 +654,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Expanded(child: Divider(color: Colors.grey.withOpacity(0.3))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text('o regístrate con',
-              style: TextStyle(color: textGray, fontSize: 12)),
+          child: Text(
+            'o regístrate con',
+            style: TextStyle(color: textGray, fontSize: 12),
+          ),
         ),
         Expanded(child: Divider(color: Colors.grey.withOpacity(0.3))),
       ],
@@ -558,11 +676,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _socialButton(
-            label: 'Apple',
-            icon: Icons.apple,
-            onTap: () {},
-          ),
+          child: _socialButton(label: 'Apple', icon: Icons.apple, onTap: () {}),
         ),
       ],
     );
@@ -576,14 +690,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return OutlinedButton.icon(
       onPressed: onTap,
       icon: Icon(icon, size: 20, color: textDark),
-      label: Text(label,
-          style: const TextStyle(color: textDark, fontWeight: FontWeight.w600)),
+      label: Text(
+        label,
+        style: const TextStyle(color: textDark, fontWeight: FontWeight.w600),
+      ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 14),
         side: BorderSide(color: Colors.grey.withOpacity(0.3)),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
@@ -593,8 +707,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text('¿Ya tienes una cuenta? ',
-            style: TextStyle(color: textGray, fontSize: 13)),
+        Text(
+          '¿Ya tienes una cuenta? ',
+          style: TextStyle(color: textGray, fontSize: 13),
+        ),
         GestureDetector(
           onTap: () {
             Navigator.pop(context); // regresa al login
@@ -602,7 +718,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: const Text(
             'Iniciar sesión',
             style: TextStyle(
-              color: primaryPurple,
+              color: Color.fromARGB(255, 50, 96, 169), // azul de marca
               fontWeight: FontWeight.w700,
               fontSize: 13,
             ),
