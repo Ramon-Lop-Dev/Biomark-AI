@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'home_screen.dart';
 import 'register_screen.dart';
 
 void main() {
@@ -40,9 +41,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Colores base del diseño (ajusta a tu marca)
   static const Color bgTop = Color(0xFFE0E7F2);
-  static const Color bgMid = Color(0xFF8EA8D0);
-  static const Color bgBottom = Color(0xFF3260A9);
-  static const Color primaryGreen = Color(0xFF46AB39);
+  static const Color bgMid = Color.fromARGB(255, 243, 243, 244);
+  static const Color bgBottom = Color.fromARGB(255, 228, 229, 232);
+  static const Color primaryGreen = Color.fromARGB(255, 9, 61, 107);
   static const Color textDark = Color(0xFF1F2542);
   static const Color textGray = Color.fromARGB(255, 36, 36, 37);
 
@@ -66,6 +67,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('Login de prueba exitoso')));
+
+    Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(builder: (context) => const HomeScreen()),
+  );
+
   }
 
   @override
@@ -99,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 28),
                         _buildLogo(),
                         const SizedBox(height: 24),
                         _buildTitle(),
@@ -139,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
       child: ClipOval(
         child: Image.asset(
           'assets/images/logo.png',
-          width: 96,
+          width: 90,
           height: 96,
           fit: BoxFit.cover,
         ),
@@ -152,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       children: [
         Text(
-          'Iniciar Sesión',
+          'Iniciar Sesión ',
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w800,
@@ -174,12 +181,17 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color.fromARGB(255, 241, 238, 238),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           // sombra oscura abajo-derecha
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.25),
+            color: const Color.fromARGB(
+              255,
+              33,
+              45,
+              122,
+            ).withValues(alpha: 0.25),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
@@ -252,7 +264,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text(
                   '¿Olvidaste tu contraseña?',
                   style: TextStyle(
-                    color: primaryGreen,
+                    color: Color.fromARGB(255, 186, 6, 6),
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -442,9 +454,9 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           },
           child: const Text(
-            'Registrarse',
+            ' Registrarse',
             style: TextStyle(
-              color: Color.fromRGBO(244, 245, 243, 1),
+              color: Color.fromRGBO(70, 171, 57, 1), // verde de marca
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
