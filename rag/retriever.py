@@ -18,7 +18,7 @@ from pypdf import PdfReader
 from sentence_transformers import SentenceTransformer
 from supabase import Client
 
-from config import UMBRAL_RELEVANCIA
+from config import UMBRAL_RELEVANCIA, SUPABASE_BUCKET_MINSA
 
 
 class RagRetriever:
@@ -34,8 +34,14 @@ class RagRetriever:
         """Descarga los PDFs del bucket 'documentos-minsa', los fragmenta en
         chunks de texto y los indexa en ChromaDB."""
         try:
-            print("[RAG] Sincronizando documentos desde el bucket 'documentos-minsa'...")
-            archivos = self.supabase.storage.from_("documentos-minsa").list()
+            print(f"[RAG] Sincronizando documentos desde el bucket '{SUPABASE_BUCKET_MINSA}'...")
+            archivos = self.supabase.storage.from_(SUPABASE_BUCKET_MINSA).list()
+            if not archivos:
+                print(
+                    f"[RAG] ADVERTENCIA: el bucket '{SUPABASE_BUCKET_MINSA}' está vacío "
+                    f"o el nombre no coincide con el real en Supabase Storage."
+                )
+                return
             os.makedirs("./temp_pdfs", exist_ok=True)
 
             for archivo in archivos:
@@ -44,7 +50,7 @@ class RagRetriever:
                     continue
 
                 ruta_local = f"./temp_pdfs/{nombre_archivo}"
-                res = self.supabase.storage.from_("documentos-minsa").download(nombre_archivo)
+                res = self.supabase.storage.from_(SUPABASE_BUCKET_MINSA).download(nombre_archivo)
                 with open(ruta_local, "wb") as f:
                     f.write(res)
 
