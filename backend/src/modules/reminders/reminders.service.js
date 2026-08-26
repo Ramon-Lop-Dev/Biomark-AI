@@ -22,11 +22,34 @@ const addReminder = async (usuarioId, payload) => {
     detalle: { tipo: registro.tipo, titulo: registro.titulo }
   });
 
-  // TODO (Fase 3 — integración n8n): hacer el POST al webhook de n8n aquí
-  // (N8N_WEBHOOK_URL) para que efectivamente se programe el envío. Sigue
-  // fuera del alcance de esta Fase 1 (arquitectura/seguridad).
+  // TODO (Fase 7 — integración n8n): hacer el POST al webhook de n8n aquí
+  // para que efectivamente se programe el envío. La configuración
+  // (N8N_WEBHOOK_URL, N8N_WEBHOOK_SECRET) ya está lista en
+  // config/n8nClient.js — falta solo el repository.postWebhook() +
+  // la llamada aquí, siguiendo el mismo patrón que chat/voice/vision
+  // usan para hablar con el AI Service. Sigue fuera del alcance de la
+  // Fase 2 (que solo cierra el ciclo de estado interno).
 
   return registro;
 };
 
-module.exports = { getReminders, addReminder };
+const updateReminderStatus = async (usuarioId, recordatorioId, estado) => {
+  const { data, error } = await remindersRepo.actualizarEstado(usuarioId, recordatorioId, estado);
+  if (error) throw new AppError('Error al actualizar el estado del recordatorio', 500);
+
+  if (!data) {
+    throw new AppError('Recordatorio no encontrado', 404);
+  }
+
+  await auditService.registrar({
+    usuarioId,
+    tipoEntidad: 'recordatorios',
+    idEntidad: data.id,
+    accion: 'ACTUALIZACION_ESTADO',
+    detalle: { estado_nuevo: estado }
+  });
+
+  return data;
+};
+
+module.exports = { getReminders, addReminder, updateReminderStatus };

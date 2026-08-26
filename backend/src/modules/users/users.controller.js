@@ -7,4 +7,10 @@ const getProfile = asyncHandler(async (req, res) => {
     return res.status(200).json(data);
 });
 
-module.exports = { getProfile };
+// PUT /api/users/profile
+const updateProfile = asyncHandler(async (req, res) => {
+    const data = await usersService.updateProfile(req.usuarioId, req.body);
+    return res.status(200).json(data);
+});
+
+module.exports = { getProfile, updateProfile };
