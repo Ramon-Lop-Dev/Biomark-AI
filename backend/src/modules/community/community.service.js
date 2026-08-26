@@ -68,4 +68,27 @@ const getHeatmap = async () => {
   }));
 };
 
-module.exports = { getEvents, createEvent, createReport, getStatistics, getHeatmap };
+// Cierra el ciclo de vida de un reporte comunitario que hoy quedaba
+// atascado en PENDIENTE_VALIDACION para siempre: un TRABAJADOR_SALUD,
+// LIDER_COMUNITARIO o ADMIN (ver requireRole en community.routes.js) lo
+// confirma como VALIDADO o lo descarta como DESCARTADO.
+const updateReportStatus = async (usuarioValidadorId, reporteId, estado) => {
+  const { data, error } = await communityRepo.actualizarEstadoReporte(reporteId, estado);
+  if (error) throw new AppError('Error al actualizar el estado del reporte', 500);
+
+  if (!data) {
+    throw new AppError('Reporte comunitario no encontrado', 404);
+  }
+
+  await auditService.registrar({
+    usuarioId: usuarioValidadorId,
+    tipoEntidad: 'reportes_comunitarios',
+    idEntidad: data.id,
+    accion: 'VALIDACION_REPORTE',
+    detalle: { estado_nuevo: estado }
+  });
+
+  return data;
+};
+
+module.exports = { getEvents, createEvent, createReport, getStatistics, getHeatmap, updateReportStatus };

@@ -1,7 +1,12 @@
 const chatRepo = require('./chat.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');
+const notificationsService = require('../notifications/notifications.service');
 const { mapearNivelRiesgo } = require('../../utils/nivelRiesgo');
+
+// nivel_riesgo que deben disparar una notificación al usuario, además de
+// quedar solo registrados en el mensaje de chat.
+const NIVELES_QUE_NOTIFICAN = ['ALTO', 'CRITICO'];
 
 // Resuelve a qué sesión pertenece este mensaje. Si el cliente manda un
 // session_id, se busca ESA sesión y que sea del usuario autenticado y
@@ -25,7 +30,7 @@ const resolverSesion = async (usuarioId, sessionId) => {
   return nuevaSesion.id;
 };
 
-const enviarMensaje = async (usuarioId, message, sessionId) => {
+const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude) => {
   const sesionId = await resolverSesion(usuarioId, sessionId);
 
   // Se guarda el mensaje del usuario ANTES de llamar al AI Service: si
@@ -44,7 +49,7 @@ const enviarMensaje = async (usuarioId, message, sessionId) => {
   }
 
   try {
-    const { data } = await chatRepo.postChat(message);
+    const { data } = await chatRepo.postChat(message, latitude, longitude);
     const { reply, risk_level, sources } = data;
 
     const nivelRiesgo = mapearNivelRiesgo(risk_level);
@@ -68,8 +73,17 @@ const enviarMensaje = async (usuarioId, message, sessionId) => {
       detalle: { risk_level, nivel_riesgo: nivelRiesgo }
     });
 
-    // NOTA (Fase 6, fuera de alcance de esta Fase 3): si nivelRiesgo es
-    // ALTO/CRITICO, aquí debería dispararse una fila en "notificaciones".
+    // Si el nivel de riesgo es ALTO/CRITICO, se dispara una notificación
+    // (tipo SISTEMA) además de quedar registrado en el mensaje del chat.
+    // No bloquea la respuesta al usuario: notificationsService.notificar
+    // nunca lanza (ver notifications.service.js).
+    if (NIVELES_QUE_NOTIFICAN.includes(nivelRiesgo)) {
+      await notificationsService.notificar({
+        usuarioId,
+        tipo: 'SISTEMA',
+        mensaje: 'Detectamos un nivel de riesgo elevado en tu conversación con Biomark AI. Te recomendamos buscar atención médica lo antes posible.'
+      });
+    }
 
     return {
       session_id: sesionId,
@@ -85,4 +99,7 @@ const enviarMensaje = async (usuarioId, message, sessionId) => {
   }
 };
 
-module.exports = { enviarMensaje };
+// resolverSesion se exporta para que voice.service.js la reutilice (Voice
+// comparte sesiones_chat/mensajes_chat con Chat — no es un dominio propio,
+// ver corrección aplicada en voice.service.js).
+module.exports = { enviarMensaje, resolverSesion };

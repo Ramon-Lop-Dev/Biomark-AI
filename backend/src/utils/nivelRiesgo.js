@@ -5,10 +5,7 @@
  * mensajes_chat.nivel_riesgo, alertas_epidemiologicas.nivel_alerta y
  * zonas_riesgo.nivel_riesgo_actual.
  *
- * Ver auditoría Fase 1, punto 5.3: hoy el AI Service (safety/checker.py +
- * inference/service.py) solo emite LOW/MODERATE/HIGH — nunca CRITICAL —
- * pero se incluye el mapeo igual por si el Safety Layer se refina más
- * adelante para emitirlo.
+
  *
  * Cualquier valor no reconocido cae a 'BAJO' con un warning en vez de
  * lanzar: un contrato inesperado del AI Service (típicamente por un

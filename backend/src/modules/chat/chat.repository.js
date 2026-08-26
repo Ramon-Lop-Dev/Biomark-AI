@@ -2,10 +2,10 @@ const axios = require('axios');
 const supabase = require('../../config/supabase');
 const { AI_SERVICE_URL, AI_SERVICE_INTERNAL_KEY, asegurarConfiguracion } = require('../../config/aiServiceClient');
 
-const postChat = (message) => {
+const postChat = (message, latitude, longitude) => {
   asegurarConfiguracion();
 
-  return axios.post(`${AI_SERVICE_URL}/chat`, { message }, {
+  return axios.post(`${AI_SERVICE_URL}/chat`, { message, latitude, longitude }, {
     headers: {
       'X-Internal-Key': AI_SERVICE_INTERNAL_KEY,
       'Content-Type': 'application/json'

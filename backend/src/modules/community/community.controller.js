@@ -1,5 +1,8 @@
 const communityService = require('./community.service');
 const asyncHandler = require('../../utils/asyncHandler');
+const AppError = require('../../utils/AppError');
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // GET /api/community/events
 const getEvents = asyncHandler(async (req, res) => {
@@ -31,4 +34,16 @@ const getHeatmap = asyncHandler(async (req, res) => {
     return res.status(200).json(puntos);
 });
 
-module.exports = { getEvents, createEvent, createReport, getStatistics, getHeatmap };
+// PATCH /api/community/reports/:id/estado
+const updateReportStatus = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    if (!UUID_REGEX.test(id)) {
+        throw new AppError('El id del reporte debe ser un UUID válido', 400);
+    }
+
+    const data = await communityService.updateReportStatus(req.usuarioId, id, req.body.estado);
+    return res.status(200).json(data);
+});
+
+module.exports = { getEvents, createEvent, createReport, getStatistics, getHeatmap, updateReportStatus };
