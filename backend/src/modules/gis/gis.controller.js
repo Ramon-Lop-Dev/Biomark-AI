@@ -1,19 +1,9 @@
-const supabase = require('../../config/supabase');
+const gisService = require('./gis.service');
+const asyncHandler = require('../../utils/asyncHandler');
 
-// Obtener lista de centros de salud
-const getHealthCenters = async (req, res) => {
-    try {
-        // Opcional: Podrías recibir latitud y longitud en req.query para filtrar por cercanía en el futuro
-        const { data, error } = await supabase
-            .from('centros_salud')
-            .select('*')
-            .order('nombre', { ascending: true });
-
-        if (error) throw error;
-        return res.status(200).json(data);
-    } catch (error) {
-        return res.status(500).json({ error: "Error al obtener centros de salud", details: error.message, code: "500" });
-    }
-};
+const getHealthCenters = asyncHandler(async (req, res) => {
+    const data = await gisService.getHealthCenters();
+    return res.status(200).json(data);
+});
 
 module.exports = { getHealthCenters };

@@ -52,4 +52,15 @@ app.use('/api/epidemiology', epidemiologyRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/vision', visionRoutes);
+
+// Ruta no encontrada (debe ir después de todas las rutas montadas)
+app.use((req, res) => {
+    res.status(404).json({ error: 'Ruta no encontrada', code: '404' });
+});
+
+// Manejador de errores centralizado — SIEMPRE al final, después de las rutas.
+// A partir de aquí, cualquier next(error) de cualquier módulo termina aquí.
+const errorHandler = require('./middleware/errorHandler.middleware');
+app.use(errorHandler);
+
 module.exports = app;
