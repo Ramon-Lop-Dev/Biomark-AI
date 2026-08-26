@@ -1,7 +1,7 @@
 """Geolocalización de centros de salud reales.
 
-Este módulo NUNCA le pide al LLM que "invente" un centro de salud — eso
-sería una alucinación con consecuencias reales. En su lugar, hace un
+Este módulo NUNCA le pide al LLM que "invente" un centro de salud 
+ En su lugar, hace un
 cálculo determinista (fórmula de Haversine) sobre datos reales de la
 tabla `centros_salud` de Supabase, reutilizando el mismo cliente que ya
 usa el módulo de RAG.
