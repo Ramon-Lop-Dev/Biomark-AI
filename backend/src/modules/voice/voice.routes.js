@@ -2,11 +2,11 @@ const express = require('express');
 const multer = require('multer');
 const { enviarAudioChat, sintetizarVoz } = require('./voice.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
+const { validate } = require('../../middleware/validate.middleware');
+const { synthesizeSchema } = require('./voice.validator');
 
 const router = express.Router();
 
-// Guarda el archivo en memoria (buffer) para reenviarlo tal cual al ai-service,
-// sin escribirlo a disco en el servidor de Node.
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 25 * 1024 * 1024 } // 25 MB máx. por archivo de audio
@@ -15,9 +15,10 @@ const upload = multer({
 router.use(verifyToken);
 
 // Recibe audio del usuario -> transcripción + respuesta clínica de Biomark AI
+// (multipart/form-data: no se valida con Zod, el archivo se valida en el service)
 router.post('/', upload.single('archivo'), enviarAudioChat);
 
 // Recibe texto -> devuelve audio (TTS) para reproducir en la app
-router.post('/synthesize', sintetizarVoz);
+router.post('/synthesize', validate(synthesizeSchema), sintetizarVoz);
 
 module.exports = router;

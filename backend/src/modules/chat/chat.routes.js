@@ -1,13 +1,12 @@
 const express = require('express');
 const { enviarMensajeChat } = require('./chat.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
+const { validate } = require('../../middleware/validate.middleware');
+const { sendMessageSchema } = require('./chat.validator');
 
 const router = express.Router();
 
-// Todas las rutas del chat requieren autenticación previa del usuario
 router.use(verifyToken);
-
-// Ruta para enviar mensajes al asistente médico preventivo
-router.post('/', enviarMensajeChat);
+router.post('/', validate(sendMessageSchema), enviarMensajeChat);
 
 module.exports = router;

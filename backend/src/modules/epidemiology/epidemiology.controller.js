@@ -1,44 +1,23 @@
-const supabase = require('../../config/supabase');
+const epidemiologyService = require('./epidemiology.service');
+const asyncHandler = require('../../utils/asyncHandler');
+const AppError = require('../../utils/AppError');
 
-// Obtener las alertas epidemiológicas.
-// Columnas reales de alertas_epidemiologicas: id, reporte_epidemiologico_id,
-// zona_riesgo_id, nivel_alerta, mensaje, fecha_creacion.
-// No existe columna "activa": la tabla no tiene un flag de vigencia propio;
-// se filtra opcionalmente por zona via query param.
-const getAlerts = async (req, res) => {
-    try {
-        const { zona_riesgo_id } = req.query;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-        let query = supabase
-            .from('alertas_epidemiologicas')
-            .select('*, zonas_riesgo(municipio, nivel_riesgo_actual)')
-            .order('fecha_creacion', { ascending: false });
+const getAlerts = asyncHandler(async (req, res) => {
+    const { zona_riesgo_id } = req.query;
 
-        if (zona_riesgo_id) {
-            query = query.eq('zona_riesgo_id', zona_riesgo_id);
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-        return res.status(200).json(data);
-    } catch (error) {
-        return res.status(500).json({ error: "Error al obtener alertas epidemiológicas", details: error.message, code: "500" });
+    if (zona_riesgo_id && !UUID_REGEX.test(zona_riesgo_id)) {
+        throw new AppError('zona_riesgo_id debe ser un UUID válido', 400);
     }
-};
 
-// GET /api/epidemiology/risk-map
-const getRiskMap = async (req, res) => {
-    try {
-        const { data, error } = await supabase
-            .from('zonas_riesgo')
-            .select('*');
+    const data = await epidemiologyService.getAlerts(zona_riesgo_id);
+    return res.status(200).json(data);
+});
 
-        if (error) throw error;
-        return res.status(200).json(data);
-    } catch (error) {
-        return res.status(500).json({ error: "Error al obtener el mapa de riesgo", details: error.message, code: "500" });
-    }
-};
+const getRiskMap = asyncHandler(async (req, res) => {
+    const data = await epidemiologyService.getRiskMap();
+    return res.status(200).json(data);
+});
 
 module.exports = { getAlerts, getRiskMap };

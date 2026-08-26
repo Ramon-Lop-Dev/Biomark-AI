@@ -1,12 +1,13 @@
 const express = require('express');
 const { getMedicalHistory, createMedicalRecord } = require('./medical.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
+const { validate } = require('../../middleware/validate.middleware');
+const { createMedicalRecordSchema } = require('./medical.validator');
 const router = express.Router();
 
-// Aplicamos el middleware verifyToken a todas las rutas de este router
 router.use(verifyToken);
 
 router.get('/', getMedicalHistory);
-router.post('/', createMedicalRecord);
+router.post('/', validate(createMedicalRecordSchema), createMedicalRecord);
 
 module.exports = router;
