@@ -24,6 +24,7 @@ from inference.service import ClinicalService
 from voice.asr import ASRService
 from voice.tts import TTSService
 from vision.classifier import VisionService
+from gis.locator import HealthCenterLocator
 
 app = FastAPI(title="Biomark AI - Production Engine")
 
@@ -43,6 +44,9 @@ clinical_service = ClinicalService(retriever, generator)
 asr_service = ASRService()
 tts_service = TTSService()
 vision_service = VisionService()
+
+# --- GIS: recomendación de centro de salud real, solo para /chat por ahora ---
+locator = HealthCenterLocator(supabase)
 
 
 def verificar_clave(x_internal_key: str) -> None:
@@ -78,7 +82,29 @@ def chat_inference(data: dict, x_internal_key: str = Header(None)):
         raise HTTPException(status_code=400, detail="El campo 'message' es obligatorio")
 
     respuesta, risk_level, fuentes = clinical_service.responder(mensaje_usuario)
-    return {"reply": respuesta, "risk_level": risk_level, "sources": fuentes}
+
+    # GIS: si el cliente manda coordenadas, se busca el centro de salud
+    # REAL más cercano (nunca inventado por el LLM) y se agrega tanto al
+    # texto de la respuesta como en un campo estructurado aparte, para que
+    # Flutter pueda mostrarlo en un mapa sin tener que parsear el texto.
+    centro_sugerido = None
+    latitude = data.get("latitude")
+    longitude = data.get("longitude")
+    if latitude is not None and longitude is not None:
+        centro_sugerido = locator.buscar_mas_cercano(latitude, longitude)
+        if centro_sugerido:
+            respuesta += (
+                f"\n\nEl centro de salud más cercano a tu ubicación es "
+                f"{centro_sugerido['nombre']} (a {centro_sugerido['distancia_km']} km)"
+                + (f", en {centro_sugerido['direccion']}." if centro_sugerido.get("direccion") else ".")
+            )
+
+    return {
+        "reply": respuesta,
+        "risk_level": risk_level,
+        "sources": fuentes,
+        "centro_sugerido": centro_sugerido,
+    }
 
 
 @app.post("/voice")

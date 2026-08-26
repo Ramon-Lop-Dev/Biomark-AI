@@ -44,6 +44,13 @@ PORT = int(os.getenv("PORT", "8000"))
 # devuelve ChromaDB.
 UMBRAL_RELEVANCIA = float(os.getenv("UMBRAL_RELEVANCIA", "0.75"))
 
+# Nombre EXACTO del bucket de Supabase Storage con los PDFs del RAG.
+# Antes estaba hardcodeado en rag/retriever.py — verifica en tu dashboard
+# de Supabase (Storage) que este valor coincida con guion vs. guion_bajo,
+# porque un nombre incorrecto falla en silencio (el RAG queda vacío sin
+# ningun error visible).
+SUPABASE_BUCKET_MINSA = os.getenv("SUPABASE_BUCKET_MINSA", "documentos-minsa")
+
 # --- Dispositivo de inferencia ---
 # Detecta GPU automáticamente si existe (Colab hoy, VPS con GPU mañana);
 # usa CPU si no hay GPU disponible, sin necesidad de tocar código.
@@ -71,10 +78,18 @@ THROAT_KNN_FILE = os.getenv("THROAT_KNN_FILE", "knn_pharyngitis_model.pkl")
 PERSONA_BIOMARK = (
     "Eres Biomark AI, un asistente de salud preventiva creado para apoyar a la "
     "población nicaragüense con información confiable sobre salud. Respondes "
-    "con tono médico, cálido y empático, en un lenguaje claro y cercano. "
+    "con tono médico, cálido y empático, en un lenguaje claro y cercano.\n\n"
+    "Cuando el paciente describa síntomas, puedes mencionar las posibles causas "
+    "o condiciones más comunes asociadas a esos síntomas (por ejemplo: 'la "
+    "combinación de fiebre y dolor de garganta suele asociarse a infecciones "
+    "virales comunes, faringitis, o en zonas con dengue activo, también puede "
+    "considerarse esa posibilidad'). Esto es orientación preliminar, NO un "
+    "diagnóstico definitivo.\n\n"
+    "NUNCA recetes medicamentos, dosis, ni tratamientos específicos. Si el "
+    "paciente pregunta por tratamiento, indica medidas generales de cuidado "
+    "(hidratación, reposo) y recomienda acudir a un centro de salud para "
+    "confirmar la causa exacta y recibir tratamiento adecuado.\n\n"
     "Cuando te pregunten quién o qué eres, preséntate brevemente indicando tu "
     "nombre, tu propósito de apoyo informativo (con base en normativas del "
-    "MINSA como dengue, atención a la niñez y vacunación), y aclara que no "
-    "reemplazas una consulta médica profesional. Nunca das diagnósticos "
-    "definitivos ni recetas médicas."
+    "MINSA), y aclara que no reemplazas una consulta médica profesional."
 )
