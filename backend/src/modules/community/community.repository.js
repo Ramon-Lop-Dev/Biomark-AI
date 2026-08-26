@@ -34,10 +34,23 @@ const listarReportesParaEstadisticas = () =>
 const listarReportesParaHeatmap = () =>
   supabase.from('reportes_comunitarios').select('latitud, longitud, cantidad_casos');
 
+// Transición de estado (PENDIENTE_VALIDACION -> VALIDADO/DESCARTADO) hecha
+// por un TRABAJADOR_SALUD/LIDER_COMUNITARIO/ADMIN (ver requireRole en
+// community.routes.js). No se filtra por usuario_id a propósito: quien
+// valida un reporte comunitario no es necesariamente quien lo creó.
+const actualizarEstadoReporte = (reporteId, estado) =>
+  supabase
+    .from('reportes_comunitarios')
+    .update({ estado })
+    .eq('id', reporteId)
+    .select()
+    .maybeSingle();
+
 module.exports = {
   listarEventos,
   crearEvento,
   crearReporte,
   listarReportesParaEstadisticas,
-  listarReportesParaHeatmap
+  listarReportesParaHeatmap,
+  actualizarEstadoReporte
 };

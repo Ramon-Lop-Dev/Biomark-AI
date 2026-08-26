@@ -15,4 +15,21 @@ const createReportSchema = z.object({
   zona_riesgo_id: z.string().uuid('zona_riesgo_id debe ser un UUID válido').optional()
 });
 
-module.exports = { createEventSchema, createReportSchema };
+// Valores del enum estado_reporte_comunitario en Postgres, salvo
+// PENDIENTE_VALIDACION: ese es el estado inicial (default de la tabla,
+// ver community.repository.crearReporte) y nunca es un valor válido de
+// destino aquí — este endpoint existe justamente para SALIR de él.
+const ESTADOS_VALIDACION_REPORTE = ['VALIDADO', 'DESCARTADO'];
+
+const updateReportStatusSchema = z.object({
+  estado: z.enum(ESTADOS_VALIDACION_REPORTE, {
+    errorMap: () => ({ message: `estado debe ser uno de: ${ESTADOS_VALIDACION_REPORTE.join(', ')}` })
+  })
+});
+
+module.exports = {
+  createEventSchema,
+  createReportSchema,
+  updateReportStatusSchema,
+  ESTADOS_VALIDACION_REPORTE
+};

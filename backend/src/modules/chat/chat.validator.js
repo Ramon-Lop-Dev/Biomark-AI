@@ -7,7 +7,13 @@ const sendMessageSchema = z.object({
   // 'sesion-activa'). Si el cliente manda algo que no sea un UUID
   // válido, es mejor rechazarlo aquí con un 400 claro que dejar que
   // Supabase falle más abajo con un error de sintaxis de tipo uuid.
-  session_id: z.string().uuid('session_id debe ser un UUID válido').optional()
+  session_id: z.string().uuid('session_id debe ser un UUID válido').optional(),
+  // Opcionales: si el cliente los manda, el AI Service busca el centro de
+  // salud real más cercano y lo agrega a la respuesta (ver ai-service/main.py,
+  // endpoint /chat). Antes de esta corrección, chat.repository.postChat()
+  // nunca los reenviaba, así que esta función de GIS-en-chat era inalcanzable.
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional()
 });
 
 module.exports = { sendMessageSchema };
