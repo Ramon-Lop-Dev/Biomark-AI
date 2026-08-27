@@ -12,7 +12,7 @@ const updateProfileSchema = z
     nombre_completo: z.string().trim().min(1, 'nombre_completo no puede estar vacío').optional(),
     fecha_nacimiento: z.string().date('fecha_nacimiento debe tener formato YYYY-MM-DD').optional(),
     sexo: z.enum(SEXOS_BIOLOGICOS, {
-      errorMap: () => ({ message: `sexo debe ser uno de: ${SEXOS_BIOLOGICOS.join(', ')}` })
+      error: `sexo debe ser uno de: ${SEXOS_BIOLOGICOS.join(', ')}`
     }).optional(),
     telefono: z.string().trim().max(30).optional(),
     direccion: z.string().trim().max(500).optional(),

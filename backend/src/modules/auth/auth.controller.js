@@ -27,4 +27,32 @@ const loginGoogle = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
-module.exports = { register, login, loginGoogle };
+// POST /api/auth/logout — requiere estar autenticado (verifyToken deja
+// req.usuarioId y req.token listos, ver auth.routes.js).
+const logout = asyncHandler(async (req, res) => {
+  const result = await authService.logoutUser(req.usuarioId, req.token);
+  return res.status(200).json(result);
+});
+
+// POST /api/auth/refresh
+const refresh = asyncHandler(async (req, res) => {
+  const { refresh_token } = req.body;
+  const result = await authService.refreshToken(refresh_token);
+  return res.status(200).json(result);
+});
+
+// POST /api/auth/forgot-password
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const result = await authService.forgotPassword(email);
+  return res.status(200).json(result);
+});
+
+// POST /api/auth/reset-password
+const resetPassword = asyncHandler(async (req, res) => {
+  const { access_token, new_password } = req.body;
+  const result = await authService.resetPassword(access_token, new_password);
+  return res.status(200).json(result);
+});
+
+module.exports = { register, login, loginGoogle, logout, refresh, forgotPassword, resetPassword };

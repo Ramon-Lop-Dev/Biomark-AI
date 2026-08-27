@@ -23,7 +23,7 @@ const ESTADOS_VALIDACION_REPORTE = ['VALIDADO', 'DESCARTADO'];
 
 const updateReportStatusSchema = z.object({
   estado: z.enum(ESTADOS_VALIDACION_REPORTE, {
-    errorMap: () => ({ message: `estado debe ser uno de: ${ESTADOS_VALIDACION_REPORTE.join(', ')}` })
+    error: `estado debe ser uno de: ${ESTADOS_VALIDACION_REPORTE.join(', ')}`
   })
 });
 

@@ -1,6 +1,7 @@
 const authRepo = require('./auth.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');
+const supabase = require('../../config/supabase');
 
 /**
  * Crea las filas de dominio (usuarios + perfiles) para un auth_id que ya
@@ -121,4 +122,102 @@ const loginWithGoogle = async (idToken, accessToken, fullNameFallback) => {
   };
 };
 
-module.exports = { registerUser, loginUser, loginWithGoogle };
+// Revoca la sesión (todos los refresh tokens del usuario, scope 'global'
+// en el repository) — a partir de aquí el access_token actual sigue
+// siendo válido hasta que expire por su cuenta (son JWT autocontenidos,
+// no hay forma de invalidar uno puntual sin una lista de revocación
+// aparte), pero ya no se podrá renovar con /auth/refresh.
+const logoutUser = async (usuarioId, accessToken) => {
+  const { error } = await authRepo.signOut(accessToken);
+
+  if (error) {
+    throw new AppError('No se pudo cerrar la sesión', 500);
+  }
+
+  await auditService.registrar({
+    usuarioId,
+    tipoEntidad: 'usuarios',
+    idEntidad: usuarioId,
+    accion: 'LOGOUT'
+  });
+
+  return { message: 'Sesión cerrada correctamente' };
+};
+
+const refreshToken = async (refreshToken) => {
+  const { data, error } = await authRepo.refreshSession(refreshToken);
+
+  if (error || !data.session) {
+    throw new AppError('El refresh_token es inválido o ya expiró', 401);
+  }
+
+  return {
+    token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+    expires_in: data.session.expires_in || 3600
+  };
+};
+
+// SEGURIDAD: la respuesta es idéntica exista o no una cuenta con ese
+// correo (mismo mensaje, mismo status 200) — de lo contrario este
+// endpoint se convierte en un oráculo para enumerar qué correos están
+// registrados en Biomark AI, algo especialmente sensible tratándose de
+// una app de salud (revela quién es o no paciente/usuario de salud).
+const MENSAJE_FORGOT_PASSWORD = 'Si existe una cuenta con ese correo, se enviaron instrucciones para restablecer la contraseña.';
+
+const forgotPassword = async (email) => {
+  const { error } = await authRepo.resetPasswordForEmail(email);
+
+  if (error) {
+    // Se loguea para diagnóstico interno, pero NUNCA se refleja al
+    // cliente (ver nota de seguridad arriba) — salvo que sea un error de
+    // infraestructura real (p. ej. Supabase caído), donde sí conviene
+    // que el cliente sepa que falló y reintente.
+    console.error('[Auth] Error al enviar correo de recuperación:', error.message);
+    if (error.status && error.status >= 500) {
+      throw new AppError('No se pudo procesar la solicitud, intenta de nuevo más tarde', 502);
+    }
+  }
+
+  return { message: MENSAJE_FORGOT_PASSWORD };
+};
+
+// El access_token viene del enlace de recuperación que el usuario recibió
+// por correo (Flutter lo captura vía deep link). Se valida con
+// supabase.auth.getUser() -igual que hace el middleware normal- para
+// resolver a qué usuario pertenece, y luego se fuerza la nueva
+// contraseña con la Admin API (ver nota en auth.repository.updateUserPasswordById).
+const resetPassword = async (accessToken, newPassword) => {
+  const { data, error: getUserError } = await supabase.auth.getUser(accessToken);
+
+  if (getUserError || !data.user) {
+    throw new AppError('El enlace de recuperación es inválido o ya expiró', 401);
+  }
+
+  const { error } = await authRepo.updateUserPasswordById(data.user.id, newPassword);
+
+  if (error) {
+    throw new AppError('No se pudo actualizar la contraseña', 500);
+  }
+
+  const { data: usuario } = await authRepo.findUsuarioByAuthId(data.user.id);
+
+  await auditService.registrar({
+    usuarioId: usuario ? usuario.id : null,
+    tipoEntidad: 'usuarios',
+    idEntidad: usuario ? usuario.id : data.user.id,
+    accion: 'RESET_PASSWORD'
+  });
+
+  return { message: 'Contraseña actualizada correctamente' };
+};
+
+module.exports = {
+  registerUser,
+  loginUser,
+  loginWithGoogle,
+  logoutUser,
+  refreshToken,
+  forgotPassword,
+  resetPassword
+};

@@ -24,6 +24,9 @@ const verifyToken = async (req, res, next) => {
         // 4. Inyectar los datos del usuario de Supabase Auth (auth.users)
         //    req.user.id aqui es el auth_id, NO el id de public.usuarios.
         req.user = data.user;
+        // El token crudo se expone para endpoints que necesitan operar
+        // sobre la sesión misma (p. ej. auth.logout -> revocarla).
+        req.token = token;
 
         // 5. Resolver el usuario interno (id, rol, activo) de public.usuarios.
         //    Todos los controllers deben usar req.usuarioId (no req.user.id)
