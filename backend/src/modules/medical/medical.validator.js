@@ -12,7 +12,7 @@ const SEVERIDADES_ALERGIA = ['LEVE', 'MODERADA', 'SEVERA'];
 const createAllergySchema = z.object({
   alergeno: z.string().trim().min(1, "El campo 'alergeno' es obligatorio"),
   severidad: z.enum(SEVERIDADES_ALERGIA, {
-    errorMap: () => ({ message: `severidad debe ser una de: ${SEVERIDADES_ALERGIA.join(', ')}` })
+    error: `severidad debe ser una de: ${SEVERIDADES_ALERGIA.join(', ')}`
   }).default('LEVE').optional(),
   notas: z.string().trim().max(2000).optional()
 });

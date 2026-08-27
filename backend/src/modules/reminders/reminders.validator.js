@@ -11,13 +11,13 @@ const addReminderSchema = z.object({
   descripcion: z.string().trim().max(2000).optional(),
   fecha_programada: z.string().datetime({ offset: true, message: 'fecha_programada debe ser una fecha/hora ISO 8601 válida' }),
   tipo: z.enum(TIPOS_RECORDATORIO, {
-    errorMap: () => ({ message: `tipo debe ser uno de: ${TIPOS_RECORDATORIO.join(', ')}` })
+    error: `tipo debe ser uno de: ${TIPOS_RECORDATORIO.join(', ')}`
   })
 });
 
 const updateReminderStatusSchema = z.object({
   estado: z.enum(ESTADOS_RECORDATORIO, {
-    errorMap: () => ({ message: `estado debe ser uno de: ${ESTADOS_RECORDATORIO.join(', ')}` })
+    error: `estado debe ser uno de: ${ESTADOS_RECORDATORIO.join(', ')}`
   })
 });
 
