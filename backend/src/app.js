@@ -1,3 +1,4 @@
+// Configura la aplicación Express, seguridad global y rutas del backend.
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -8,10 +9,11 @@ const app = express();
 
 // 1. Middlewares de Seguridad Globales
 app.use(helmet()); // Cabeceras HTTP seguras
-app.use(cors());   // Habilitar CORS
+const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean);
+app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : false }));
 
 // 2. Parseo de payloads
-app.use(express.json()); 
+app.use(express.json({ limit: '256kb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // 3. Rate Limiting (Mitigar abuso y ataques de fuerza bruta)
@@ -26,6 +28,13 @@ app.use(limiter);
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok', message: 'BIOMARK AI Backend up and running' });
 });
+app.get('/ready', async (req, res) => {
+    const supabase = require('./config/supabase');
+    const aiServiceUrl = process.env.AI_SERVICE_URL;
+    const { error } = await supabase.from('usuarios').select('id').limit(1);
+    const ready = !error && Boolean(aiServiceUrl);
+    return res.status(ready ? 200 : 503).json({ status: ready ? 'ready' : 'not_ready', supabase: !error, ai_service_configured: Boolean(aiServiceUrl) });
+});
 // --- IMPORTAR RUTAS DE MÓDULOS ---
 const authRoutes = require('./modules/auth/auth.routes');
 const usersRoutes = require('./modules/users/users.routes');
@@ -39,6 +48,9 @@ const epidemiologyRoutes=require('./modules/epidemiology/epidemiology.routes')
 const chatRoutes = require('./modules/chat/chat.routes');
 const voiceRoutes = require('./modules/voice/voice.routes');
 const visionRoutes = require('./modules/vision/vision.routes');
+const navigationRoutes = require('./modules/gis/navigation.routes');
+const { markReminderSent } = require('./modules/reminders/internal.controller');
+const { verifyInternalWebhook } = require('./middleware/internalWebhook.middleware');
 // --- APLICAR RUTAS ---
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
@@ -48,10 +60,12 @@ app.use('/api/vaccines', vaccinesRoutes);
 app.use('/api/reminders', remindersRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/gis', gisRoutes);
+app.use('/api/navigation', navigationRoutes);
 app.use('/api/epidemiology', epidemiologyRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/vision', visionRoutes);
+app.patch('/internal/reminders/:id/sent', verifyInternalWebhook, markReminderSent);
 
 // Ruta no encontrada (debe ir después de todas las rutas montadas)
 app.use((req, res) => {

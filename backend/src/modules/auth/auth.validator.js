@@ -1,3 +1,4 @@
+// Define las reglas de entrada para operaciones de autenticación.
 const { z } = require('zod');
 
 // Política de contraseña (antes solo pedía 6 caracteres, sin más

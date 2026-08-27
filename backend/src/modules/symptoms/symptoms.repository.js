@@ -1,3 +1,4 @@
+// Consulta y persiste síntomas y sus observaciones.
 const supabase = require('../../config/supabase');
 
 const listarConRegistros = (usuarioId) =>

@@ -1,8 +1,10 @@
+// Coordina sesión, contexto médico, IA, persistencia y alertas del chat.
 const chatRepo = require('./chat.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');
 const notificationsService = require('../notifications/notifications.service');
 const { mapearNivelRiesgo } = require('../../utils/nivelRiesgo');
+const { obtenerContextoClinico } = require('../medical/medicalContext.service');
 
 // nivel_riesgo que deben disparar una notificación al usuario, además de
 // quedar solo registrados en el mensaje de chat.
@@ -49,7 +51,19 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
   }
 
   try {
-    const { data } = await chatRepo.postChat(message, latitude, longitude);
+    const [contextoClinico, { data: historial, error: errorHistorial }] = await Promise.all([
+      obtenerContextoClinico(usuarioId),
+      chatRepo.listarHistorialReciente(sesionId)
+    ]);
+    if (errorHistorial) console.error('[Chat] No se pudo cargar el historial reciente:', errorHistorial.message);
+    const conversationHistory = (historial || []).reverse();
+    const { data } = await chatRepo.postChat(
+      message,
+      latitude,
+      longitude,
+      contextoClinico,
+      conversationHistory
+    );
     const { reply, risk_level, sources } = data;
 
     const nivelRiesgo = mapearNivelRiesgo(risk_level);
@@ -70,7 +84,13 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
       tipoEntidad: 'mensajes_chat',
       idEntidad: mensajeAsistente ? mensajeAsistente.id : sesionId,
       accion: 'MENSAJE_CHAT',
-      detalle: { risk_level, nivel_riesgo: nivelRiesgo }
+      detalle: {
+        risk_level,
+        nivel_riesgo: nivelRiesgo,
+        contexto_medico_compartido: Boolean(contextoClinico),
+        campos_contexto: contextoClinico ? Object.keys(contextoClinico) : [],
+        mensajes_historial_compartidos: conversationHistory.length
+      }
     });
 
     // Si el nivel de riesgo es ALTO/CRITICO, se dispara una notificación

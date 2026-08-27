@@ -1,3 +1,4 @@
+// Aplica reglas de negocio, privacidad y validación comunitaria.
 const communityRepo = require('./community.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');

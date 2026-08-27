@@ -1,3 +1,4 @@
+// Valida eventos, reportes y transiciones de estado comunitarias.
 const { z } = require('zod');
 
 const createEventSchema = z.object({

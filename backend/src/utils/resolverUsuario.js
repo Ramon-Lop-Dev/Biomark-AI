@@ -1,3 +1,4 @@
+// Resuelve el usuario interno desde Supabase Auth.
 const supabase = require('../config/supabase');
 
 /**

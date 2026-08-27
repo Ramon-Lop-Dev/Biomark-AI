@@ -1,3 +1,4 @@
+// Centraliza la configuración y validación del acceso al AI Service.
 const AppError = require('../utils/AppError');
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL;

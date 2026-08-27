@@ -1,3 +1,4 @@
+// Atiende audio clínico y síntesis de respuestas de voz.
 const voiceService = require('./voice.service');
 const asyncHandler = require('../../utils/asyncHandler');
 

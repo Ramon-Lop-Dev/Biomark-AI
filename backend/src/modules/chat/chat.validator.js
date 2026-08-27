@@ -1,3 +1,4 @@
+// Valida mensajes, sesión y coordenadas recibidos desde Flutter.
 const { z } = require('zod');
 
 const sendMessageSchema = z.object({

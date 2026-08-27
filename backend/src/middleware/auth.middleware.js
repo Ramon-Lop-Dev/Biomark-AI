@@ -1,3 +1,4 @@
+// Valida el JWT y resuelve el usuario interno autenticado.
 const supabase = require('../config/supabase');
 const { resolverUsuario } = require('../utils/resolverUsuario');
 const AppError = require('../utils/AppError');

@@ -1,3 +1,4 @@
+// Coordina operaciones de perfil y auditoría del usuario.
 const usersRepo = require('./users.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');

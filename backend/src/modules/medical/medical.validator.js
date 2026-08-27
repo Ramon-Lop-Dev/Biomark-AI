@@ -1,3 +1,4 @@
+// Valida los datos médicos recibidos desde el cliente.
 const { z } = require('zod');
 
 const createMedicalRecordSchema = z.object({

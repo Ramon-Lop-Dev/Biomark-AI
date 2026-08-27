@@ -1,3 +1,4 @@
+// Atiende mensajes de chat y delega la lógica clínica al servicio.
 const chatService = require('./chat.service');
 const asyncHandler = require('../../utils/asyncHandler');
 

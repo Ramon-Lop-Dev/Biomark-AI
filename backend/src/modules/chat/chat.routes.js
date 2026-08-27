@@ -1,3 +1,4 @@
+// Define el endpoint autenticado de conversación clínica.
 const express = require('express');
 const { enviarMensajeChat } = require('./chat.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');

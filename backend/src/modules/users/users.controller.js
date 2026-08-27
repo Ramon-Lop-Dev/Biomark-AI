@@ -1,3 +1,4 @@
+// Atiende lectura y actualización del perfil del usuario.
 const usersService = require('./users.service');
 const asyncHandler = require('../../utils/asyncHandler');
 

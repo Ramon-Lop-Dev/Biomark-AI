@@ -1,3 +1,4 @@
+// Crea notificaciones de forma resiliente sin bloquear la operación origen.
 const notificationsRepo = require('./notifications.repository');
 
 

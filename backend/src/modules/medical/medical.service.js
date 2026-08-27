@@ -1,3 +1,4 @@
+// Coordina validación, persistencia y auditoría del expediente médico.
 const medicalRepo = require('./medical.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');

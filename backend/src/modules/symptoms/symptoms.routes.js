@@ -1,3 +1,4 @@
+// Define las rutas autenticadas de síntomas.
 const express = require('express');
 const { getSymptoms, addSymptom } = require('./symptoms.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');

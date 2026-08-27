@@ -5,6 +5,7 @@
  * el errorHandler centralizado sepa que es seguro exponer el mensaje al
  * cliente. Cualquier otro Error se trata como no controlado y NO se expone.
  */
+// Representa errores controlados con código de estado HTTP.
 class AppError extends Error {
   constructor(message, statusCode = 500, code = null) {
     super(message);

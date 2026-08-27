@@ -1,3 +1,4 @@
+// Convierte errores de aplicación en respuestas HTTP seguras.
 const AppError = require('../utils/AppError');
 
 /**

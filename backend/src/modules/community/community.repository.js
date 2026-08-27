@@ -1,3 +1,4 @@
+// Consulta y modifica eventos y reportes comunitarios en Supabase.
 const supabase = require('../../config/supabase');
 
 const listarEventos = () =>

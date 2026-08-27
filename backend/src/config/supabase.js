@@ -1,3 +1,4 @@
+// Crea el cliente Supabase de servidor para datos protegidos del dominio.
 const { createClient } = require('@supabase/supabase-js');
 
 

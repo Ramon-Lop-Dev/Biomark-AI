@@ -1,3 +1,4 @@
+// Envía imágenes al AI Service y persiste resultados en Supabase Storage.
 const axios = require('axios');
 const crypto = require('crypto');
 const FormData = require('form-data');

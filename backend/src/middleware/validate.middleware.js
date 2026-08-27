@@ -1,3 +1,4 @@
+// Valida y normaliza cuerpos y parámetros antes de llegar al controlador.
 const AppError = require('../utils/AppError');
 
 /**

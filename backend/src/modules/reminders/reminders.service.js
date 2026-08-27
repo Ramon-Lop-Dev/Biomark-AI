@@ -1,6 +1,8 @@
+// Coordina recordatorios, auditoría y eventos publicados a n8n.
 const remindersRepo = require('./reminders.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');
+const { publicarEvento } = require('../../config/n8nClient');
 
 const getReminders = async (usuarioId) => {
   const { data, error } = await remindersRepo.listarPorUsuario(usuarioId);
@@ -22,13 +24,14 @@ const addReminder = async (usuarioId, payload) => {
     detalle: { tipo: registro.tipo, titulo: registro.titulo }
   });
 
-  // TODO (Fase 7 — integración n8n): hacer el POST al webhook de n8n aquí
-  // para que efectivamente se programe el envío. La configuración
-  // (N8N_WEBHOOK_URL, N8N_WEBHOOK_SECRET) ya está lista en
-  // config/n8nClient.js — falta solo el repository.postWebhook() +
-  // la llamada aquí, siguiendo el mismo patrón que chat/voice/vision
-  // usan para hablar con el AI Service. Sigue fuera del alcance de la
-  // Fase 2 (que solo cierra el ciclo de estado interno).
+  try {
+    await publicarEvento('recordatorio.creado', {
+      recordatorio: registro,
+      usuario_id: usuarioId
+    });
+  } catch (error) {
+    console.error('[Reminders] No se pudo publicar el evento en n8n:', error.message);
+  }
 
   return registro;
 };
@@ -52,4 +55,11 @@ const updateReminderStatus = async (usuarioId, recordatorioId, estado) => {
   return data;
 };
 
-module.exports = { getReminders, addReminder, updateReminderStatus };
+const markReminderSent = async (recordatorioId) => {
+  const { data, error } = await remindersRepo.marcarEnviado(recordatorioId);
+  if (error) throw new AppError('Error al marcar el recordatorio como enviado', 500);
+  if (!data) throw new AppError('Recordatorio no encontrado o ya procesado', 404);
+  return data;
+};
+
+module.exports = { getReminders, addReminder, updateReminderStatus, markReminderSent };

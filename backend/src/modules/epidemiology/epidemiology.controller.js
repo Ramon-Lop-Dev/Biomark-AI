@@ -1,3 +1,4 @@
+// Atiende reportes, alertas y mapa epidemiológico.
 const epidemiologyService = require('./epidemiology.service');
 const asyncHandler = require('../../utils/asyncHandler');
 const AppError = require('../../utils/AppError');

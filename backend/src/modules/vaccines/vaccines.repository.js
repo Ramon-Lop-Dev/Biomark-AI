@@ -1,3 +1,4 @@
+// Consulta y persiste aplicaciones de vacunas en Supabase.
 const supabase = require('../../config/supabase');
 
 const listarPorUsuario = (usuarioId) =>

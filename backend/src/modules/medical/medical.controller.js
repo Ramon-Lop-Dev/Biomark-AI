@@ -1,3 +1,4 @@
+// Atiende las operaciones HTTP del expediente médico.
 const medicalService = require('./medical.service');
 const asyncHandler = require('../../utils/asyncHandler');
 

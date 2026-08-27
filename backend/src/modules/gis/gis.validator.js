@@ -1,3 +1,4 @@
+// Valida coordenadas y radios solicitados al módulo GIS.
 const { z } = require('zod');
 
 // Los query params de Express siempre llegan como string, por eso se

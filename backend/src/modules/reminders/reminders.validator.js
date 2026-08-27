@@ -1,3 +1,4 @@
+// Valida fechas, tipos y estados de recordatorios.
 const { z } = require('zod');
 
 // Valores del enum tipo_recordatorio en Postgres.

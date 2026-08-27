@@ -1,3 +1,4 @@
+// Expone la escritura uniforme y resiliente de auditoría.
 const auditRepo = require('./audit.repository');
 
 /**

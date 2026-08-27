@@ -1,3 +1,4 @@
+// Atiende análisis de imágenes médicas y devuelve resultados de apoyo.
 const visionService = require('./vision.service');
 const asyncHandler = require('../../utils/asyncHandler');
 

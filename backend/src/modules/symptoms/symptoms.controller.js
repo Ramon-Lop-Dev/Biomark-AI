@@ -1,3 +1,4 @@
+// Atiende el catálogo y registro de síntomas del usuario.
 const symptomsService = require('./symptoms.service');
 const asyncHandler = require('../../utils/asyncHandler');
 

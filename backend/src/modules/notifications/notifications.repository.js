@@ -1,3 +1,4 @@
+// Persiste notificaciones pendientes de entrega al usuario.
 const supabase = require('../../config/supabase');
 
 // Columnas reales de notificaciones: usuario_id, tipo, mensaje, fecha_envio,

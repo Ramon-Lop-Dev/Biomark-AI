@@ -1,3 +1,4 @@
+// Define endpoints autenticados para conversación y síntesis por voz.
 const express = require('express');
 const multer = require('multer');
 const { enviarAudioChat, sintetizarVoz } = require('./voice.controller');
@@ -9,7 +10,7 @@ const router = express.Router();
 
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 25 * 1024 * 1024 } // 25 MB máx. por archivo de audio
+    limits: { fileSize: 25 * 1024 * 1024, files: 1 } // 25 MB máx. por archivo de audio
 });
 
 router.use(verifyToken);
