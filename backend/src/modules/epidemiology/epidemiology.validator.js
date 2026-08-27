@@ -23,7 +23,7 @@ const createAlertSchema = z.object({
   reporte_epidemiologico_id: z.string().uuid('reporte_epidemiologico_id debe ser un UUID válido'),
   zona_riesgo_id: z.string().uuid('zona_riesgo_id debe ser un UUID válido'),
   nivel_alerta: z.enum(NIVELES_RIESGO, {
-    errorMap: () => ({ message: `nivel_alerta debe ser uno de: ${NIVELES_RIESGO.join(', ')}` })
+    error: `nivel_alerta debe ser uno de: ${NIVELES_RIESGO.join(', ')}`
   }),
   mensaje: z.string().trim().min(1, "El campo 'mensaje' es obligatorio")
 });
@@ -32,7 +32,7 @@ const createAlertSchema = z.object({
 // nadie podía actualizar desde la API.
 const updateRiskZoneLevelSchema = z.object({
   nivel_riesgo_actual: z.enum(NIVELES_RIESGO, {
-    errorMap: () => ({ message: `nivel_riesgo_actual debe ser uno de: ${NIVELES_RIESGO.join(', ')}` })
+    error: `nivel_riesgo_actual debe ser uno de: ${NIVELES_RIESGO.join(', ')}`
   })
 });
 

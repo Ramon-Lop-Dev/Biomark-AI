@@ -23,6 +23,34 @@ const signInWithGoogleIdToken = (idToken, accessToken) =>
     access_token: accessToken
   });
 
+// Revoca la sesión asociada a este access_token. Requiere el cliente de
+// service_role (admin API) — el cliente anon no puede revocar sesiones
+// de otros usuarios, solo la suya propia en memoria (que aquí no existe,
+// porque el backend nunca mantiene sesión de cliente).
+// scope 'global' invalida TODOS los refresh tokens de este usuario (todos
+// sus dispositivos), no solo el de este access_token puntual.
+const signOut = (accessToken) => supabase.auth.admin.signOut(accessToken, 'global');
+
+// Cambia el access_token vencido por uno nuevo usando el refresh_token,
+// sin pedir password de nuevo. Se usa el cliente anon porque es una
+// operación de autenticación normal, no administrativa.
+const refreshSession = (refreshToken) => supabaseAuth.auth.refreshSession({ refresh_token: refreshToken });
+
+// Envía el correo de recuperación de contraseña (Supabase gestiona la
+// plantilla y el enlace). Se usa el cliente anon: es lo mismo que haría
+// cualquier cliente público, no requiere privilegios de admin.
+const resetPasswordForEmail = (email) => supabaseAuth.auth.resetPasswordForEmail(email);
+
+// Cambia la contraseña de un usuario ya identificado (por su id interno
+// de Supabase Auth, NO el id de public.usuarios) usando la Admin API.
+// Se usa en vez de auth.updateUser() porque el backend nunca mantiene una
+// sesión activa del usuario que le permita llamar a ese método con el
+// cliente anon — en su lugar, primero se valida el access_token de
+// recuperación con supabase.auth.getUser() (ver auth.service.resetPassword)
+// y luego se fuerza el cambio aquí con privilegios de admin.
+const updateUserPasswordById = (authUserId, newPassword) =>
+  supabase.auth.admin.updateUserById(authUserId, { password: newPassword });
+
 // --- Tablas de dominio (siempre con el cliente service_role) ---
 
 const findUsuarioByAuthId = (authId) =>
@@ -43,6 +71,10 @@ module.exports = {
   signUpWithPassword,
   signInWithPassword,
   signInWithGoogleIdToken,
+  signOut,
+  refreshSession,
+  resetPasswordForEmail,
+  updateUserPasswordById,
   findUsuarioByAuthId,
   createUsuario,
   createPerfil,

@@ -28,11 +28,22 @@ const crearReporte = (usuarioId, { case_count, description, latitude, longitude,
     }])
     .select();
 
+// DECISIÓN POR DEFECTO (Fase A3): "statistics" sigue contando TODOS los
+// estados (el desglose por_estado ya es útil para ver cuánto hay
+// pendiente vs. validado, y no expone ninguna ubicación) — pero el
+// "heatmap" (que sí plotea coordenadas reales en un mapa) solo incluye
+// reportes ya VALIDADO. Un mapa de calor público no debería amplificar
+// geográficamente reportes todavía sin confirmar (podrían ser falsos
+// positivos, spam, o coordenadas erróneas) — para eso existe el flujo de
+// validación de community.service.updateReportStatus. Si se prefiere
+// mostrar también PENDIENTE_VALIDACION en el heatmap (p. ej. con un
+// estilo visual distinto para "no confirmado"), basta con quitar el
+// .eq('estado', 'VALIDADO') de abajo.
 const listarReportesParaEstadisticas = () =>
   supabase.from('reportes_comunitarios').select('estado, cantidad_casos');
 
 const listarReportesParaHeatmap = () =>
-  supabase.from('reportes_comunitarios').select('latitud, longitud, cantidad_casos');
+  supabase.from('reportes_comunitarios').select('latitud, longitud, cantidad_casos').eq('estado', 'VALIDADO');
 
 // Transición de estado (PENDIENTE_VALIDACION -> VALIDADO/DESCARTADO) hecha
 // por un TRABAJADOR_SALUD/LIDER_COMUNITARIO/ADMIN (ver requireRole en
