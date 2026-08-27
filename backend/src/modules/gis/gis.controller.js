@@ -6,4 +6,12 @@ const getHealthCenters = asyncHandler(async (req, res) => {
     return res.status(200).json(data);
 });
 
-module.exports = { getHealthCenters };
+// req.query ya viene validado/coercido por validateQuery() con nearbySchema
+// (latitude/longitude a number, radius_km con default 15 si no se mandó).
+const getNearbyHealthCenters = asyncHandler(async (req, res) => {
+    const { latitude, longitude, radius_km } = req.query;
+    const data = await gisService.getNearbyHealthCenters(latitude, longitude, radius_km);
+    return res.status(200).json(data);
+});
+
+module.exports = { getHealthCenters, getNearbyHealthCenters };
