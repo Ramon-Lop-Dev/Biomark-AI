@@ -2,8 +2,7 @@ const AppError = require('../utils/AppError');
 
 /**
  * Middleware factory de validación de body con schemas de Zod.
- * Reemplaza los `if (!campo) return res.status(400)...` manuales y
- * dispersos que había en cada controller.
+
  *
  * Uso: router.post('/', validate(miSchema), controller)
  *
@@ -24,4 +23,23 @@ const validate = (schema) => (req, res, next) => {
   next();
 };
 
-module.exports = { validate };
+/**
+ * Igual que validate(), pero para query params (?latitude=..&longitude=..).
+ * Necesaria aparte porque los query params de Express siempre llegan como
+ * string — el schema debe usar z.coerce para los campos numéricos.
+ */
+const validateQuery = (schema) => (req, res, next) => {
+  const result = schema.safeParse(req.query);
+
+  if (!result.success) {
+    const mensaje = result.error.issues
+      .map((issue) => `${issue.path.join('.') || 'query'}: ${issue.message}`)
+      .join('; ');
+    return next(new AppError(`Parámetros inválidos: ${mensaje}`, 400));
+  }
+
+  req.query = result.data;
+  next();
+};
+
+module.exports = { validate, validateQuery };

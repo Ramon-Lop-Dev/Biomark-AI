@@ -2,10 +2,10 @@ const axios = require('axios');
 const supabase = require('../../config/supabase');
 const { AI_SERVICE_URL, AI_SERVICE_INTERNAL_KEY, asegurarConfiguracion } = require('../../config/aiServiceClient');
 
-const postChat = (message, latitude, longitude) => {
+const postChat = (message) => {
   asegurarConfiguracion();
 
-  return axios.post(`${AI_SERVICE_URL}/chat`, { message, latitude, longitude }, {
+  return axios.post(`${AI_SERVICE_URL}/chat`, { message }, {
     headers: {
       'X-Internal-Key': AI_SERVICE_INTERNAL_KEY,
       'Content-Type': 'application/json'
@@ -23,10 +23,8 @@ const crearSesion = (usuarioId) =>
     .select('id')
     .single();
 
-// Filtra por usuario_id (no solo por id) por la misma razón que en
-// reminders.repository.actualizarEstado: sin RLS, es la única barrera
-// real contra que un usuario reutilice/enumere el session_id de otro.
-// También exige fecha_fin IS NULL: una sesión ya cerrada no se reabre.
+// Filtra por usuario_id (no solo por id) 
+
 const buscarSesionActiva = (usuarioId, sesionId) =>
   supabase
     .from('sesiones_chat')
