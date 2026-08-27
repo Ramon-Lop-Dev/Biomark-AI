@@ -1,3 +1,4 @@
+// Coordina creación y consulta de síntomas del usuario.
 const symptomsRepo = require('./symptoms.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');

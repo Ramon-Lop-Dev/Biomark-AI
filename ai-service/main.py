@@ -10,9 +10,10 @@ Funciona igual en Google Colab (pruebas) y en un VPS (producción) — lo
 """
 
 import os
+import json
 import tempfile
 
-from fastapi import FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import Response
 from supabase import create_client, Client
 
@@ -70,6 +71,15 @@ async def health_check():
     }
 
 
+@app.get("/ready")
+def readiness_check():
+    try:
+        supabase.table("usuarios").select("id").limit(1).execute()
+        return {"status": "ready", "supabase": True, "llm": model is not None}
+    except Exception as error:
+        raise HTTPException(status_code=503, detail=f"Dependencia no disponible: {error}")
+
+
 # def normal (no async): /generate llama a model.generate(), que es
 # bloqueante y pesado. Con "async def", FastAPI la corre en el mismo hilo
 # del event loop y congela TODO el servidor (incluido /health) mientras
@@ -81,7 +91,11 @@ def chat_inference(data: dict, x_internal_key: str = Header(None)):
     if not mensaje_usuario.strip():
         raise HTTPException(status_code=400, detail="El campo 'message' es obligatorio")
 
-    respuesta, risk_level, fuentes = clinical_service.responder(mensaje_usuario)
+    respuesta, risk_level, fuentes = clinical_service.responder(
+        mensaje_usuario,
+        data.get("medical_context"),
+        data.get("conversation_history")
+    )
 
     # GIS: si el cliente manda coordenadas, se busca el centro de salud
     # REAL más cercano (nunca inventado por el LLM) y se agrega tanto al
@@ -108,7 +122,12 @@ def chat_inference(data: dict, x_internal_key: str = Header(None)):
 
 
 @app.post("/voice")
-def voice_endpoint(archivo: UploadFile = File(...), x_internal_key: str = Header(None)):
+def voice_endpoint(
+    archivo: UploadFile = File(...),
+    medical_context: str = Form(None),
+    conversation_history: str = Form(None),
+    x_internal_key: str = Header(None)
+):
     verificar_clave(x_internal_key)
     if not asr_service.disponible:
         raise HTTPException(status_code=503, detail="El servicio de voz (ASR) no está disponible")
@@ -130,7 +149,13 @@ def voice_endpoint(archivo: UploadFile = File(...), x_internal_key: str = Header
     if not texto_transcrito:
         raise HTTPException(status_code=422, detail="No se pudo transcribir el audio")
 
-    respuesta, risk_level, fuentes = clinical_service.responder(texto_transcrito)
+    try:
+        contexto_medico = json.loads(medical_context) if medical_context else None
+        historial = json.loads(conversation_history) if conversation_history else None
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Contexto clínico o historial inválido")
+
+    respuesta, risk_level, fuentes = clinical_service.responder(texto_transcrito, contexto_medico, historial)
     return {
         "transcription": texto_transcrito,
         "reply": respuesta,

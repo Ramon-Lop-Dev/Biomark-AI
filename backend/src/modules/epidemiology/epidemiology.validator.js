@@ -1,3 +1,4 @@
+// Valida cargas y niveles del módulo epidemiológico.
 const { z } = require('zod');
 
 // Valores del enum nivel_riesgo en Postgres. Usado tanto por
@@ -25,7 +26,8 @@ const createAlertSchema = z.object({
   nivel_alerta: z.enum(NIVELES_RIESGO, {
     error: `nivel_alerta debe ser uno de: ${NIVELES_RIESGO.join(', ')}`
   }),
-  mensaje: z.string().trim().min(1, "El campo 'mensaje' es obligatorio")
+  mensaje: z.string().trim().min(1, "El campo 'mensaje' es obligatorio"),
+  fecha_expiracion: z.string().datetime().optional()
 });
 
 // zonas_riesgo.nivel_riesgo_actual: único campo de esta tabla que hoy

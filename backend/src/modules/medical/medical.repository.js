@@ -1,3 +1,4 @@
+// Consulta y persiste historial, alergias, medicamentos y antecedentes.
 const supabase = require('../../config/supabase');
 
 const listarPorUsuario = (usuarioId) =>

@@ -1,3 +1,4 @@
+# Carga el modelo de lenguaje y tokenizer configurados para inferencia.
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from config import MODEL_ID, DEVICE, TORCH_DTYPE

@@ -1,3 +1,4 @@
+// Ejecuta operaciones de autenticación y persistencia de usuarios.
 const supabase = require('../../config/supabase');       // service_role: solo para tablas de dominio
 const supabaseAuth = require('../../config/supabaseAuth'); // anon: solo para operaciones de Supabase Auth
 

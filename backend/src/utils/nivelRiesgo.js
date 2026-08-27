@@ -1,3 +1,4 @@
+// Traduce niveles del AI al enum de riesgo de PostgreSQL.
 /**
  * Traduce el "risk_level" que devuelve el AI Service (en inglés: LOW,
  * MODERATE, HIGH — y potencialmente CRITICAL a futuro) al enum real de

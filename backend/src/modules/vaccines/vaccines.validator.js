@@ -1,3 +1,4 @@
+// Valida aplicaciones y fechas de vacunación.
 const { z } = require('zod');
 
 const addVaccineSchema = z.object({

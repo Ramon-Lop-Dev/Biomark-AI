@@ -1,3 +1,4 @@
+// Coordina vacunas, recomendaciones y recordatorios de próximas dosis.
 const vaccinesRepo = require('./vaccines.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');
@@ -49,4 +50,17 @@ const addVaccine = async (usuarioId, payload) => {
   return registro;
 };
 
-module.exports = { getVaccines, addVaccine };
+const getRecommendations = async (usuarioId) => {
+  const { data, error } = await vaccinesRepo.listarPorUsuario(usuarioId);
+  if (error) throw new AppError('Error al obtener recomendaciones de vacunas', 500);
+  return (data || []).map((vacuna) => ({
+    nombre_vacuna: vacuna.nombre_vacuna,
+    numero_dosis_actual: vacuna.numero_dosis,
+    fecha_proxima_dosis: vacuna.fecha_proxima_dosis || null,
+    estado: vacuna.fecha_proxima_dosis && vacuna.fecha_proxima_dosis < new Date().toISOString().slice(0, 10)
+      ? 'VENCIDA'
+      : vacuna.fecha_proxima_dosis ? 'PROGRAMADA' : 'SIN_FECHA_PROGRAMADA'
+  }));
+};
+
+module.exports = { getVaccines, addVaccine, getRecommendations };

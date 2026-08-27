@@ -1,3 +1,4 @@
+// Restringe operaciones administrativas según el rol del usuario.
 const AppError = require('../utils/AppError');
 
 /**

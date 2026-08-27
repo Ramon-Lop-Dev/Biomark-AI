@@ -1,3 +1,4 @@
+// Coordina transcripción, contexto médico, respuesta y auditoría de voz.
 const voiceRepo = require('./voice.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');
@@ -5,6 +6,7 @@ const notificationsService = require('../notifications/notifications.service');
 const chatService = require('../chat/chat.service');
 const chatRepo = require('../chat/chat.repository');
 const { mapearNivelRiesgo } = require('../../utils/nivelRiesgo');
+const { obtenerContextoClinico } = require('../medical/medicalContext.service');
 
 // Mismo criterio que chat.service.js: estos niveles disparan notificación.
 const NIVELES_QUE_NOTIFICAN = ['ALTO', 'CRITICO'];
@@ -26,7 +28,18 @@ const transcribirYResponder = async (usuarioId, file, sessionId) => {
   const sesionId = await chatService.resolverSesion(usuarioId, sessionId);
 
   try {
-    const { data } = await voiceRepo.postVoice(file.buffer, file.originalname, file.mimetype);
+    const [medicalContext, { data: historial, error: errorHistorial }] = await Promise.all([
+      obtenerContextoClinico(usuarioId),
+      chatRepo.listarHistorialReciente(sesionId)
+    ]);
+    if (errorHistorial) console.error('[Voice] No se pudo cargar el historial reciente:', errorHistorial.message);
+    const { data } = await voiceRepo.postVoice(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+      medicalContext,
+      (historial || []).reverse()
+    );
     const { transcription, reply, risk_level, sources } = data;
 
     const nivelRiesgo = mapearNivelRiesgo(risk_level);

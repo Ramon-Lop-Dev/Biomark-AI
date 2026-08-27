@@ -1,3 +1,4 @@
+// Valida solicitudes de síntesis de voz.
 const { z } = require('zod');
 
 const synthesizeSchema = z.object({

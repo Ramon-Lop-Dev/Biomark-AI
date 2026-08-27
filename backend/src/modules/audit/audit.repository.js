@@ -1,3 +1,4 @@
+// Persiste registros de auditoría en Supabase.
 const supabase = require('../../config/supabase');
 
 // Columnas reales de registros_auditoria: usuario_id (nullable), tipo_entidad,

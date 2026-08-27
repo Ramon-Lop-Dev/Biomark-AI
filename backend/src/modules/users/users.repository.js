@@ -1,3 +1,4 @@
+// Consulta y actualiza usuarios y perfiles en Supabase.
 const supabase = require('../../config/supabase');
 
 // Trae usuarios + su perfil relacionado (1:1) en una sola consulta.

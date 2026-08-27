@@ -1,3 +1,4 @@
+// Define las rutas públicas y protegidas del módulo de autenticación.
 const express = require('express');
 const { register, login, loginGoogle, logout, refresh, forgotPassword, resetPassword } = require('./auth.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
@@ -12,11 +13,20 @@ const {
 } = require('./auth.validator');
 
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos de autenticación, intente más tarde.', code: '429' }
+});
 
 // Rutas de autenticación (no requieren JWT — son las que lo emiten,
 // renuevan o lo dejan sin efecto antes de tener uno vigente)
-router.post('/register', validate(registerSchema), register);
-router.post('/login', validate(loginSchema), login);
+router.post('/register', authLimiter, validate(registerSchema), register);
+router.post('/login', authLimiter, validate(loginSchema), login);
 
 // Login/registro con Google OAuth (ID Token nativo desde Flutter)
 router.post('/google', validate(googleAuthSchema), loginGoogle);

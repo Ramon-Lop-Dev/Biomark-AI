@@ -1,3 +1,4 @@
+# Genera respuestas clínicas usando el modelo y los contextos autorizados.
 from typing import Optional
 
 from config import DEVICE, PERSONA_BIOMARK
@@ -8,35 +9,34 @@ class TextGenerator:
         self.model = model
         self.tokenizer = tokenizer
 
-    def _construir_prompt(self, mensaje_usuario: str, contexto_rag: Optional[str]) -> str:
+    def _construir_prompt(self, mensaje_usuario: str, contexto_rag: Optional[str], medical_context=None, conversation_history=None) -> str:
         """Arma el prompt final. Si hay contexto RAG relevante lo usa como
         referencia adicional; si no, deja que el modelo responda con su
         propio conocimiento médico (ya viene de su fine-tuning), pidiéndole
         cautela. En ambos casos se mantiene la identidad de Biomark AI."""
+        secciones = [PERSONA_BIOMARK]
+        if medical_context:
+            secciones.append(f"Contexto clínico autorizado del paciente (úsalo solo si es relevante):\n{medical_context}")
+        if conversation_history:
+            secciones.append(f"Historial reciente de la conversación:\n{conversation_history}")
         if contexto_rag:
-            return (
-                f"{PERSONA_BIOMARK}\n\n"
-                f"Tienes información de referencia relevante para esta consulta:\n"
-                f"{contexto_rag}\n\n"
-                f"Paciente: {mensaje_usuario}\n"
-                f"Asistente preventivo (usa la referencia si aplica, y tu conocimiento médico si es necesario):"
-            )
-        return (
-            f"{PERSONA_BIOMARK}\n\n"
-            f"No tienes normativa oficial específica cargada para esta consulta puntual, "
-            f"así que responde con tu conocimiento médico general, siendo cauteloso.\n\n"
+            secciones.append(f"Información de referencia relevante:\n{contexto_rag}")
+        else:
+            secciones.append("No hay normativa oficial específica cargada; responde con cautela.")
+        secciones.append(
             f"Paciente: {mensaje_usuario}\n"
-            f"Asistente preventivo:"
+            "Asistente preventivo: orienta, no diagnostiques ni prescribas; indica señales de alarma."
         )
+        return "\n\n".join(secciones)
 
-    def generate_response(self, mensaje_usuario: str, contexto_rag: Optional[str]) -> str:
+    def generate_response(self, mensaje_usuario: str, contexto_rag: Optional[str], medical_context=None, conversation_history=None) -> str:
         if self.model is None or self.tokenizer is None:
             # Bug corregido: antes referenciaba una variable inexistente
             # (contexto_encontrado) y esto tronaba con NameError.
             contexto_preview = contexto_rag[:200] if contexto_rag else "ninguno"
             return f"Modo de respaldo (modelo no disponible en memoria). Contexto encontrado: {contexto_preview}"
 
-        prompt = self._construir_prompt(mensaje_usuario, contexto_rag)
+        prompt = self._construir_prompt(mensaje_usuario, contexto_rag, medical_context, conversation_history)
         inputs = self.tokenizer(prompt, return_tensors="pt").to(DEVICE)
 
         outputs = self.model.generate(

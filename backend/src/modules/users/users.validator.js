@@ -1,3 +1,4 @@
+// Valida actualizaciones parciales del perfil.
 const { z } = require('zod');
 
 // Valores del enum sexo_biologico en Postgres.

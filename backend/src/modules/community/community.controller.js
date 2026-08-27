@@ -1,3 +1,4 @@
+// Atiende consultas y operaciones de eventos y reportes comunitarios.
 const communityService = require('./community.service');
 const asyncHandler = require('../../utils/asyncHandler');
 const AppError = require('../../utils/AppError');

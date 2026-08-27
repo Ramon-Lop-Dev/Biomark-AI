@@ -1,3 +1,4 @@
+// Define las rutas autenticadas de recordatorios.
 const express = require('express');
 const { getReminders, addReminder, updateReminderStatus } = require('./reminders.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');

@@ -1,3 +1,4 @@
+// Atiende consultas y cambios de estado de recordatorios.
 const remindersService = require('./reminders.service');
 const asyncHandler = require('../../utils/asyncHandler');
 const AppError = require('../../utils/AppError');

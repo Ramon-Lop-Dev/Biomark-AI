@@ -1,11 +1,14 @@
+// Persiste sesiones/mensajes y comunica el backend con el AI Service.
 const axios = require('axios');
 const supabase = require('../../config/supabase');
 const { AI_SERVICE_URL, AI_SERVICE_INTERNAL_KEY, asegurarConfiguracion } = require('../../config/aiServiceClient');
 
-const postChat = (message, latitude, longitude) => {
+const postChat = (message, latitude, longitude, medicalContext, conversationHistory) => {
   asegurarConfiguracion();
 
-  return axios.post(`${AI_SERVICE_URL}/chat`, { message, latitude, longitude }, {
+  return axios.post(`${AI_SERVICE_URL}/chat`, {
+    message, latitude, longitude, medical_context: medicalContext, conversation_history: conversationHistory
+  }, {
     headers: {
       'X-Internal-Key': AI_SERVICE_INTERNAL_KEY,
       'Content-Type': 'application/json'
@@ -13,6 +16,14 @@ const postChat = (message, latitude, longitude) => {
     timeout: 180000
   });
 };
+
+const listarHistorialReciente = (sesionChatId, limite = 10) =>
+  supabase
+    .from('mensajes_chat')
+    .select('emisor, mensaje, fecha_creacion')
+    .eq('sesion_chat_id', sesionChatId)
+    .order('fecha_creacion', { ascending: false })
+    .limit(limite);
 
 // --- sesiones_chat ---
 
@@ -48,4 +59,4 @@ const crearMensaje = ({ sesionChatId, emisor, mensaje, nivelRiesgo }) =>
     .select()
     .single();
 
-module.exports = { postChat, crearSesion, buscarSesionActiva, crearMensaje };
+module.exports = { postChat, listarHistorialReciente, crearSesion, buscarSesionActiva, crearMensaje };

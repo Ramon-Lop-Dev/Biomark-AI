@@ -1,3 +1,4 @@
+// Define las rutas autenticadas del expediente médico.
 const express = require('express');
 const {
     getMedicalHistory,

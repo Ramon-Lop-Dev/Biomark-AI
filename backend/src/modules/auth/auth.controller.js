@@ -1,3 +1,4 @@
+// Atiende las solicitudes HTTP de registro, acceso y recuperación.
 const authService = require('./auth.service');
 const asyncHandler = require('../../utils/asyncHandler');
 

@@ -1,4 +1,6 @@
+// Publica eventos autenticados hacia n8n self-hosted.
 const AppError = require('../utils/AppError');
+const axios = require('axios');
 
 // Punto de enganche preparado para la Fase 7 (integración real con n8n).
 // Hoy nada llama a este módulo todavía — reminders.service.js solo tiene
@@ -20,4 +22,15 @@ const asegurarConfiguracion = () => {
   }
 };
 
-module.exports = { N8N_WEBHOOK_URL, N8N_WEBHOOK_SECRET, asegurarConfiguracion };
+const publicarEvento = async (evento, payload) => {
+  asegurarConfiguracion();
+  return axios.post(N8N_WEBHOOK_URL, { evento, ...payload }, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(N8N_WEBHOOK_SECRET ? { 'X-Webhook-Secret': N8N_WEBHOOK_SECRET } : {})
+    },
+    timeout: 10000
+  });
+};
+
+module.exports = { N8N_WEBHOOK_URL, N8N_WEBHOOK_SECRET, asegurarConfiguracion, publicarEvento };

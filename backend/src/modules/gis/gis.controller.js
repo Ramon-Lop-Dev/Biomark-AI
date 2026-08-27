@@ -1,3 +1,4 @@
+// Atiende centros, capas del mapa y recomendaciones de destino.
 const gisService = require('./gis.service');
 const asyncHandler = require('../../utils/asyncHandler');
 
@@ -14,4 +15,15 @@ const getNearbyHealthCenters = asyncHandler(async (req, res) => {
     return res.status(200).json(data);
 });
 
-module.exports = { getHealthCenters, getNearbyHealthCenters };
+const getSmartMap = asyncHandler(async (req, res) => {
+    const { latitude, longitude, radius_km } = req.query;
+    const data = await gisService.getMapLayers(latitude, longitude, radius_km);
+    return res.status(200).json(data);
+});
+
+const recommendNavigation = asyncHandler(async (req, res) => {
+    const { latitude, longitude, radius_km } = req.query;
+    return res.status(200).json(await gisService.recommendNavigation(latitude, longitude, radius_km));
+});
+
+module.exports = { getHealthCenters, getNearbyHealthCenters, getSmartMap, recommendNavigation };

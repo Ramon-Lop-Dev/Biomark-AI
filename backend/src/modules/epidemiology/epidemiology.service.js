@@ -1,3 +1,4 @@
+// Coordina reportes, alertas, niveles de riesgo y auditoría.
 const epidemiologyRepo = require('./epidemiology.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');

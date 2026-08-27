@@ -1,3 +1,4 @@
+// Define las rutas de participación y estadísticas comunitarias.
 const express = require('express');
 const { getEvents, createEvent, createReport, getStatistics, getHeatmap, updateReportStatus } = require('./community.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');

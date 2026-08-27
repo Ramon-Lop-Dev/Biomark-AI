@@ -1,3 +1,4 @@
+// Calcula distancias geográficas para filtros de cercanía.
 /**
  * Fórmula de Haversine: distancia en línea recta (km) entre dos
  * coordenadas. Misma lógica que ai-service/gis/locator.py — se mantiene

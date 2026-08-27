@@ -1,3 +1,4 @@
+// Consulta y actualiza recordatorios propiedad del usuario.
 const supabase = require('../../config/supabase');
 
 const listarPorUsuario = (usuarioId) =>
@@ -27,4 +28,13 @@ const actualizarEstado = (usuarioId, recordatorioId, estado) =>
     .select()
     .maybeSingle();
 
-module.exports = { listarPorUsuario, crear, actualizarEstado };
+const marcarEnviado = (recordatorioId) =>
+  supabase
+    .from('recordatorios')
+    .update({ estado: 'ENVIADO' })
+    .eq('id', recordatorioId)
+    .eq('estado', 'PENDIENTE')
+    .select()
+    .maybeSingle();
+
+module.exports = { listarPorUsuario, crear, actualizarEstado, marcarEnviado };

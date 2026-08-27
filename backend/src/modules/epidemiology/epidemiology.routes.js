@@ -1,3 +1,4 @@
+// Define rutas públicas y administrativas de epidemiología.
 const express = require('express');
 const { getAlerts, getRiskMap, createReport, createAlert, updateRiskZoneLevel } = require('./epidemiology.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');

@@ -1,3 +1,4 @@
+// Valida nombres y registros de síntomas.
 const { z } = require('zod');
 
 const addSymptomSchema = z.object({

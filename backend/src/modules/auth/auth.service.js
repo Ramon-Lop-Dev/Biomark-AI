@@ -1,3 +1,4 @@
+// Coordina autenticación, perfiles, sesiones y auditoría.
 const authRepo = require('./auth.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');
