@@ -1,10 +1,6 @@
 const notificationsRepo = require('./notifications.repository');
 
-// Valores del enum tipo_notificacion en Postgres. El schema no tiene un
-// valor dedicado a "riesgo clínico alto detectado en el chat" — de los
-// tres disponibles, SISTEMA es el que mejor describe una alerta generada
-// automáticamente por la plataforma (no es un RECORDATORIO programado por
-// el usuario, ni una ALERTA_EPIDEMIOLOGICA territorial).
+
 const TIPOS_NOTIFICACION = ['RECORDATORIO', 'ALERTA_EPIDEMIOLOGICA', 'SISTEMA'];
 
 /**
