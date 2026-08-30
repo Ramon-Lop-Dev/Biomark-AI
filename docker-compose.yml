@@ -23,14 +23,19 @@ services:
     networks: [biomark]
 
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:1.96.3
+    ports:
+      - "5678:5678"
     environment:
       - N8N_HOST=${N8N_HOST}
-      - N8N_PROTOCOL=https
-      - WEBHOOK_URL=https://${N8N_HOST}/
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-http://localhost:5678/}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - DB_TYPE=sqlite
-      - N8N_SECURE_COOKIE=true
+      - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE:-false}
+      - GENERIC_TIMEZONE=Europe/Madrid
+      - TZ=Europe/Madrid
     volumes:
       - n8n_data:/home/node/.n8n
     restart: unless-stopped
