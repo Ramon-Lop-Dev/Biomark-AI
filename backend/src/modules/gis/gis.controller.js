@@ -1,19 +1,29 @@
-const supabase = require('../../config/supabase');
+// Atiende centros, capas del mapa y recomendaciones de destino.
+const gisService = require('./gis.service');
+const asyncHandler = require('../../utils/asyncHandler');
 
-// Obtener lista de centros de salud
-const getHealthCenters = async (req, res) => {
-    try {
-        // Opcional: Podrías recibir latitud y longitud en req.query para filtrar por cercanía en el futuro
-        const { data, error } = await supabase
-            .from('centros_salud')
-            .select('*')
-            .order('nombre', { ascending: true });
+const getHealthCenters = asyncHandler(async (req, res) => {
+    const data = await gisService.getHealthCenters();
+    return res.status(200).json(data);
+});
 
-        if (error) throw error;
-        return res.status(200).json(data);
-    } catch (error) {
-        return res.status(500).json({ error: "Error al obtener centros de salud", details: error.message, code: "500" });
-    }
-};
+// req.query ya viene validado/coercido por validateQuery() con nearbySchema
+// (latitude/longitude a number, radius_km con default 15 si no se mandó).
+const getNearbyHealthCenters = asyncHandler(async (req, res) => {
+    const { latitude, longitude, radius_km } = req.query;
+    const data = await gisService.getNearbyHealthCenters(latitude, longitude, radius_km);
+    return res.status(200).json(data);
+});
 
-module.exports = { getHealthCenters };
+const getSmartMap = asyncHandler(async (req, res) => {
+    const { latitude, longitude, radius_km } = req.query;
+    const data = await gisService.getMapLayers(latitude, longitude, radius_km);
+    return res.status(200).json(data);
+});
+
+const recommendNavigation = asyncHandler(async (req, res) => {
+    const { latitude, longitude, radius_km } = req.query;
+    return res.status(200).json(await gisService.recommendNavigation(latitude, longitude, radius_km));
+});
+
+module.exports = { getHealthCenters, getNearbyHealthCenters, getSmartMap, recommendNavigation };

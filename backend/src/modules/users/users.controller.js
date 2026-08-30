@@ -1,23 +1,17 @@
-const supabase = require('../../config/supabase');
+// Atiende lectura y actualización del perfil del usuario.
+const usersService = require('./users.service');
+const asyncHandler = require('../../utils/asyncHandler');
 
 // GET /api/users/profile
-// Devuelve los datos reales de usuarios + perfiles, no el token crudo.
-const getProfile = async (req, res) => {
-    try {
-        const usuarioId = req.usuarioId;
+const getProfile = asyncHandler(async (req, res) => {
+    const data = await usersService.getProfile(req.usuarioId);
+    return res.status(200).json(data);
+});
 
-        const { data, error } = await supabase
-            .from('usuarios')
-            .select('id, correo, rol, activo, fecha_creacion, perfiles(nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio)')
-            .eq('id', usuarioId)
-            .single();
+// PUT /api/users/profile
+const updateProfile = asyncHandler(async (req, res) => {
+    const data = await usersService.updateProfile(req.usuarioId, req.body);
+    return res.status(200).json(data);
+});
 
-        if (error) throw error;
-
-        return res.status(200).json(data);
-    } catch (error) {
-        return res.status(500).json({ error: "Error al obtener el perfil", details: error.message, code: "500" });
-    }
-};
-
-module.exports = { getProfile };
+module.exports = { getProfile, updateProfile };

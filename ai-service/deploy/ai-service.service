@@ -1,0 +1,28 @@
+# Unidad systemd para correr Biomark AI ai-service como servicio en el VPS.
+#
+# Instalación:
+#   sudo cp deploy/ai-service.service /etc/systemd/system/ai-service.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable ai-service
+#   sudo systemctl start ai-service
+#
+# Logs en vivo:
+#   sudo journalctl -u ai-service -f
+#
+# Ajusta User, WorkingDirectory y ExecStart a tu instalación real antes de copiar.
+
+[Unit]
+Description=Biomark AI - ai-service (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=biomark
+WorkingDirectory=/opt/biomark-ai/ai-service
+EnvironmentFile=/opt/biomark-ai/ai-service/.env
+ExecStart=/opt/biomark-ai/ai-service/venv/bin/python main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

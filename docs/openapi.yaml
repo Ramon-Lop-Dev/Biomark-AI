@@ -1,0 +1,349 @@
+openapi: 3.0.3
+info:
+  title: Biomark AI API
+  version: 1.0.0
+  description: API pública de salud preventiva. La IA no diagnostica ni prescribe.
+servers:
+  - url: https://api.example.com
+    description: VPS de producción
+  - url: http://localhost:3000
+    description: Desarrollo local
+security:
+  - bearerAuth: []
+tags:
+  - name: Infraestructura
+  - name: Auth
+  - name: Usuario
+  - name: Salud
+  - name: Chat
+  - name: Comunidad
+  - name: GIS
+  - name: Epidemiología
+paths:
+  /health:
+    get:
+      tags: [Infraestructura]
+      security: []
+      summary: Comprueba que el backend está vivo
+      responses:
+        '200': { description: Servicio disponible }
+  /ready:
+    get:
+      tags: [Infraestructura]
+      security: []
+      summary: Comprueba Supabase y configuración AI
+      responses:
+        '200': { description: Dependencias listas }
+        '503': { description: Dependencia no disponible }
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Registra un usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses: { '201': { description: Usuario creado }, '400': { $ref: '#/components/responses/BadRequest' } }
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Inicia sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses: { '200': { description: Tokens de sesión }, '401': { description: Credenciales inválidas } }
+  /api/auth/google:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Inicia sesión con Google
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [id_token], properties: { id_token: { type: string }, access_token: { type: string }, full_name: { type: string } } }
+      responses: { '200': { description: Sesión creada } }
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Renueva el access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [refresh_token], properties: { refresh_token: { type: string } } }
+      responses: { '200': { description: Token renovado } }
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Solicita recuperación de contraseña
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [email], properties: { email: { type: string, format: email } } }
+      responses: { '200': { description: Solicitud procesada } }
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Cambia la contraseña con token de recuperación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [access_token, new_password], properties: { access_token: { type: string }, new_password: { type: string, minLength: 8 } } }
+      responses: { '200': { description: Contraseña actualizada } }
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Cierra la sesión actual
+      responses: { '204': { description: Sesión cerrada } }
+  /api/users/profile:
+    get:
+      tags: [Usuario]
+      summary: Obtiene el perfil
+      responses: { '200': { description: Perfil del usuario } }
+    put:
+      tags: [Usuario]
+      summary: Actualiza el perfil
+      requestBody: { required: true, content: { application/json: { schema: { type: object } } } }
+      responses: { '200': { description: Perfil actualizado } }
+  /api/users/consent:
+    get:
+      tags: [Usuario]
+      summary: Lista consentimientos
+      responses: { '200': { description: Consentimientos } }
+    put:
+      tags: [Usuario]
+      summary: Otorga o revoca consentimiento
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ConsentRequest' } } } }
+      responses: { '200': { description: Consentimiento actualizado } }
+  /api/users/push-token:
+    post:
+      tags: [Usuario]
+      summary: Registra un token FCM
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PushTokenRequest' } } } }
+      responses: { '201': { description: Token registrado } }
+    delete:
+      tags: [Usuario]
+      summary: Desactiva un token FCM
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [fcm_token], properties: { fcm_token: { type: string } } } } } }
+      responses: { '204': { description: Token desactivado } }
+  /api/chat:
+    post:
+      tags: [Chat]
+      summary: Envía una consulta clínica preventiva
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ChatRequest' } } } }
+      responses: { '200': { description: Respuesta de Biomark AI } }
+  /api/voice:
+    post:
+      tags: [Chat]
+      summary: Envía audio y recibe transcripción/respuesta
+      requestBody: { required: true, content: { multipart/form-data: { schema: { type: object, required: [archivo], properties: { archivo: { type: string, format: binary }, session_id: { type: string, format: uuid } } } } } }
+      responses: { '200': { description: Respuesta de voz } }
+  /api/voice/synthesize:
+    post:
+      tags: [Chat]
+      summary: Convierte texto en audio WAV
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [text], properties: { text: { type: string } } } } } }
+      responses: { '200': { description: Audio WAV, content: { audio/wav: { schema: { type: string, format: binary } } } } }
+  /api/vision:
+    post:
+      tags: [Salud]
+      summary: Analiza una imagen de piel o garganta
+      parameters: [{ name: tipo, in: query, required: true, schema: { type: string, enum: [piel, garganta] } }]
+      requestBody: { required: true, content: { multipart/form-data: { schema: { type: object, required: [archivo], properties: { archivo: { type: string, format: binary } } } } } }
+      responses: { '200': { description: Resultado de apoyo visual } }
+  /api/gis:
+    get:
+      tags: [GIS]
+      summary: Lista centros de salud
+      responses: { '200': { description: Centros } }
+  /api/gis/nearby:
+    get:
+      tags: [GIS]
+      summary: Lista centros cercanos
+      parameters: [{ $ref: '#/components/parameters/Latitude' }, { $ref: '#/components/parameters/Longitude' }, { $ref: '#/components/parameters/Radius' }]
+      responses: { '200': { description: Centros ordenados por distancia } }
+  /api/gis/smart-map:
+    get:
+      tags: [GIS]
+      summary: Obtiene centros, eventos y zonas de riesgo cercanos
+      parameters: [{ $ref: '#/components/parameters/Latitude' }, { $ref: '#/components/parameters/Longitude' }, { $ref: '#/components/parameters/Radius' }]
+      responses: { '200': { description: Capas del mapa } }
+  /api/navigation/recommend:
+    post:
+      tags: [GIS]
+      summary: Recomienda el destino de salud más cercano
+      parameters: [{ $ref: '#/components/parameters/Latitude' }, { $ref: '#/components/parameters/Longitude' }, { $ref: '#/components/parameters/Radius' }]
+      responses: { '200': { description: Destino recomendado }, '404': { description: No hay destinos } }
+  /api/vaccines:
+    get:
+      tags: [Salud]
+      summary: Lista vacunas del usuario
+      responses: { '200': { description: Vacunas } }
+    post:
+      tags: [Salud]
+      summary: Registra una vacuna
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [nombre_vacuna, fecha_aplicacion], properties: { nombre_vacuna: { type: string }, fecha_aplicacion: { type: string, format: date }, numero_dosis: { type: integer, minimum: 1 }, fecha_proxima_dosis: { type: string, format: date } } } } } }
+      responses: { '201': { description: Vacuna creada } }
+  /api/vaccines/recommendations:
+    get:
+      tags: [Salud]
+      summary: Lista próximas dosis registradas
+      responses: { '200': { description: Recomendaciones derivadas del expediente } }
+  /api/medical-history:
+    get:
+      tags: [Salud]
+      summary: Lista el historial médico
+      responses: { '200': { description: Historial médico } }
+    post:
+      tags: [Salud]
+      summary: Registra una condición médica
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [nombre_condicion], properties: { nombre_condicion: { type: string }, fecha_diagnostico: { type: string, format: date }, notas: { type: string } } } } } }
+      responses: { '201': { description: Registro creado } }
+  /api/medical-history/allergies:
+    get:
+      tags: [Salud]
+      summary: Lista alergias
+      responses: { '200': { description: Alergias } }
+    post:
+      tags: [Salud]
+      summary: Registra una alergia
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [alergeno], properties: { alergeno: { type: string }, severidad: { type: string, enum: [LEVE, MODERADA, SEVERA] }, notas: { type: string } } } } } }
+      responses: { '201': { description: Alergia creada } }
+  /api/medical-history/medications:
+    get:
+      tags: [Salud]
+      summary: Lista medicamentos
+      responses: { '200': { description: Medicamentos } }
+    post:
+      tags: [Salud]
+      summary: Registra un medicamento
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [nombre_medicamento], properties: { nombre_medicamento: { type: string }, dosis: { type: string }, frecuencia: { type: string }, fecha_inicio: { type: string, format: date }, fecha_fin: { type: string, format: date } } } } } }
+      responses: { '201': { description: Medicamento creado } }
+  /api/medical-history/family-history:
+    get:
+      tags: [Salud]
+      summary: Lista antecedentes familiares
+      responses: { '200': { description: Antecedentes } }
+    post:
+      tags: [Salud]
+      summary: Registra un antecedente familiar
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [parentesco, nombre_condicion], properties: { parentesco: { type: string }, nombre_condicion: { type: string }, notas: { type: string } } } } } }
+      responses: { '201': { description: Antecedente creado } }
+  /api/symptoms:
+    get:
+      tags: [Salud]
+      summary: Lista síntomas del usuario
+      responses: { '200': { description: Síntomas } }
+    post:
+      tags: [Salud]
+      summary: Registra un síntoma y observación
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [symptom], properties: { symptom: { type: string }, temperature: { type: number, minimum: 30, maximum: 45 }, blood_pressure: { type: string }, notes: { type: string }, photo_url: { type: string, format: uri }, date: { type: string, format: date-time } } } } } }
+      responses: { '201': { description: Síntoma creado } }
+  /api/reminders:
+    get:
+      tags: [Salud]
+      summary: Lista recordatorios
+      responses: { '200': { description: Recordatorios } }
+    post:
+      tags: [Salud]
+      summary: Crea recordatorio y publica evento n8n
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [titulo, fecha_programada, tipo], properties: { titulo: { type: string }, descripcion: { type: string }, fecha_programada: { type: string, format: date-time }, tipo: { type: string, enum: [MEDICAMENTO, CITA, VACUNA, CONTROL] } } } } } }
+      responses: { '201': { description: Recordatorio creado } }
+  /api/reminders/{id}:
+    patch:
+      tags: [Salud]
+      summary: Actualiza estado de recordatorio
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [estado], properties: { estado: { type: string, enum: [PENDIENTE, ENVIADO, COMPLETADO, CANCELADO] } } } } } }
+      responses: { '200': { description: Recordatorio actualizado } }
+  /api/community/statistics:
+    get:
+      tags: [Comunidad]
+      summary: Obtiene estadísticas agregadas comunitarias
+      responses: { '200': { description: Estadísticas agregadas } }
+  /api/community/heatmap:
+    get:
+      tags: [Comunidad]
+      summary: Obtiene puntos validados para mapa de calor
+      responses: { '200': { description: Coordenadas agregadas y validadas } }
+  /api/community/events:
+    get:
+      tags: [Comunidad]
+      security: []
+      summary: Lista eventos comunitarios
+      responses: { '200': { description: Eventos } }
+    post:
+      tags: [Comunidad]
+      summary: Crea un evento comunitario
+      description: Requiere rol LIDER_COMUNITARIO, PROMOTOR o ADMIN.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [titulo, fecha_evento], properties: { titulo: { type: string }, descripcion: { type: string }, fecha_evento: { type: string, format: date-time }, ubicacion: { type: string } } } } } }
+      responses: { '201': { description: Evento creado } }
+  /api/community/reports/{id}/estado:
+    patch:
+      tags: [Comunidad]
+      summary: Valida o descarta un reporte comunitario
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [estado], properties: { estado: { type: string, enum: [VALIDADO, DESCARTADO] } } } } } }
+      responses: { '200': { description: Estado actualizado } }
+  /api/epidemiology/alerts:
+    get:
+      tags: [Epidemiología]
+      summary: Lista alertas vigentes
+      responses: { '200': { description: Alertas } }
+    post:
+      tags: [Epidemiología]
+      summary: Crea una alerta epidemiológica
+      description: Requiere TRABAJADOR_SALUD o ADMIN.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reporte_epidemiologico_id, zona_riesgo_id, nivel_alerta, mensaje], properties: { reporte_epidemiologico_id: { type: string, format: uuid }, zona_riesgo_id: { type: string, format: uuid }, nivel_alerta: { type: string, enum: [BAJO, MODERADO, ALTO, CRITICO] }, mensaje: { type: string }, fecha_expiracion: { type: string, format: date-time } } } } } }
+      responses: { '201': { description: Alerta creada } }
+  /api/epidemiology/risk-map:
+    get:
+      tags: [Epidemiología]
+      summary: Lista zonas de riesgo
+      responses: { '200': { description: Zonas } }
+  /api/epidemiology/reports:
+    post:
+      tags: [Epidemiología]
+      summary: Crea un reporte epidemiológico
+      description: Requiere TRABAJADOR_SALUD o ADMIN.
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [fuente, enfermedad, municipio, fecha_reporte], properties: { fuente: { type: string }, enfermedad: { type: string }, municipio: { type: string }, fecha_reporte: { type: string, format: date } } } } } }
+      responses: { '201': { description: Reporte creado } }
+  /api/epidemiology/risk-map/{id}:
+    patch:
+      tags: [Epidemiología]
+      summary: Actualiza nivel de una zona
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [nivel_riesgo_actual], properties: { nivel_riesgo_actual: { type: string, enum: [BAJO, MODERADO, ALTO, CRITICO] } } } } } }
+      responses: { '200': { description: Zona actualizada } }
+  /api/community/reports:
+    post:
+      tags: [Comunidad]
+      summary: Reporta casos comunitarios
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [latitude, longitude], properties: { case_count: { type: integer, minimum: 1 }, description: { type: string }, latitude: { type: number }, longitude: { type: number }, zona_riesgo_id: { type: string, format: uuid } } } } } }
+      responses: { '201': { description: Reporte pendiente de validación } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    Latitude: { name: latitude, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
+    Longitude: { name: longitude, in: query, required: true, schema: { type: number, minimum: -180, maximum: 180 } }
+    Radius: { name: radius_km, in: query, required: false, schema: { type: number, minimum: 0, maximum: 200, default: 15 } }
+  schemas:
+    RegisterRequest: { type: object, required: [email, password, full_name], properties: { email: { type: string, format: email }, password: { type: string, minLength: 8 }, full_name: { type: string } } }
+    LoginRequest: { type: object, required: [email, password], properties: { email: { type: string, format: email }, password: { type: string } } }
+    ConsentRequest: { type: object, required: [tipo_consentimiento, otorgado], properties: { tipo_consentimiento: { type: string, enum: [CONTEXTO_MEDICO_IA, UBICACION, NOTIFICACIONES_PUSH] }, otorgado: { type: boolean } } }
+    PushTokenRequest: { type: object, required: [fcm_token, plataforma], properties: { fcm_token: { type: string }, plataforma: { type: string, enum: [ANDROID, IOS, WEB] } } }
+    ChatRequest: { type: object, required: [message], properties: { message: { type: string }, session_id: { type: string, format: uuid }, latitude: { type: number }, longitude: { type: number } } }
+  responses:
+    BadRequest: { description: Datos inválidos }

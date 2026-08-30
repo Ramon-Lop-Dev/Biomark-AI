@@ -1,3 +1,4 @@
+// Crea el cliente Supabase usado para autenticación de usuarios.
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL;

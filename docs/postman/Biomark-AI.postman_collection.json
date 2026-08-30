@@ -1,0 +1,68 @@
+{
+  "info": {
+    "name": "Biomark AI API",
+    "description": "Colección para validar la API pública de Biomark AI en desarrollo, staging o VPS.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "PEGAR_JWT_AQUI" },
+    { "key": "refreshToken", "value": "PEGAR_REFRESH_TOKEN_AQUI" },
+    { "key": "sessionId", "value": "" },
+    { "key": "recordatorioId", "value": "" },
+    { "key": "latitude", "value": "12.1364" },
+    { "key": "longitude", "value": "-86.2514" },
+    { "key": "fcmToken", "value": "TOKEN_FCM_DE_PRUEBA_XXXXXXXXXXXXXXXX" }
+  ],
+  "item": [
+    {
+      "name": "01 Health",
+      "item": [
+        { "name": "Health", "request": { "method": "GET", "url": "{{baseUrl}}/health" } },
+        { "name": "Ready", "request": { "method": "GET", "url": "{{baseUrl}}/ready" } }
+      ]
+    },
+    {
+      "name": "02 Auth",
+      "item": [
+        { "name": "Register", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"usuario.prueba@example.com\",\n  \"password\": \"Cambiar123\",\n  \"full_name\": \"Usuario de Prueba\"\n}" }, "url": "{{baseUrl}}/api/auth/register" } },
+        { "name": "Login", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"usuario.prueba@example.com\",\n  \"password\": \"Cambiar123\"\n}" }, "url": "{{baseUrl}}/api/auth/login" } },
+        { "name": "Refresh", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}" }, "url": "{{baseUrl}}/api/auth/refresh" } }
+      ]
+    },
+    {
+      "name": "03 User and privacy",
+      "item": [
+        { "name": "Profile", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/users/profile" } },
+        { "name": "Grant AI medical context consent", "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"tipo_consentimiento\": \"CONTEXTO_MEDICO_IA\",\n  \"otorgado\": true\n}" }, "url": "{{baseUrl}}/api/users/consent" } },
+        { "name": "List consents", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/users/consent" } },
+        { "name": "Register FCM token", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"fcm_token\": \"{{fcmToken}}\",\n  \"plataforma\": \"ANDROID\"\n}" }, "url": "{{baseUrl}}/api/users/push-token" } }
+      ]
+    },
+    {
+      "name": "04 Clinical",
+      "item": [
+        { "name": "Chat", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"message\": \"Tengo fiebre y dolor de garganta desde ayer\",\n  \"session_id\": \"{{sessionId}}\",\n  \"latitude\": {{latitude}},\n  \"longitude\": {{longitude}}\n}" }, "url": "{{baseUrl}}/api/chat" } },
+        { "name": "Vaccines", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/vaccines" } },
+        { "name": "Vaccine recommendations", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/vaccines/recommendations" } },
+        { "name": "Reminders", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/reminders" } }
+      ]
+    },
+    {
+      "name": "05 Map and public health",
+      "item": [
+        { "name": "Health centers", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/gis" } },
+        { "name": "Smart map", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/gis/smart-map?latitude={{latitude}}&longitude={{longitude}}&radius_km=15" } },
+        { "name": "Navigation recommendation", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/navigation/recommend?latitude={{latitude}}&longitude={{longitude}}&radius_km=50" } },
+        { "name": "Epidemiology alerts", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }], "url": "{{baseUrl}}/api/epidemiology/alerts" } },
+        { "name": "Community events", "request": { "method": "GET", "url": "{{baseUrl}}/api/community/events" } }
+      ]
+    },
+    {
+      "name": "06 Internal n8n",
+      "item": [
+        { "name": "Mark reminder sent", "request": { "method": "PATCH", "header": [{ "key": "X-Webhook-Secret", "value": "PEGAR_SECRETO_N8N" }, { "key": "Content-Type", "value": "application/json" }], "url": "{{baseUrl}}/internal/reminders/{{recordatorioId}}/sent", "description": "Solo para probar desde red privada. nginx bloquea /internal/ externamente." } }
+      ]
+    }
+  ]
+}
