@@ -1,0 +1,8 @@
+.git
+**/.env
+**/__pycache__
+**/node_modules
+**/.venv
+**/chroma_db
+**/temp_pdfs
+nginx/certs

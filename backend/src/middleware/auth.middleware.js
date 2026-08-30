@@ -1,5 +1,7 @@
+// Valida el JWT y resuelve el usuario interno autenticado.
 const supabase = require('../config/supabase');
-const { resolverUsuarioId } = require('../utils/resolverUsuario');
+const { resolverUsuario } = require('../utils/resolverUsuario');
+const AppError = require('../utils/AppError');
 
 const verifyToken = async (req, res, next) => {
     // 1. Obtener el encabezado de autorización
@@ -9,7 +11,7 @@ const verifyToken = async (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-        return res.status(401).json({ error: "Acceso denegado. Token no proporcionado.", code: "401" });
+        return next(new AppError('Acceso denegado. Token no proporcionado.', 401));
     }
 
     try {
@@ -17,25 +19,36 @@ const verifyToken = async (req, res, next) => {
         const { data, error } = await supabase.auth.getUser(token);
 
         if (error || !data.user) {
-            return res.status(401).json({ error: "Token inválido o expirado.", code: "401", details: error?.message });
+            return next(new AppError('Token inválido o expirado.', 401));
         }
 
         // 4. Inyectar los datos del usuario de Supabase Auth (auth.users)
         //    req.user.id aqui es el auth_id, NO el id de public.usuarios.
         req.user = data.user;
+        // El token crudo se expone para endpoints que necesitan operar
+        // sobre la sesión misma (p. ej. auth.logout -> revocarla).
+        req.token = token;
 
-        // 5. Resolver el id interno de public.usuarios y adjuntarlo aparte.
+        // 5. Resolver el usuario interno (id, rol, activo) de public.usuarios.
         //    Todos los controllers deben usar req.usuarioId (no req.user.id)
-        //    para cualquier consulta contra tablas de dominio.
-        req.usuarioId = await resolverUsuarioId(data.user.id);
+        //    para cualquier consulta contra tablas de dominio, y
+        //    req.usuarioRol para chequeos de RBAC (ver rbac.middleware.js).
+        const usuario = await resolverUsuario(data.user.id);
+
+        if (!usuario.activo) {
+            return next(new AppError('Esta cuenta ha sido desactivada.', 403));
+        }
+
+        req.usuarioId = usuario.id;
+        req.usuarioRol = usuario.rol;
 
         // 6. Dar paso al controlador
         next();
     } catch (error) {
         if (error.status === 404) {
-            return res.status(404).json({ error: error.message, code: "404" });
+            return next(new AppError(error.message, 404));
         }
-        return res.status(500).json({ error: "Error interno al validar el token.", code: "500" });
+        next(error);
     }
 };
 

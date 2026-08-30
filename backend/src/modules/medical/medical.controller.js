@@ -1,53 +1,54 @@
-const supabase = require('../../config/supabase');
+// Atiende las operaciones HTTP del expediente médico.
+const medicalService = require('./medical.service');
+const asyncHandler = require('../../utils/asyncHandler');
 
-// Obtener el historial del usuario autenticado
-const getMedicalHistory = async (req, res) => {
-    try {
-        const usuarioId = req.usuarioId; // id interno (public.usuarios.id), no el auth_id
+const getMedicalHistory = asyncHandler(async (req, res) => {
+    const data = await medicalService.getMedicalHistory(req.usuarioId);
+    return res.status(200).json(data);
+});
 
-        const { data, error } = await supabase
-            .from('historial_medico')
-            .select('*')
-            .eq('usuario_id', usuarioId)
-            .order('fecha_creacion', { ascending: false });
+const createMedicalRecord = asyncHandler(async (req, res) => {
+    const registro = await medicalService.createMedicalRecord(req.usuarioId, req.body);
+    return res.status(201).json(registro);
+});
 
-        if (error) throw error;
+const getAllergies = asyncHandler(async (req, res) => {
+    const data = await medicalService.getAllergies(req.usuarioId);
+    return res.status(200).json(data);
+});
 
-        return res.status(200).json(data);
-    } catch (error) {
-        return res.status(500).json({ error: "Error al obtener el historial médico", details: error.message, code: "500" });
-    }
+const createAllergy = asyncHandler(async (req, res) => {
+    const registro = await medicalService.createAllergy(req.usuarioId, req.body);
+    return res.status(201).json(registro);
+});
+
+const getMedications = asyncHandler(async (req, res) => {
+    const data = await medicalService.getMedications(req.usuarioId);
+    return res.status(200).json(data);
+});
+
+const createMedication = asyncHandler(async (req, res) => {
+    const registro = await medicalService.createMedication(req.usuarioId, req.body);
+    return res.status(201).json(registro);
+});
+
+const getFamilyHistory = asyncHandler(async (req, res) => {
+    const data = await medicalService.getFamilyHistory(req.usuarioId);
+    return res.status(200).json(data);
+});
+
+const createFamilyHistory = asyncHandler(async (req, res) => {
+    const registro = await medicalService.createFamilyHistory(req.usuarioId, req.body);
+    return res.status(201).json(registro);
+});
+
+module.exports = {
+    getMedicalHistory,
+    createMedicalRecord,
+    getAllergies,
+    createAllergy,
+    getMedications,
+    createMedication,
+    getFamilyHistory,
+    createFamilyHistory
 };
-
-// Crear un nuevo registro en el historial
-// Columnas reales de historial_medico: nombre_condicion, fecha_diagnostico, notas
-const createMedicalRecord = async (req, res) => {
-    try {
-        const usuarioId = req.usuarioId;
-        const { nombre_condicion, notas, fecha_diagnostico } = req.body;
-
-        if (!nombre_condicion) {
-            return res.status(400).json({ error: "El campo 'nombre_condicion' es obligatorio", code: "400" });
-        }
-
-        const { data, error } = await supabase
-            .from('historial_medico')
-            .insert([
-                {
-                    usuario_id: usuarioId,
-                    nombre_condicion,
-                    fecha_diagnostico,
-                    notas
-                }
-            ])
-            .select();
-
-        if (error) throw error;
-
-        return res.status(201).json(data[0]);
-    } catch (error) {
-        return res.status(500).json({ error: "Error al guardar el registro médico", details: error.message, code: "500" });
-    }
-};
-
-module.exports = { getMedicalHistory, createMedicalRecord };

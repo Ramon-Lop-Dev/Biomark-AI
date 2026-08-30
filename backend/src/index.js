@@ -1,3 +1,4 @@
+// Carga el entorno e inicia el servidor HTTP del backend.
 require('dotenv').config();
 const app = require('./app');
 

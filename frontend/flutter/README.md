@@ -1,17 +1,9 @@
-# flutter_temp
+# Flutter
 
-A new Flutter project.
+## Despliegue y conexión al VPS
 
-## Getting Started
+Configura la URL base de producción con el dominio HTTPS publicado por nginx. No uses `localhost`, ngrok ni URLs de los contenedores. Mantén las claves de Supabase y Firebase en configuración segura por ambiente; nunca incluyas `SUPABASE_SERVICE_ROLE_KEY` en Flutter.
 
-This project is a starting point for a Flutter application.
+Flujos que deben probarse contra el VPS: autenticación, perfil, consentimiento médico, chat, voz, visión, vacunas, recordatorios, mapa inteligente, navegación y recepción de notificaciones FCM.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+El token push se registra en `POST /api/users/push-token` después de solicitar consentimiento. La ubicación se envía solo cuando el usuario la autoriza.
