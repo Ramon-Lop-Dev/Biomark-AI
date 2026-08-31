@@ -108,30 +108,7 @@ de tu backend de Node.
    lista en `deploy/ai-service.service`, ajusta `User`/`WorkingDirectory` a tu
    instalación) y pon Nginx o Caddy delante con HTTPS, en vez de exponer el
    puerto 8000 directo a internet.
-5. Configura en el backend `AI_SERVICE_URL=http://ai-service:8000` cuando ambos servicios estén en el mismo `docker-compose`; no uses un dominio público para esta comunicación interna.
-
-## Contrato interno de chat
-
-El backend es el único cliente de este servicio. Cada petición requiere el header `X-Internal-Key` y usa este cuerpo:
-
-```json
-{
-  "message": "Tengo fiebre desde ayer",
-  "latitude": null,
-  "longitude": null,
-  "medical_context": null,
-  "conversation_history": []
-}
-```
-
-`POST /chat` devuelve `reply`, `risk_level`, `sources` y, si se enviaron coordenadas, `centro_sugerido`. El backend normaliza esa respuesta antes de entregarla a Flutter. El puerto 8000 debe quedar accesible solo desde la red privada de Docker.
-
-## Orden de arranque en VPS
-
-1. Configura `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` y `AI_SERVICE_INTERNAL_KEY` únicamente en `deploy/ai-service.env`.
-2. Inicia `ai-service` y verifica `curl http://127.0.0.1:8000/health` desde el contenedor o la red privada.
-3. Inicia el backend con la misma `AI_SERVICE_INTERNAL_KEY` y `AI_SERVICE_URL=http://ai-service:8000`.
-4. Verifica desde nginx `GET /health` y después prueba `POST /api/chat` con un JWT válido.
+5. Actualiza `AI_SERVICE_URL` en el backend de Node al dominio del VPS.
 
 ## Seguridad
 
