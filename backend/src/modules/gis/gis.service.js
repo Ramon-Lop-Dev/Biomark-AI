@@ -118,11 +118,17 @@ const recommendNavigation = async (latitude, longitude, radiusKm = 50) => {
   };
 };
 
+const getClosestHealthCenter = async (latitude, longitude, radiusKm = 15) => {
+  const centros = await getNearbyHealthCenters(latitude, longitude, radiusKm);
+  return centros[0] ?? null;
+};
+
 module.exports = {
   getHealthCenters,
   getNearbyHealthCenters,
   getNearbyCommunityEvents,
   getNearbyRiskZones,
-  getMapLayers
-  ,recommendNavigation
+  getMapLayers,
+  recommendNavigation,
+  getClosestHealthCenter
 };

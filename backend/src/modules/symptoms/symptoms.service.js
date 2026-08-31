@@ -43,4 +43,7 @@ const addSymptom = async (usuarioId, { symptom, temperature, blood_pressure, not
   return { sintoma_id: sintomaId, ...data[0] };
 };
 
-module.exports = { getSymptoms, addSymptom };
+// Alias de integración para guardar síntomas directamente en el historial clínico.
+const guardarSintomasEnHistorial = async (usuarioId, payload) => addSymptom(usuarioId, payload);
+
+module.exports = { getSymptoms, addSymptom, guardarSintomasEnHistorial };

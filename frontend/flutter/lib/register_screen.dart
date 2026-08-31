@@ -1,9 +1,12 @@
+// Gestiona el formulario de registro y la selección de foto de perfil.
 import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_biomark/home_screen.dart';
 import 'package:image_picker/image_picker.dart';
+
+import 'biomark_brand.dart';
 
 /// ---------------------------------------------------------------
 /// REGISTER SCREEN — mismo estilo "claymorfismo" que el login
@@ -55,12 +58,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final ImagePicker _imagePicker = ImagePicker();
 
-  // Fondo con más carácter — degradado en tonos azules de marca
-  static const Color bgTop = Color.fromARGB(255, 244, 245, 246);
-  static const Color bgMid = Color.fromARGB(255, 239, 239, 240);
-  static const Color primaryPurple = Color.fromARGB(255, 254, 254, 254);
-  static const Color textDark = Color(0xFF1F2542);
-  static const Color textGray = Color.fromARGB(255, 36, 36, 37);
+  static const Color bgTop = BiomarkColors.white;
+  static const Color bgMid = BiomarkColors.white;
+  static const Color primaryPurple = BiomarkColors.white;
+  static const Color textDark = BiomarkColors.black;
+  static const Color textGray = BiomarkColors.black;
 
   @override
   void dispose() {
@@ -124,12 +126,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     decoration: BoxDecoration(
                       border: Border.symmetric(
                         horizontal: BorderSide(
-                          color: const Color.fromARGB(
-                            255,
-                            50,
-                            96,
-                            169,
-                          ).withValues(alpha: 0.35),
+                          color: BiomarkColors.blue.withValues(alpha: 0.35),
                           width: 1.2,
                         ),
                       ),
@@ -166,7 +163,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Navigator.of(sheetContext).pop(tempAge);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 50, 96, 169),
+                      backgroundColor: BiomarkColors.blue,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -241,7 +238,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [bgTop, bgMid, Color.fromARGB(255, 244, 245, 243)],
+            colors: [bgTop, bgMid, BiomarkColors.white],
             stops: [0.0, 0.55, 1.0],
           ),
         ),
@@ -314,7 +311,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             height: 96,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color.fromARGB(255, 242, 242, 242),
+              color: BiomarkColors.white,
               boxShadow: [
                 BoxShadow(
                   color: const Color.fromARGB(
@@ -339,7 +336,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   : Icon(
                       Icons.person_outline_rounded,
                       size: 44,
-                      color: const Color.fromARGB(255, 3, 3, 63),
+                      color: BiomarkColors.blue,
                     ),
             ),
           ),
@@ -357,7 +354,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: const Icon(
                 Icons.camera_alt_rounded,
                 size: 15,
-                color: Color.fromARGB(255, 5, 25, 122),
+                color: BiomarkColors.blue,
               ),
             ),
           ),
@@ -397,12 +394,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: const Color.fromARGB(255, 11, 8, 99).withValues(alpha: 0.25),
+            color: BiomarkColors.blue.withValues(alpha: 0.25),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
           const BoxShadow(
-            color: Color.fromARGB(232, 189, 193, 193),
+            color: BiomarkColors.white,
             blurRadius: 20,
             offset: Offset(-6, -6),
           ),
@@ -572,7 +569,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F6FB),
+        color: BiomarkColors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -599,7 +596,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           prefixIcon: Icon(icon, color: textGray, size: 20),
           suffixIcon: suffixIcon,
           hintText: hint,
-          hintStyle: TextStyle(color: textGray.withValues(alpha: 0.8), fontSize: 14),
+          hintStyle: TextStyle(
+            color: textGray.withValues(alpha: 0.8),
+            fontSize: 14,
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             vertical: 16,
@@ -618,15 +618,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleRegister,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromARGB(
+          backgroundColor: BiomarkColors.blue,
+          foregroundColor: Colors.white,
+          elevation: 6,
+          shadowColor: const Color.fromARGB(
             255,
             50,
             96,
             169,
-          ), // azul de marca
-          foregroundColor: Colors.white,
-          elevation: 6,
-          shadowColor: const Color.fromARGB(255, 50, 96, 169).withValues(alpha: 0.5),
+          ).withValues(alpha: 0.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -718,7 +718,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: const Text(
             'Iniciar sesión',
             style: TextStyle(
-              color: Color.fromARGB(255, 50, 96, 169), // azul de marca
+              color: BiomarkColors.blue,
               fontWeight: FontWeight.w700,
               fontSize: 13,
             ),

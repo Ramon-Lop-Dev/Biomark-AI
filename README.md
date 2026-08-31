@@ -20,6 +20,13 @@ Arquitectura: `nginx` publica HTTP/HTTPS; `backend`, `ai-service` y `n8n` viven 
 
 El Compose no levanta PostgreSQL local: evita divergir del esquema y RLS ya aplicados en Supabase. Para producción, coloca TLS delante de nginx con Certbot o un proxy gestionado y no expongas puertos 3000, 8000, 5678 ni el endpoint `/internal`.
 
+### Flujo de prueba del chat
+
+1. Obtén un `token` con `POST https://DOMINIO/api/auth/login`.
+2. Usa ese token en `Authorization: Bearer ...` para `POST https://DOMINIO/api/chat`.
+3. Conserva el `session_id` devuelto por el backend para los mensajes siguientes.
+4. Configura Flutter con `BIOMARK_API_URL=https://DOMINIO` y el token de acceso. Flutter nunca necesita `AI_SERVICE_INTERNAL_KEY`.
+
 ## Operación
 
 `docker compose logs -f backend ai-service n8n`; actualiza con `docker compose pull && docker compose up -d --build`; respalda el volumen `n8n_data` y configura backups de Supabase. El modelo AI puede requerir mucha RAM/CPU y el primer arranque descarga modelos.

@@ -1,5 +1,7 @@
+// Arranca la aplicación y define la pantalla de autenticación inicial.
 import 'package:flutter/material.dart';
 
+import 'biomark_brand.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
 
@@ -13,12 +15,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Login Biomark',
+      title: 'Biomark AI',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: 'Syne', // opcional: agrega la fuente en pubspec.yaml
-        useMaterial3: true,
-      ),
+      theme: biomarkTheme,
       home: const LoginScreen(),
     );
   }
@@ -39,13 +38,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  // Colores base del diseño (ajusta a tu marca)
-  static const Color bgTop = Color(0xFFE0E7F2);
-  static const Color bgMid = Color.fromARGB(255, 243, 243, 244);
-  static const Color bgBottom = Color.fromARGB(255, 228, 229, 232);
-  static const Color primaryGreen = Color.fromARGB(255, 9, 61, 107);
-  static const Color textDark = Color(0xFF1F2542);
-  static const Color textGray = Color.fromARGB(255, 36, 36, 37);
+  static const Color bgTop = BiomarkColors.white;
+  static const Color bgMid = BiomarkColors.white;
+  static const Color bgBottom = BiomarkColors.white;
+  static const Color primaryGreen = BiomarkColors.blue;
+  static const Color textDark = BiomarkColors.black;
+  static const Color textGray = BiomarkColors.black;
 
   @override
   void dispose() {
@@ -65,14 +63,14 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Login de prueba exitoso')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Login de prueba exitoso')));
 
     Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(builder: (context) => const HomeScreen()),
-  );
-
+      context,
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
+    );
   }
 
   @override
@@ -145,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: ClipOval(
         child: Image.asset(
-          'assets/images/logo.png',
+          'assets/branding/Icono.png',
           width: 90,
           height: 96,
           fit: BoxFit.cover,
@@ -181,17 +179,12 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color.fromARGB(255, 241, 238, 238),
+        color: BiomarkColors.white,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           // sombra oscura abajo-derecha
           BoxShadow(
-            color: const Color.fromARGB(
-              255,
-              33,
-              45,
-              122,
-            ).withValues(alpha: 0.25),
+            color: BiomarkColors.blue.withValues(alpha: 0.25),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
@@ -264,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text(
                   '¿Olvidaste tu contraseña?',
                   style: TextStyle(
-                    color: Color.fromARGB(255, 186, 6, 6),
+                    color: BiomarkColors.blue,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -306,7 +299,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F6FB),
+        color: BiomarkColors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -456,7 +449,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: const Text(
             ' Registrarse',
             style: TextStyle(
-              color: Color.fromRGBO(70, 171, 57, 1), // verde de marca
+              color: BiomarkColors.green,
               fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
