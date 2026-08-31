@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'loading.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
@@ -211,7 +212,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 8),
             _buildClayTextField(
               controller: _emailController,
-              hint: 'tunombre123@gmail.com',
+              hint: 'ejemplo@gmail.com',
               icon: Icons.mail_outline_rounded,
               keyboardType: TextInputType.emailAddress,
               validator: (value) {
@@ -263,7 +264,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text(
                   '¿Olvidaste tu contraseña?',
                   style: TextStyle(
-                    color: Color.fromARGB(255, 186, 6, 6),
+                    color: Color.fromARGB(255, 59, 58, 58),
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -406,8 +407,8 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: _socialButton(
-            label: 'Apple',
-            icon: Icons.apple, // icon de Apple
+            label: 'Facebook',
+            icon: Icons.facebook_rounded,
             onTap: () {},
           ),
         ),

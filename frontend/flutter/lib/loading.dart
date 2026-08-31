@@ -23,7 +23,7 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _scaleAnim;
   late final Animation<double> _fadeAnim;
@@ -78,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.red, // <-- SOLO PARA PROBAR
+      backgroundColor: const Color.fromARGB(255, 221, 229, 234),
       body: Center(
         child: FadeTransition(
           opacity: _fadeAnim,
@@ -89,8 +89,8 @@ class _SplashScreenState extends State<SplashScreen>
               ScaleTransition(
                 scale: _scaleAnim,
                 child: Container(
-                  width: 120,
-                  height: 120,
+                  width: 210,
+                  height: 210,
                   decoration: BoxDecoration(
                     color: SplashColors.bg,
                     shape: BoxShape.circle,
@@ -110,29 +110,10 @@ class _SplashScreenState extends State<SplashScreen>
                     ],
                   ),
                   child: Center(
-                    child: Container(
-                      width: 78,
-                      height: 78,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [SplashColors.blue, SplashColors.blueDark],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: SplashColors.blue.withOpacity(0.35),
-                            blurRadius: 14,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.health_and_safety_rounded,
-                        color: Colors.white,
-                        size: 36,
-                      ),
+                    child: Image.asset(
+                      'assets/images/logosecun.png',
+                      width: 180,
+                      fit: BoxFit.contain,
                     ),
                   ),
                 ),
@@ -143,14 +124,17 @@ class _SplashScreenState extends State<SplashScreen>
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
-                  color: SplashColors.textDark,
+                  color: Color.fromARGB(255, 11, 145, 27),
                   letterSpacing: 0.3,
                 ),
               ),
               const SizedBox(height: 6),
               const Text(
                 'Cuidando tu salud, siempre contigo',
-                style: TextStyle(fontSize: 12.5, color: SplashColors.textGrey),
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: Color.fromARGB(255, 88, 83, 83),
+                ),
               ),
               const SizedBox(height: 42),
               const _ClayLoadingDots(),

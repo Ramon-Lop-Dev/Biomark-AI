@@ -34,6 +34,7 @@ flutter:
 
   assets:
     - assets/images/logo.png
+    - assets/images/logosecun.png
 
   fonts:
     - family: Syne
