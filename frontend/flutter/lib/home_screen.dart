@@ -29,13 +29,20 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _navIndex = 0;
 
-  final List<String> _navLabels = ['Inicio', 'Explorar', 'Historial', 'Perfil'];
+  final List<String> _navLabels = ['Inicio', 'Jornadas', 'Historial', 'Perfil'];
   final List<IconData> _navIcons = [
     Icons.home_rounded,
-    Icons.explore_outlined,
+    Icons.map_outlined,
     Icons.history_rounded,
     Icons.person_outline_rounded,
   ];
+
+  void _openChatBiomark() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const _BiomarkChatScreen()),
+    );
+  }
 
   // Progreso de dosis del día
   int _dosisTomadas = 3;
@@ -103,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final pages = [
       _buildInicioBody(),
-      const _PlaceholderBody(titulo: 'Explorar', icon: Icons.explore_outlined),
+      const _PlaceholderBody(titulo: 'Jornadas', icon: Icons.map_outlined),
       const _PlaceholderBody(titulo: 'Historial', icon: Icons.history_rounded),
       const _PlaceholderBody(
         titulo: 'Perfil',
@@ -133,18 +140,16 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              color: AppColors.blue,
               borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.favorite_rounded,
-              color: Colors.white,
-              size: 18,
+              image: const DecorationImage(
+                image: AssetImage('assets/images/logo.png'),
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           const SizedBox(width: 10),
           const Text(
-            'Asistente de Salud Nica',
+            'BIOMARK AI',
             style: TextStyle(
               color: AppColors.blueDark,
               fontWeight: FontWeight.w700,
@@ -189,13 +194,9 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: _buildGridButton(
                 titulo: 'Conversa con\nBiomark',
-                icon: Icons.smart_toy_outlined,
+                icon: Icons.health_and_safety_rounded,
                 color: AppColors.blue,
-                onTap: () => _openFeature(
-                  'Conversa con Biomark',
-                  Icons.smart_toy_outlined,
-                  AppColors.blue,
-                ),
+                onTap: _openChatBiomark,
               ),
             ),
             const SizedBox(width: 14),
@@ -524,55 +525,140 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ------------------------------------------------------------
-  // BOTTOM NAV
+  // BOTTOM NAV — estilo claymorfismo con botón central flotante
   // ------------------------------------------------------------
   Widget _buildBottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_navLabels.length, (i) {
-              final selected = _navIndex == i;
-              return GestureDetector(
-                onTap: () => setState(() => _navIndex = i),
-                behavior: HitTestBehavior.opaque,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _navIcons[i],
-                      color: selected ? AppColors.green : AppColors.textGrey,
-                      size: 24,
+    return SafeArea(
+      top: false,
+      child: SizedBox(
+        height: 92,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
+          children: [
+            // Barra curva de fondo
+            Positioned(
+              left: 18,
+              right: 18,
+              top: 26,
+              bottom: 10,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(32),
+                  boxShadow: [
+                    // sombra clara (arriba-izquierda) + sombra oscura (abajo-derecha)
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.9),
+                      blurRadius: 10,
+                      offset: const Offset(-4, -4),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      _navLabels[i],
-                      style: TextStyle(
-                        color: selected ? AppColors.green : AppColors.textGrey,
-                        fontSize: 11,
-                        fontWeight: selected
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                      ),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.10),
+                      blurRadius: 14,
+                      offset: const Offset(4, 6),
                     ),
                   ],
                 ),
-              );
-            }),
-          ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(child: _navItem(0)),
+                    Expanded(child: _navItem(1)),
+                    const SizedBox(width: 58), // espacio para el botón flotante
+                    Expanded(child: _navItem(2)),
+                    Expanded(child: _navItem(3)),
+                  ],
+                ),
+              ),
+            ),
+            // Botón flotante central — chat con Biomark AI
+            Positioned(
+              top: 0,
+              child: GestureDetector(
+                onTap: _openChatBiomark,
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [AppColors.blue, AppColors.blueDark],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.blue.withOpacity(0.45),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.7),
+                        blurRadius: 6,
+                        offset: const Offset(-2, -2),
+                      ),
+                    ],
+                    border: Border.all(color: AppColors.bg, width: 4),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(
+                        Icons.chat_bubble_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                      Positioned(
+                        right: 9,
+                        bottom: 9,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.health_and_safety_rounded,
+                            color: AppColors.blue,
+                            size: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _navItem(int i) {
+    final selected = _navIndex == i;
+    return GestureDetector(
+      onTap: () => setState(() => _navIndex = i),
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            _navIcons[i],
+            color: selected ? AppColors.green : AppColors.textGrey,
+            size: 22,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            _navLabels[i],
+            style: TextStyle(
+              color: selected ? AppColors.green : AppColors.textGrey,
+              fontSize: 10.5,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -773,6 +859,238 @@ class _PlaceholderBody extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// PANTALLA DE CHAT — BIOMARK AI
+// ============================================================
+class _ChatMessage {
+  final String text;
+  final bool isUser;
+  _ChatMessage(this.text, this.isUser);
+}
+
+class _BiomarkChatScreen extends StatefulWidget {
+  const _BiomarkChatScreen();
+
+  @override
+  State<_BiomarkChatScreen> createState() => _BiomarkChatScreenState();
+}
+
+class _BiomarkChatScreenState extends State<_BiomarkChatScreen> {
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  final List<_ChatMessage> _messages = [
+    _ChatMessage(
+      '¡Hola! Soy Biomark AI ¿En qué puedo ayudarte hoy con tu salud?',
+      false,
+    ),
+  ];
+
+  bool _escribiendo = false;
+
+  void _enviarMensaje() {
+    final texto = _controller.text.trim();
+    if (texto.isEmpty) return;
+
+    setState(() {
+      _messages.add(_ChatMessage(texto, true));
+      _escribiendo = true;
+    });
+    _controller.clear();
+    _scrollToBottom();
+
+    // Simulación de respuesta del asistente
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(
+          _ChatMessage(
+            'Gracias por contarme. Estoy registrando eso en tu seguimiento. '
+            '¿Quieres que te dé una recomendación o prefieres agendar una cita?',
+            false,
+          ),
+        );
+        _escribiendo = false;
+      });
+      _scrollToBottom();
+    });
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        backgroundColor: AppColors.bg,
+        elevation: 0,
+        foregroundColor: AppColors.textDark,
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                image: const DecorationImage(
+                  image: AssetImage('assets/images/logo.png'),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Biomark AI',
+              style: TextStyle(
+                color: AppColors.textDark,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length + (_escribiendo ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index >= _messages.length) {
+                  return _buildBubble(
+                    'Biomark está escribiendo...',
+                    false,
+                    escribiendo: true,
+                  );
+                }
+                final m = _messages[index];
+                return _buildBubble(m.text, m.isUser);
+              },
+            ),
+          ),
+          _buildInputBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBubble(String text, bool isUser, {bool escribiendo = false}) {
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.72,
+        ),
+        decoration: BoxDecoration(
+          color: isUser ? AppColors.blue : Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isUser ? 18 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 18),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isUser ? Colors.white : AppColors.textDark,
+            fontSize: 13.5,
+            fontStyle: escribiendo ? FontStyle.italic : FontStyle.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputBar() {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  controller: _controller,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _enviarMensaje(),
+                  decoration: const InputDecoration(
+                    hintText: 'Escribe tu mensaje...',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: _enviarMensaje,
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: const BoxDecoration(
+                  color: AppColors.blue,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.send_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
