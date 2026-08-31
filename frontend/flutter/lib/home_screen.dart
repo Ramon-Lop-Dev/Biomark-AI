@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 // PALETA DE COLORES
 // ============================================================
 class AppColors {
-  static const bg = Color(0xFFF2F2F5);
+  static const bg = Color(0xFFEEF3FC);
   static const cardBg = Colors.white;
   static const blue = Color(0xFF2D6CDF);
   static const blueDark = Color(0xFF1E4FA3);
@@ -131,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ------------------------------------------------------------
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: AppColors.bg,
+      backgroundColor: Color(0xFFE8F0FE),
       elevation: 0,
       titleSpacing: 16,
       title: Row(
@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: _buildGridButton(
                 titulo: 'Conversa con\nBiomark',
                 icon: Icons.health_and_safety_rounded,
-                color: AppColors.blue,
+                color: AppColors.blue.withOpacity(0.8),
                 onTap: _openChatBiomark,
               ),
             ),
@@ -292,8 +292,8 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.blue.withOpacity(0.10),
-            AppColors.blue.withOpacity(0.04),
+            AppColors.blue.withOpacity(0.20),
+            AppColors.blue.withOpacity(0.08),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -393,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withOpacity(0.08),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -455,7 +455,7 @@ class _HomeScreenState extends State<HomeScreen> {
             border: Border(left: BorderSide(color: iconColor, width: 4)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withOpacity(0.08),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
