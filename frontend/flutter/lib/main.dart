@@ -137,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.25),
+            color: Colors.grey.withValues(alpha: 0.25),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -430,7 +430,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 14),
-        side: BorderSide(color: Colors.grey.withOpacity(0.3)),
+        side: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
