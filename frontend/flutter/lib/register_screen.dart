@@ -1,27 +1,15 @@
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_biomark/home_screen.dart';
+import 'package:flutter_biomark/main.dart'; // <-- para navegar de vuelta a LoginScreen
 import 'package:image_picker/image_picker.dart';
 
 /// ---------------------------------------------------------------
-/// REGISTER SCREEN — mismo estilo "claymorfismo" que el login
-/// ---------------------------------------------------------------
-/// Cómo usarlo:
-/// 1. Agrega en pubspec.yaml, dentro de dependencies:
-///    image_picker: ^1.1.2
-///    y corre flutter pub get
-/// 2. Copia este archivo a lib/register_screen.dart
-/// 3. En tu main.dart, arriba del todo agrega:
-///    import 'register_screen.dart';
-/// 4. En el "Registrarse" de tu LoginScreen (_buildFooter), navega así:
-///    onTap: () {
-///      Navigator.push(
-///        context,
-///        MaterialPageRoute(builder: (context) => const RegisterScreen()),
-///      );
-///    },
+/// REGISTER SCREEN — mismo estilo "claymorfismo" que el login,
+/// con pestañas Iniciar Sesión / Registrarse arriba (igual que login)
 /// ---------------------------------------------------------------
 
 class RegisterScreen extends StatefulWidget {
@@ -59,6 +47,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   static const Color bgTop = Color.fromARGB(255, 244, 245, 246);
   static const Color bgMid = Color.fromARGB(255, 239, 239, 240);
   static const Color primaryPurple = Color.fromARGB(255, 254, 254, 254);
+  static const Color accentBlue = Color.fromARGB(
+    255,
+    50,
+    96,
+    169,
+  ); // azul de marca
   static const Color textDark = Color(0xFF1F2542);
   static const Color textGray = Color.fromARGB(255, 36, 36, 37);
 
@@ -71,6 +65,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  void _irALogin() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    );
   }
 
   // ---------------- SELECTOR DE EDAD (RUEDA) ----------------
@@ -246,57 +247,111 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
         child: SafeArea(
-          child: Stack(
-            children: [
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 28),
+                        _buildProfilePhotoPicker(),
+                        const SizedBox(height: 20),
+                        _buildAuthTabs(),
+                        const SizedBox(height: 20),
+                        _buildTitle(),
+                        const SizedBox(height: 28),
+                        _buildFormCard(),
+                        const SizedBox(height: 24),
+                      ],
                     ),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(height: 40),
-                            _buildProfilePhotoPicker(),
-                            const SizedBox(height: 20),
-                            _buildTitle(),
-                            const SizedBox(height: 28),
-                            _buildFormCard(),
-                            const SizedBox(height: 24),
-                            _buildFooter(),
-                            const SizedBox(height: 12),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              // Botón de regreso — va AL FINAL para quedar encima y ser tocable
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Material(
-                  color: Colors.transparent,
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: textDark,
-                      size: 20,
-                    ),
-                    onPressed: () => Navigator.pop(context),
                   ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------- PESTAÑAS INICIAR SESIÓN / REGISTRARSE (glassmorfismo) ----------------
+  Widget _buildAuthTabs() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.18),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildGlassTabItem(
+                  texto: 'Iniciar Sesión',
+                  activo: false,
+                  onTap: _irALogin,
+                ),
+              ),
+              Expanded(
+                child: _buildGlassTabItem(
+                  texto: 'Registrarse',
+                  activo: true,
+                  onTap: () {},
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassTabItem({
+    required String texto,
+    required bool activo,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: activo ? Colors.white.withOpacity(0.55) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: activo
+              ? Border.all(color: Colors.white.withOpacity(0.8), width: 1)
+              : null,
+          boxShadow: activo
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : [],
+        ),
+        child: Text(
+          texto,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: textDark,
+            fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 14,
           ),
         ),
       ),
@@ -368,22 +423,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // ---------------- TÍTULO ----------------
   Widget _buildTitle() {
-    return Column(
-      children: [
-        Text(
-          'Crear Cuenta',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            color: textDark,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Completa tus datos para registrarte',
-          style: TextStyle(fontSize: 13, color: textGray),
-        ),
-      ],
+    return Text(
+      'Completa tus datos para registrarte',
+      textAlign: TextAlign.center,
+      style: TextStyle(fontSize: 13.5, color: textGray),
     );
   }
 
@@ -618,15 +661,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleRegister,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromARGB(
-            255,
-            50,
-            96,
-            169,
-          ), // azul de marca
+          backgroundColor: accentBlue,
           foregroundColor: Colors.white,
           elevation: 6,
-          shadowColor: const Color.fromARGB(255, 50, 96, 169).withOpacity(0.5),
+          shadowColor: accentBlue.withOpacity(0.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -676,7 +714,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _socialButton(label: 'Apple', icon: Icons.apple, onTap: () {}),
+          child: _socialButton(
+            label: 'Facebook',
+            icon: Icons.facebook_rounded,
+            onTap: () {},
+          ),
         ),
       ],
     );
@@ -699,32 +741,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         side: BorderSide(color: Colors.grey.withOpacity(0.3)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-    );
-  }
-
-  // ---------------- FOOTER ----------------
-  Widget _buildFooter() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          '¿Ya tienes una cuenta? ',
-          style: TextStyle(color: textGray, fontSize: 13),
-        ),
-        GestureDetector(
-          onTap: () {
-            Navigator.pop(context); // regresa al login
-          },
-          child: const Text(
-            'Iniciar sesión',
-            style: TextStyle(
-              color: Color.fromARGB(255, 50, 96, 169), // azul de marca
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

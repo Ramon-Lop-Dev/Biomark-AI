@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'main.dart'; // <-- ajusta este import al nombre real de tu archivo/clase de login
+import 'main.dart'; 
 
-// ============================================================
-// PALETA (reutiliza AppColors si ya la tienes en otro archivo;
-// si home_screen.dart ya define AppColors, borra este bloque
-// y solo deja el import de ese archivo para no duplicar).
-// ============================================================
 class SplashColors {
   static const bg = Color(0xFFEEF3FC);
   static const blue = Color(0xFF2D6CDF);
