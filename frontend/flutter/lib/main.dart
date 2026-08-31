@@ -1,8 +1,11 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import 'loading.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
+import 'forgot_password.dart';
 
 void main() {
   runApp(const MyApp());
@@ -108,12 +111,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         const SizedBox(height: 28),
                         _buildLogo(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
+                        _buildAuthTabs(),
+                        const SizedBox(height: 20),
                         _buildTitle(),
                         const SizedBox(height: 28),
                         _buildFormCard(),
                         const SizedBox(height: 24),
-                        _buildFooter(),
+                        _buildPrivacyNote(),
                         const SizedBox(height: 12),
                       ],
                     ),
@@ -130,8 +135,8 @@ class _LoginScreenState extends State<LoginScreen> {
   // ---------------- LOGO ----------------
   Widget _buildLogo() {
     return Container(
-      width: 96,
-      height: 96,
+      width: 100,
+      height: 100,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white,
@@ -146,9 +151,88 @@ class _LoginScreenState extends State<LoginScreen> {
       child: ClipOval(
         child: Image.asset(
           'assets/images/logo.png',
-          width: 90,
-          height: 96,
+          width: 100,
+          height: 100,
           fit: BoxFit.cover,
+        ),
+      ),
+    );
+  }
+
+  // ---------------- PESTAÑAS INICIAR SESIÓN / REGISTRARSE (glassmorfismo) ----------------
+  Widget _buildAuthTabs() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.18),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildGlassTabItem(texto: 'Iniciar Sesión', activo: true, onTap: () {}),
+              ),
+              Expanded(
+                child: _buildGlassTabItem(
+                  texto: 'Registrarse',
+                  activo: false,
+                  onTap: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassTabItem({
+    required String texto,
+    required bool activo,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: activo ? Colors.white.withOpacity(0.55) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: activo
+              ? Border.all(color: Colors.white.withOpacity(0.8), width: 1)
+              : null,
+          boxShadow: activo
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : [],
+        ),
+        child: Text(
+          texto,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: textDark,
+            fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 14,
+          ),
         ),
       ),
     );
@@ -156,22 +240,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ---------------- TÍTULO ----------------
   Widget _buildTitle() {
-    return Column(
-      children: [
-        Text(
-          'Iniciar Sesión ',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            color: textDark,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Ingresa tus credenciales para continuar',
-          style: TextStyle(fontSize: 13, color: textGray),
-        ),
-      ],
+    return Text(
+      'Ingresa tus credenciales para continuar',
+      textAlign: TextAlign.center,
+      style: TextStyle(fontSize: 13.5, color: textGray),
     );
   }
 
@@ -239,6 +311,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: textGray,
                 ),
                 onPressed: () {
+                  // Este botón solo debe mostrar/ocultar la contraseña,
+                  // no navegar a otra pantalla (eso lo maneja el link de abajo).
                   setState(() => _obscurePassword = !_obscurePassword);
                 },
               ),
@@ -254,7 +328,12 @@ class _LoginScreenState extends State<LoginScreen> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {
-                  // TODO: navegar a recuperación de contraseña
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ForgotPasswordScreen(),
+                    ),
+                  );
                 },
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
@@ -436,33 +515,38 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ---------------- FOOTER ----------------
-  Widget _buildFooter() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          '¿No tienes una cuenta? ',
-          style: TextStyle(color: textGray, fontSize: 13),
-        ),
-
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const RegisterScreen()),
-            );
-          },
-          child: const Text(
-            ' Registrarse',
-            style: TextStyle(
-              color: Color.fromRGBO(70, 171, 57, 1), // verde de marca
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
+  // ---------------- NOTA DE PRIVACIDAD ----------------
+  Widget _buildPrivacyNote() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDEEF2),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.verified_user_outlined,
+            color: primaryGreen,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Tus datos médicos están encriptados y protegidos según los '
+              'estándares de salud de Nicaragua. Tu privacidad es nuestra '
+              'prioridad.',
+              style: TextStyle(
+                fontSize: 12,
+                color: textGray,
+                height: 1.4,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
