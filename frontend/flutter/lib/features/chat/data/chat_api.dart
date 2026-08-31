@@ -18,12 +18,14 @@ class ChatReply {
   final String reply;
   final String riskLevel;
   final List<String> sources;
+  final String? suggestedAction;
 
   const ChatReply({
     required this.sessionId,
     required this.reply,
     required this.riskLevel,
     required this.sources,
+    this.suggestedAction,
   });
 
   factory ChatReply.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,7 @@ class ChatReply {
       sources: (json['sources'] as List<dynamic>? ?? const [])
           .whereType<String>()
           .toList(),
+      suggestedAction: json['suggested_action'] as String?,
     );
   }
 }

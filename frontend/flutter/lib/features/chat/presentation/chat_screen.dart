@@ -10,6 +10,7 @@ import 'package:record/record.dart';
 import '../../../biomark_brand.dart';
 import '../../../core/design/biomark_clay.dart';
 import '../data/chat_api.dart';
+import '../../progress/data/progress_api.dart';
 import '../data/vision_api.dart';
 import '../data/voice_api.dart';
 import '../domain/chat_message.dart';
@@ -21,13 +22,15 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen>
+    with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final ImagePicker _imagePicker = ImagePicker();
   late final ChatApi _chatApi;
   late final VoiceApi _voiceApi;
   late final VisionApi _visionApi;
+  late final ProgressApi _progressApi;
   final _recorder = AudioRecorder();
   final List<ChatMessage> _messages = [
     const ChatMessage(
@@ -48,100 +51,32 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _audioDraftReady = false;
   bool _audioDraftPaused = false;
   String? _audioDraftPath;
-  String? _selectedImagePath;
   double _audioLevel = 0.0;
   StreamSubscription<Amplitude>? _amplitudeSub;
+  late final AnimationController _entryController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 520),
+  );
 
-  String? _inferActionType(String reply) {
-    final lower = reply.toLowerCase();
-
-    final wantsClinicalHistory = RegExp(
-      r'(guardar|historial clínico|historial clinico|síntoma|sintoma|guardar estos síntomas|guardar estos sintomas)',
-      caseSensitive: false,
-    ).hasMatch(lower);
-
-    final wantsNearestCenter = RegExp(
-      r'(centro de salud|más cercano|mas cercano|visitar un centro|recomiendo visitar|te recomiendo visitar|centro más cercano|centro mas cercano)',
-      caseSensitive: false,
-    ).hasMatch(lower);
-
-    if (wantsClinicalHistory && !wantsNearestCenter) {
-      return 'save_symptoms';
+  String? _mapSuggestedAction(String? action) {
+    switch (action) {
+      case 'REGISTER_PROGRESS':
+        return 'register_progress';
+      case 'REGISTER_MEDICATION':
+        return 'register_medication';
+      case 'REGISTER_REMINDER':
+        return 'register_reminder';
+      case 'SHOW_NEAREST_CENTER':
+        return 'nearest_center';
+      default:
+        return null;
     }
-
-    if (wantsNearestCenter) {
-      return 'nearest_center';
-    }
-
-    return null;
   }
 
-  Future<void> _showSaveHistoryDialog() async {
-    final summary =
-        'Erupción leve en el brazo, picor leve, sin fiebre ni dolor intenso.';
-
-    final shouldSave = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          title: Row(
-            children: [
-              const Icon(Icons.medical_information_outlined, color: BiomarkColors.blue),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text('Guardar en historial clínico'),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '¿Quieres guardar estos síntomas en tu historial clínico?',
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  summary,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Ahora no'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(context, true),
-              icon: const Icon(Icons.save_rounded),
-              label: const Text('Guardar'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (!mounted || shouldSave != true) return;
-
+  void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Síntomas guardados en el historial clínico.'),
-      ),
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
-
-    // TODO: conectar con /api/symptoms para persistir el registro real.
   }
 
   Future<void> _showClosestCenterDialog() async {
@@ -206,7 +141,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.location_on_rounded, color: BiomarkColors.blue),
+                      Icon(
+                        Icons.location_on_rounded,
+                        color: BiomarkColors.blue,
+                      ),
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -246,12 +184,140 @@ class _ChatScreenState extends State<ChatScreen> {
     // TODO: conectar con /api/gis/nearby para obtener el centro real más cercano.
   }
 
+  Future<void> _showProgressDialog() async {
+    final symptomController = TextEditingController();
+    final notesController = TextEditingController();
+    var status = 'MEJORO';
+
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Registrar evolución'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: symptomController,
+                decoration: const InputDecoration(
+                  labelText: '¿Qué síntoma estás siguiendo?',
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: status,
+                decoration: const InputDecoration(labelText: 'Estado'),
+                items: const [
+                  DropdownMenuItem(value: 'MEJORO', child: Text('Mejoré')),
+                  DropdownMenuItem(value: 'IGUAL', child: Text('Sigo igual')),
+                  DropdownMenuItem(value: 'EMPEORO', child: Text('Empeoré')),
+                  DropdownMenuItem(
+                    value: 'NO_SEGURO',
+                    child: Text('No estoy seguro'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => status = value);
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesController,
+                maxLines: 2,
+                decoration: const InputDecoration(
+                  labelText: 'Notas (opcional)',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Guardar'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted || shouldSave != true) {
+      symptomController.dispose();
+      notesController.dispose();
+      return;
+    }
+    if (symptomController.text.trim().isEmpty) {
+      symptomController.dispose();
+      notesController.dispose();
+      _showMessage('Escribe el síntoma que quieres seguir.');
+      return;
+    }
+
+    try {
+      await _progressApi.createProgress(
+        symptom: symptomController.text,
+        status: status,
+        notes: notesController.text,
+      );
+      if (mounted) _showMessage('Evolución registrada correctamente.');
+    } catch (_) {
+      if (mounted) _showMessage('No se pudo registrar la evolución.');
+    } finally {
+      symptomController.dispose();
+      notesController.dispose();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _chatApi = ChatApi(baseUrl: _apiUrl, accessToken: _accessToken);
     _voiceApi = VoiceApi(baseUrl: _apiUrl, accessToken: _accessToken);
     _visionApi = VisionApi(baseUrl: _apiUrl, accessToken: _accessToken);
+    _progressApi = ProgressApi();
+    _entryController.forward();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showHealthDisclaimer();
+    });
+  }
+
+  Future<void> _showHealthDisclaimer() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
+          children: [
+            const Image(
+              image: AssetImage('assets/branding/Icono.png'),
+              width: 52,
+              height: 52,
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Antes de comenzar',
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Biomark AI orienta tu salud, pero no reemplaza el diagnóstico de un profesional. Consulta siempre a tu médico.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Aceptar'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<String?> _chooseVisionType() async {
@@ -289,20 +355,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (pickedFile == null || !mounted) return;
 
-    setState(() {
-      _selectedImagePath = pickedFile.path;
-      _errorMessage = null;
-    });
-  }
-
-  Future<void> _sendPickedImage() async {
-    if (_selectedImagePath == null) return;
-
     final tipo = await _chooseVisionType();
     if (tipo == null || !mounted) return;
-
-    await _sendImageAnalysis(path: _selectedImagePath!, tipo: tipo);
-    _clearSelectedImage();
+    await _sendImageAnalysis(path: pickedFile.path, tipo: tipo);
   }
 
   Future<void> _chooseImageSource() async {
@@ -408,7 +463,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       setState(() {
         _sessionId = response.sessionId;
-        final actionType = _inferActionType(response.reply);
+        final actionType = _mapSuggestedAction(response.suggestedAction);
         _messages.add(
           ChatMessage(
             response.reply,
@@ -457,10 +512,6 @@ class _ChatScreenState extends State<ChatScreen> {
       _audioDraftPath = null;
       _audioLevel = 0.0;
     });
-  }
-
-  void _clearSelectedImage() {
-    setState(() => _selectedImagePath = null);
   }
 
   void _startAmplitudeMonitoring() {
@@ -524,7 +575,7 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _sessionId = response.sessionId;
         _messages.add(ChatMessage(response.transcription, true));
-        final actionType = _inferActionType(response.reply);
+        final String? actionType = null;
         _messages.add(
           ChatMessage(
             response.reply,
@@ -548,91 +599,70 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/branding/Icono.png',
-              width: 28,
-              height: 28,
-              fit: BoxFit.contain,
-              semanticLabel: 'Biomark AI',
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: _entryController, curve: Curves.easeOut),
+      child: SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 0.035), end: Offset.zero)
+            .animate(
+              CurvedAnimation(
+                parent: _entryController,
+                curve: Curves.easeOutCubic,
+              ),
             ),
-            const SizedBox(width: 8),
-            Text(
-              'Chat',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          _InfoBar(),
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-              itemCount: _messages.length + (_isSending ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _messages.length) return const _TypingBubble();
-                return _MessageBubble(message: _messages[index]);
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
+        child: Scaffold(
+          appBar: AppBar(
+            centerTitle: true,
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                ActionChip(
-                  avatar: const Icon(Icons.note_add_rounded, size: 18),
-                  label: const Text('Guardar síntomas'),
-                  onPressed: _showSaveHistoryDialog,
+                Image.asset(
+                  'assets/branding/Icono.png',
+                  width: 28,
+                  height: 28,
+                  fit: BoxFit.contain,
+                  semanticLabel: 'Biomark AI',
                 ),
-                ActionChip(
-                  avatar: const Icon(Icons.local_hospital_outlined, size: 18),
-                  label: const Text('Centro más cercano'),
-                  onPressed: _showClosestCenterDialog,
-                ),
+                const SizedBox(width: 8),
+                Text('Chat', style: Theme.of(context).textTheme.titleLarge),
               ],
             ),
           ),
-          if (_errorMessage != null) _ErrorBanner(message: _errorMessage!),
-          if (_selectedImagePath != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: _ImageDraftPreview(
-                imagePath: _selectedImagePath!,
-                onDelete: _clearSelectedImage,
-                onSend: _sendPickedImage,
+          body: Column(
+            children: [
+              //InfoBar(),
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  itemCount: _messages.length + (_isSending ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index == _messages.length) return const _TypingBubble();
+                    return _MessageBubble(message: _messages[index]);
+                  },
+                ),
               ),
-            ),
-          _ChatInput(
-            controller: _controller,
-            enabled: !_isSending,
-            isRecording: _isRecording,
-            isAudioDraftReady: _audioDraftReady,
-            audioDraftPaused: _audioDraftPaused,
-            selectedImagePath: _selectedImagePath,
-            audioLevel: _audioLevel,
-            onSend: _sendMessage,
-            onVoice: _toggleRecording,
-            onOpenImagePicker: _chooseImageSource,
-            onSendAudio: _audioDraftPath == null ? null : () => _sendRecording(_audioDraftPath!),
-            onDeleteAudio: _clearAudioDraft,
-            onPauseAudio: () {
-              setState(() => _audioDraftPaused = !_audioDraftPaused);
-            },
-            onDeleteSelectedImage: _clearSelectedImage,
-            onSendSelectedImage: _sendPickedImage,
+              if (_errorMessage != null) _ErrorBanner(message: _errorMessage!),
+              _ChatInput(
+                controller: _controller,
+                enabled: !_isSending,
+                isRecording: _isRecording,
+                isAudioDraftReady: _audioDraftReady,
+                audioDraftPaused: _audioDraftPaused,
+                audioLevel: _audioLevel,
+                onSend: _sendMessage,
+                onVoice: _toggleRecording,
+                onOpenImagePicker: _chooseImageSource,
+                onSendAudio: _audioDraftPath == null
+                    ? null
+                    : () => _sendRecording(_audioDraftPath!),
+                onDeleteAudio: _clearAudioDraft,
+                onPauseAudio: () {
+                  setState(() => _audioDraftPaused = !_audioDraftPaused);
+                },
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -646,30 +676,8 @@ class _ChatScreenState extends State<ChatScreen> {
     _voiceApi.dispose();
     _visionApi.dispose();
     _recorder.dispose();
+    _entryController.dispose();
     super.dispose();
-  }
-}
-
-class _InfoBar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return BiomarkClaySurface(
-      radius: 0,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline_rounded, color: BiomarkColors.blue),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Biomark AI orienta tu salud, pero no reemplaza el diagnóstico de un profesional. Consulta siempre a tu médico.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -744,7 +752,9 @@ class _MessageBubble extends StatelessWidget {
                     child: Text(
                       message.text,
                       style: textTheme.bodyMedium?.copyWith(
-                        color: message.isUser ? BiomarkColors.white : BiomarkColors.black,
+                        color: message.isUser
+                            ? BiomarkColors.white
+                            : BiomarkColors.black,
                       ),
                     ),
                   ),
@@ -782,7 +792,8 @@ class _FollowUpActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isSaveSymptoms = actionType == 'save_symptoms';
+    final isRegisterProgress = actionType == 'register_progress';
+    final isNearestCenter = actionType == 'nearest_center';
 
     return Container(
       width: MediaQuery.sizeOf(context).width * 0.78,
@@ -800,11 +811,15 @@ class _FollowUpActionCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          if (isSaveSymptoms) ...[
-            const Icon(Icons.shield_rounded, size: 28, color: BiomarkColors.green),
+          if (isRegisterProgress) ...[
+            const Icon(
+              Icons.insights_rounded,
+              size: 28,
+              color: BiomarkColors.blue,
+            ),
             const SizedBox(height: 8),
             const Text(
-              '¿Deseas guardar estos síntomas en tu historial clínico?',
+              'Podemos registrar cómo ha evolucionado este síntoma.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
@@ -812,19 +827,21 @@ class _FollowUpActionCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () => context.findAncestorStateOfType<_ChatScreenState>()?._showSaveHistoryDialog(),
+                onPressed: () => context
+                    .findAncestorStateOfType<_ChatScreenState>()
+                    ?._showProgressDialog(),
                 style: FilledButton.styleFrom(
-                  backgroundColor: BiomarkColors.green,
+                  backgroundColor: BiomarkColors.blue,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text('Sí, guardar'),
+                child: const Text('Registrar evolución'),
               ),
             ),
-          ] else ...[
+          ] else if (isNearestCenter) ...[
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -838,7 +855,7 @@ class _FollowUpActionCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             const Text(
-              'Centro de Salud más cercano',
+              'Recomendación de Biomark AI',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 4),
@@ -851,7 +868,9 @@ class _FollowUpActionCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () => context.findAncestorStateOfType<_ChatScreenState>()?._showClosestCenterDialog(),
+                onPressed: () => context
+                    .findAncestorStateOfType<_ChatScreenState>()
+                    ?._showClosestCenterDialog(),
                 style: FilledButton.styleFrom(
                   backgroundColor: BiomarkColors.blue,
                   foregroundColor: Colors.white,
@@ -862,6 +881,18 @@ class _FollowUpActionCard extends StatelessWidget {
                 ),
                 child: const Text('Ver en mapa'),
               ),
+            ),
+          ] else ...[
+            const Icon(
+              Icons.auto_awesome_rounded,
+              size: 28,
+              color: BiomarkColors.blue,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Biomark AI detectó una acción para tu seguimiento.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
           ],
         ],
@@ -920,7 +951,6 @@ class _ChatInput extends StatelessWidget {
   final bool isRecording;
   final bool isAudioDraftReady;
   final bool audioDraftPaused;
-  final String? selectedImagePath;
   final double audioLevel;
   final VoidCallback onSend;
   final VoidCallback onVoice;
@@ -928,8 +958,6 @@ class _ChatInput extends StatelessWidget {
   final VoidCallback? onSendAudio;
   final VoidCallback? onDeleteAudio;
   final VoidCallback? onPauseAudio;
-  final VoidCallback? onDeleteSelectedImage;
-  final VoidCallback? onSendSelectedImage;
 
   const _ChatInput({
     required this.controller,
@@ -937,7 +965,6 @@ class _ChatInput extends StatelessWidget {
     required this.isRecording,
     required this.isAudioDraftReady,
     required this.audioDraftPaused,
-    this.selectedImagePath,
     required this.audioLevel,
     required this.onSend,
     required this.onVoice,
@@ -945,8 +972,6 @@ class _ChatInput extends StatelessWidget {
     this.onSendAudio,
     this.onDeleteAudio,
     this.onPauseAudio,
-    this.onDeleteSelectedImage,
-    this.onSendSelectedImage,
   });
 
   @override
@@ -970,64 +995,67 @@ class _ChatInput extends StatelessWidget {
               ],
             ),
             child: isRecording
-                ? _VoiceRecordingPanel(
-                    onVoice: onVoice,
-                    audioLevel: audioLevel,
-                  )
+                ? _VoiceRecordingPanel(onVoice: onVoice, audioLevel: audioLevel)
                 : isAudioDraftReady
-                    ? _VoiceDraftPreview(
-                        paused: audioDraftPaused,
-                        onPause: onPauseAudio ?? () {},
-                        onDelete: onDeleteAudio ?? () {},
-                        onSend: onSendAudio ?? () {},
-                      )
-                    : Row(
-                        children: [
-                          IconButton.filledTonal(
-                            tooltip: 'Subir imagen',
-                            onPressed: enabled ? onOpenImagePicker : null,
-                            icon: const Icon(Icons.camera_alt_rounded),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: controller,
-                              enabled: enabled,
-                              textInputAction: TextInputAction.send,
-                              onSubmitted: (_) => onSend(),
-                              decoration: const InputDecoration(
-                                hintText: 'Describe cómo te sientes...',
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.all(Radius.circular(30)),
-                                  borderSide: BorderSide.none,
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.all(Radius.circular(30)),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.all(Radius.circular(30)),
-                                  borderSide: BorderSide.none,
-                                ),
+                ? _VoiceDraftPreview(
+                    paused: audioDraftPaused,
+                    onPause: onPauseAudio ?? () {},
+                    onDelete: onDeleteAudio ?? () {},
+                    onSend: onSendAudio ?? () {},
+                  )
+                : Row(
+                    children: [
+                      IconButton.filledTonal(
+                        tooltip: 'Subir imagen',
+                        onPressed: enabled ? onOpenImagePicker : null,
+                        icon: const Icon(Icons.camera_alt_rounded),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          enabled: enabled,
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => onSend(),
+                          decoration: const InputDecoration(
+                            hintText: 'Describe cómo te sientes...',
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(30),
                               ),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(30),
+                              ),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(30),
+                              ),
+                              borderSide: BorderSide.none,
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          IconButton.filledTonal(
-                            tooltip: 'Grabar audio',
-                            onPressed: enabled ? onVoice : null,
-                            icon: const Icon(Icons.mic_none_rounded),
-                          ),
-                          const SizedBox(width: 6),
-                          IconButton.filled(
-                            tooltip: 'Enviar mensaje',
-                            onPressed: enabled ? onSend : null,
-                            icon: const Icon(Icons.send_rounded),
-                          ),
-                        ],
+                        ),
                       ),
+                      const SizedBox(width: 6),
+                      IconButton.filledTonal(
+                        tooltip: 'Grabar audio',
+                        onPressed: enabled ? onVoice : null,
+                        icon: const Icon(Icons.mic_none_rounded),
+                      ),
+                      const SizedBox(width: 6),
+                      IconButton.filled(
+                        tooltip: 'Enviar mensaje',
+                        onPressed: enabled ? onSend : null,
+                        icon: const Icon(Icons.send_rounded),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -1039,10 +1067,7 @@ class _VoiceRecordingPanel extends StatefulWidget {
   final VoidCallback onVoice;
   final double audioLevel;
 
-  const _VoiceRecordingPanel({
-    required this.onVoice,
-    required this.audioLevel,
-  });
+  const _VoiceRecordingPanel({required this.onVoice, required this.audioLevel});
 
   @override
   State<_VoiceRecordingPanel> createState() => _VoiceRecordingPanelState();
@@ -1090,10 +1115,7 @@ class _VoiceRecordingPanelState extends State<_VoiceRecordingPanel>
             animation: _pulseController,
             builder: (context, child) {
               final scale = 0.9 + (_pulseController.value * 0.16);
-              return Transform.scale(
-                scale: scale,
-                child: child,
-              );
+              return Transform.scale(scale: scale, child: child);
             },
             child: Container(
               width: 30,
@@ -1102,7 +1124,11 @@ class _VoiceRecordingPanelState extends State<_VoiceRecordingPanel>
                 color: BiomarkColors.green,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.mic_rounded, color: Colors.white, size: 16),
+              child: const Icon(
+                Icons.mic_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -1122,7 +1148,10 @@ class _VoiceRecordingPanelState extends State<_VoiceRecordingPanel>
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(5, (index) {
-                  final height = _getBarHeight(index, base).clamp(8.0, 34.0).toDouble();
+                  final height = _getBarHeight(
+                    index,
+                    base,
+                  ).clamp(8.0, 34.0).toDouble();
                   return Container(
                     width: 4,
                     height: height,
@@ -1205,82 +1234,6 @@ class _VoiceDraftPreview extends StatelessWidget {
           const SizedBox(width: 4),
           IconButton.filled(
             tooltip: 'Enviar audio',
-            onPressed: onSend,
-            style: IconButton.styleFrom(
-              backgroundColor: BiomarkColors.green,
-              foregroundColor: Colors.white,
-            ),
-            icon: const Icon(Icons.send_rounded, size: 18),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ImageDraftPreview extends StatelessWidget {
-  final String imagePath;
-  final VoidCallback onDelete;
-  final VoidCallback onSend;
-
-  const _ImageDraftPreview({
-    required this.imagePath,
-    required this.onDelete,
-    required this.onSend,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.file(
-              File(imagePath),
-              width: 72,
-              height: 72,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Imagen lista',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F2A1F),
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Listo para enviar al análisis',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Quitar imagen',
-            onPressed: onDelete,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.delete_outline_rounded, size: 18),
-          ),
-          const SizedBox(width: 4),
-          IconButton.filled(
-            tooltip: 'Enviar imagen',
             onPressed: onSend,
             style: IconButton.styleFrom(
               backgroundColor: BiomarkColors.green,

@@ -124,7 +124,21 @@ El backend es el único cliente de este servicio. Cada petición requiere el hea
 }
 ```
 
-`POST /chat` devuelve `reply`, `risk_level`, `sources` y, si se enviaron coordenadas, `centro_sugerido`. El backend normaliza esa respuesta antes de entregarla a Flutter. El puerto 8000 debe quedar accesible solo desde la red privada de Docker.
+`POST /chat` devuelve `reply`, `risk_level`, `sources`, `suggested_action` y, si se enviaron coordenadas, `centro_sugerido`. `suggested_action` puede ser `REGISTER_PROGRESS`, `REGISTER_MEDICATION`, `REGISTER_REMINDER` o `SHOW_NEAREST_CENTER`.
+
+La acción sugerida es una intención de UX, no una orden de escritura. El cliente debe pedir confirmación y el backend debe validar y persistir la operación. La IA no diagnostica, prescribe ni confirma por sí sola que un paciente mejoró.
+
+Ejemplo:
+
+```json
+{
+  "reply": "¿Quieres registrar cómo ha evolucionado la fiebre?",
+  "risk_level": "LOW",
+  "sources": ["Conocimiento general del modelo"],
+  "suggested_action": "REGISTER_PROGRESS",
+  "centro_sugerido": null
+}
+```
 
 ## Orden de arranque en VPS
 
