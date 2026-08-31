@@ -1,491 +1,778 @@
 import 'package:flutter/material.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.userName = 'Maverick'});
+// ============================================================
+// PALETA DE COLORES
+// ============================================================
+class AppColors {
+  static const bg = Color(0xFFF2F2F5);
+  static const cardBg = Colors.white;
+  static const blue = Color(0xFF2D6CDF);
+  static const blueDark = Color(0xFF1E4FA3);
+  static const green = Color(0xFF34A853);
+  static const greenLight = Color(0xFFE8F6EC);
+  static const brown = Color(0xFF8B5E34);
+  static const brownLight = Color(0xFFF3E9DE);
+  static const purple = Color(0xFF3A3D66);
+  static const purpleLight = Color(0xFFE9E9F5);
+  static const pink = Color(0xFFE85D75);
+  static const textDark = Color(0xFF1E1E2D);
+  static const textGrey = Color(0xFF8A8A9A);
+}
 
-  final String userName;
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _SubjectItem {
-  const _SubjectItem(this.label, this.icon, this.color);
-  final String label;
-  final IconData icon;
-  final Color color;
-}
-
-class _LessonItem {
-  const _LessonItem({
-    required this.title,
-    required this.subtitle,
-    required this.progress,
-    required this.icon,
-    required this.color,
-  });
-  final String title;
-  final String subtitle;
-  final double progress; // 0.0 - 1.0
-  final IconData icon;
-  final Color color;
-}
-
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentNavIndex = 0;
+  int _navIndex = 0;
 
-  static const Color textDark = Color(0xFF1F2542);
-  static const Color textGray = Color(0xFF6B7280);
-  static const Color brandBlue = Color.fromARGB(255, 50, 96, 169);
-  static const Color bg = Color(0xFFF4F6FB);
-
-  final List<_SubjectItem> _subjects = const [
-    _SubjectItem(
-      'Chatea con BioMark',
-      Icons.calculate_rounded,
-      Color(0xFF7C93D9),
-    ),
-    _SubjectItem('Ciencias', Icons.science_rounded, Color(0xFF7ABF8E)),
-    _SubjectItem('Lectura', Icons.menu_book_rounded, Color(0xFFE3B85C)),
-    _SubjectItem('Arte', Icons.palette_rounded, Color(0xFFE38CA0)),
-    _SubjectItem('Música', Icons.music_note_rounded, Color(0xFF6FB1D9)),
-    _SubjectItem('Puzzle', Icons.extension_rounded, Color(0xFFAE8CE3)),
+  final List<String> _navLabels = ['Inicio', 'Explorar', 'Historial', 'Perfil'];
+  final List<IconData> _navIcons = [
+    Icons.home_rounded,
+    Icons.explore_outlined,
+    Icons.history_rounded,
+    Icons.person_outline_rounded,
   ];
 
-  final List<_LessonItem> _lessons = const [
-    _LessonItem(
-      title: 'Sistema Solar',
-      subtitle: 'Ciencias • Nivel 2',
-      progress: 0.6,
-      icon: Icons.public_rounded,
-      color: Color(0xFF5B6FC7),
-    ),
-    _LessonItem(
-      title: 'Suma Básica',
-      subtitle: 'Matemáticas • Nivel 1',
-      progress: 0.4,
-      icon: Icons.functions_rounded,
-      color: Color(0xFFE38CA0),
-    ),
-  ];
+  // Progreso de dosis del día
+  int _dosisTomadas = 3;
+  final int _dosisTotal = 5;
+
+  void _agregarDosis() {
+    if (_dosisTomadas < _dosisTotal) {
+      setState(() => _dosisTomadas++);
+      if (_dosisTomadas == _dosisTotal) {
+        _showSnack(
+          '¡Meta completada! Todas las dosis de hoy fueron tomadas 🎉',
+        );
+      } else {
+        _showSnack('Dosis registrada: $_dosisTomadas/$_dosisTotal');
+      }
+    } else {
+      _showSnack('Ya completaste todas las dosis de hoy');
+    }
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: AppColors.purple,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _openFeature(String titulo, IconData icon, Color color) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            _FeatureDetailScreen(titulo: titulo, icon: icon, color: color),
+      ),
+    );
+  }
+
+  void _openReminderDetail({
+    required String titulo,
+    required String lugar,
+    required String cuando,
+    required Color color,
+    required IconData icon,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ReminderSheet(
+        titulo: titulo,
+        lugar: lugar,
+        cuando: cuando,
+        color: color,
+        icon: icon,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: bg,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          children: [
-            _buildTopBar(),
-            const SizedBox(height: 24),
-            _buildGoalCard(),
-            const SizedBox(height: 28),
-            _buildSectionHeader('Explora todas las opciones'),
-            const SizedBox(height: 14),
-            _buildSubjectsGrid(),
-            const SizedBox(height: 28),
-            _buildSectionHeader('Continuar aprendiendo'),
-            const SizedBox(height: 14),
-            ..._lessons.map(
-              (lesson) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: _buildLessonCard(lesson),
-              ),
-            ),
-          ],
-        ),
+    final pages = [
+      _buildInicioBody(),
+      const _PlaceholderBody(titulo: 'Explorar', icon: Icons.explore_outlined),
+      const _PlaceholderBody(titulo: 'Historial', icon: Icons.history_rounded),
+      const _PlaceholderBody(
+        titulo: 'Perfil',
+        icon: Icons.person_outline_rounded,
       ),
+    ];
+
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: _navIndex == 0 ? _buildAppBar() : null,
+      body: SafeArea(top: _navIndex != 0, child: pages[_navIndex]),
       bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  // ---------------- BARRA SUPERIOR (avatar + saludo + campana) ----------------
-  Widget _buildTopBar() {
-    return Row(
+  // ------------------------------------------------------------
+  // APP BAR
+  // ------------------------------------------------------------
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: AppColors.bg,
+      elevation: 0,
+      titleSpacing: 16,
+      title: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: AppColors.blue,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.favorite_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Text(
+            'Asistente de Salud Nica',
+            style: TextStyle(
+              color: AppColors.blueDark,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(
+            Icons.notifications_none_rounded,
+            color: AppColors.textDark,
+          ),
+          onPressed: () => _showSnack('No tienes notificaciones nuevas'),
+        ),
+        const SizedBox(width: 6),
+      ],
+    );
+  }
+
+  // ------------------------------------------------------------
+  // CUERPO PANTALLA INICIO
+  // ------------------------------------------------------------
+  Widget _buildInicioBody() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        Container(
-          width: 54,
-          height: 54,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: brandBlue.withOpacity(0.12),
-            boxShadow: [
-              BoxShadow(
-                color: brandBlue.withOpacity(0.15),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+        const Text(
+          '¡Hola, Familia!',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textDark,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildMetaCard(),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: _buildGridButton(
+                titulo: 'Conversa con\nBiomark',
+                icon: Icons.smart_toy_outlined,
+                color: AppColors.blue,
+                onTap: () => _openFeature(
+                  'Conversa con Biomark',
+                  Icons.smart_toy_outlined,
+                  AppColors.blue,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _buildGridButton(
+                titulo: 'Mapa de\nSalud',
+                icon: Icons.add_circle_outline_rounded,
+                color: AppColors.green,
+                onTap: () => _openFeature(
+                  'Mapa de Salud',
+                  Icons.add_circle_outline_rounded,
+                  AppColors.green,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: _buildGridButton(
+                titulo: 'Mis\nAntecedentes',
+                icon: Icons.folder_shared_outlined,
+                color: AppColors.brown,
+                onTap: () => _openFeature(
+                  'Mis Antecedentes',
+                  Icons.folder_shared_outlined,
+                  AppColors.brown,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: _buildGridButton(
+                titulo: 'Mi\nProgreso',
+                icon: Icons.show_chart_rounded,
+                color: AppColors.purple,
+                onTap: () => _openFeature(
+                  'Mi Progreso',
+                  Icons.show_chart_rounded,
+                  AppColors.purple,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: const [
+            Icon(
+              Icons.notifications_active_outlined,
+              color: AppColors.blueDark,
+              size: 20,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Recordatorios Inteligentes',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textDark,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _buildReminderCard(
+          icon: Icons.vaccines_rounded,
+          iconColor: AppColors.pink,
+          titulo: 'Jornada de Vacunación',
+          subtitulo: 'Centro de Salud Villa Libertad',
+          etiqueta: 'Hoy',
+          hora: '9:00 AM',
+        ),
+        const SizedBox(height: 12),
+        _buildReminderCard(
+          icon: Icons.medical_services_outlined,
+          iconColor: AppColors.green,
+          titulo: 'Cita Médica',
+          subtitulo: 'Control mensual',
+          etiqueta: 'Mañana',
+          hora: '2:30 PM',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetaCard() {
+    final progreso = _dosisTomadas / _dosisTotal;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.blue.withOpacity(0.10),
+            AppColors.blue.withOpacity(0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.blue.withOpacity(0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Meta de Salud de Hoy',
+                style: TextStyle(
+                  color: AppColors.blueDark,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+              GestureDetector(
+                onTap: _agregarDosis,
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: const BoxDecoration(
+                    color: AppColors.green,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.add_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
               ),
             ],
           ),
-          child: Icon(Icons.face_rounded, color: brandBlue, size: 28),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 4),
+          const Text(
+            'Toma de medicinas',
+            style: TextStyle(color: AppColors.textGrey, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Hola, ${widget.userName}! 👋',
-                style: const TextStyle(fontSize: 13, color: textGray),
-              ),
-              const SizedBox(height: 2),
               const Text(
-                '¿Listo para aprender\nalgo nuevo?',
+                'Progreso',
                 style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w800,
-                  color: textDark,
+                  color: AppColors.textDark,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                '$_dosisTomadas/$_dosisTotal Dosis',
+                style: const TextStyle(
+                  color: AppColors.textDark,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: progreso,
+              minHeight: 8,
+              backgroundColor: Colors.white,
+              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.blue),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGridButton({
+    required String titulo,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: AppColors.cardBg,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: Colors.white, size: 22),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                titulo,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textDark,
                   height: 1.2,
                 ),
               ),
             ],
           ),
         ),
-        _buildNotificationBell(),
-      ],
+      ),
     );
   }
 
-  Widget _buildNotificationBell() {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 48,
-          height: 48,
+  Widget _buildReminderCard({
+    required IconData icon,
+    required Color iconColor,
+    required String titulo,
+    required String subtitulo,
+    required String etiqueta,
+    required String hora,
+  }) {
+    return Material(
+      color: AppColors.cardBg,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _openReminderDetail(
+          titulo: titulo,
+          lugar: subtitulo,
+          cuando: '$etiqueta · $hora',
+          color: iconColor,
+          icon: icon,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
+            borderRadius: BorderRadius.circular(16),
+            border: Border(left: BorderSide(color: iconColor, width: 4)),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withOpacity(0.18),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
-          child: const Icon(
-            Icons.notifications_none_rounded,
-            color: textDark,
-            size: 22,
-          ),
-        ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: Container(
-            width: 10,
-            height: 10,
-            decoration: const BoxDecoration(
-              color: Colors.redAccent,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ---------------- TARJETA "META DE HOY" ----------------
-  Widget _buildGoalCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF5B6FC7), brandBlue],
-        ),
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: [
-          BoxShadow(
-            color: brandBlue.withOpacity(0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Meta de hoy',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                  ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 10),
-                const Text(
-                  '3/5 Lecciones',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: 0.6,
-                    minHeight: 8,
-                    backgroundColor: Colors.white.withOpacity(0.25),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFFF3C05B),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.menu_book_rounded,
-              color: Colors.white,
-              size: 26,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------- ENCABEZADOS DE SECCIÓN ----------------
-  Widget _buildSectionHeader(String title) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            color: textDark,
-          ),
-        ),
-        GestureDetector(
-          onTap: () {},
-          child: Text(
-            'Ver todo',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: brandBlue.withOpacity(0.85),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ---------------- GRID DE MATERIAS ----------------
-  Widget _buildSubjectsGrid() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _subjects.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.95,
-      ),
-      itemBuilder: (context, index) {
-        final subject = _subjects[index];
-        return _buildSubjectCard(subject);
-      },
-    );
-  }
-
-  Widget _buildSubjectCard(_SubjectItem subject) {
-    return Container(
-      decoration: BoxDecoration(
-        color: subject.color.withOpacity(0.18),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: subject.color.withOpacity(0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: subject.color.withOpacity(0.25),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Icon(subject.icon, color: subject.color, size: 22),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            subject.label,
-            style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: textDark,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------- TARJETA DE LECCIÓN EN PROGRESO ----------------
-  Widget _buildLessonCard(_LessonItem lesson) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: lesson.color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(lesson.icon, color: lesson.color, size: 26),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  lesson.title,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: textDark,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  lesson.subtitle,
-                  style: const TextStyle(fontSize: 12, color: textGray),
-                ),
-                const SizedBox(height: 8),
-                Row(
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: LinearProgressIndicator(
-                          value: lesson.progress,
-                          minHeight: 6,
-                          backgroundColor: Colors.grey.withOpacity(0.15),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            lesson.color,
-                          ),
-                        ),
+                    Text(
+                      titulo,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        color: AppColors.textDark,
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(height: 2),
                     Text(
-                      '${(lesson.progress * 100).round()}%',
+                      subtitulo,
                       style: const TextStyle(
+                        color: AppColors.textGrey,
                         fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: textDark,
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    etiqueta,
+                    style: TextStyle(
+                      color: iconColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    hora,
+                    style: const TextStyle(
+                      color: AppColors.textGrey,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // BOTTOM NAV
+  // ------------------------------------------------------------
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(_navLabels.length, (i) {
+              final selected = _navIndex == i;
+              return GestureDetector(
+                onTap: () => setState(() => _navIndex = i),
+                behavior: HitTestBehavior.opaque,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _navIcons[i],
+                      color: selected ? AppColors.green : AppColors.textGrey,
+                      size: 24,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _navLabels[i],
+                      style: TextStyle(
+                        color: selected ? AppColors.green : AppColors.textGrey,
+                        fontSize: 11,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// PANTALLA GENÉRICA DE DETALLE (para los 4 botones del grid)
+// ============================================================
+class _FeatureDetailScreen extends StatelessWidget {
+  final String titulo;
+  final IconData icon;
+  final Color color;
+
+  const _FeatureDetailScreen({
+    required this.titulo,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        backgroundColor: AppColors.bg,
+        elevation: 0,
+        foregroundColor: AppColors.textDark,
+        title: Text(
+          titulo,
+          style: const TextStyle(
+            color: AppColors.textDark,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(icon, color: Colors.white, size: 40),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              titulo,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Aquí irá el contenido de esta sección.',
+              style: TextStyle(color: AppColors.textGrey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// HOJA INFERIOR PARA DETALLE DE RECORDATORIO
+// ============================================================
+class _ReminderSheet extends StatelessWidget {
+  final String titulo;
+  final String lugar;
+  final String cuando;
+  final Color color;
+  final IconData icon;
+
+  const _ReminderSheet({
+    required this.titulo,
+    required this.lugar,
+    required this.cuando,
+    required this.color,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 42,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: color, size: 26),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            titulo,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textDark,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            lugar,
+            style: const TextStyle(color: AppColors.textGrey, fontSize: 13.5),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            cuando,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 13.5,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: color,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Recordatorio "$titulo" confirmado'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+              child: const Text(
+                'Entendido',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  // ---------------- BARRA INFERIOR ----------------
-  Widget _buildBottomNav() {
-    final items = [
-      ('Inicio', Icons.home_rounded),
-      ('Explorar', Icons.search_rounded),
-      ('Progreso', Icons.bar_chart_rounded),
-      ('Perfil', Icons.person_rounded),
-    ];
+// ============================================================
+// CONTENIDO PLACEHOLDER PARA LAS OTRAS PESTAÑAS DEL NAV
+// ============================================================
+class _PlaceholderBody extends StatelessWidget {
+  final String titulo;
+  final IconData icon;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
+  const _PlaceholderBody({required this.titulo, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 54, color: AppColors.textGrey),
+          const SizedBox(height: 12),
+          Text(
+            titulo,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textDark,
+            ),
           ),
         ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(items.length, (index) {
-            final selected = index == _currentNavIndex;
-            final (label, icon) = items[index];
-            return GestureDetector(
-              onTap: () => setState(() => _currentNavIndex = index),
-              behavior: HitTestBehavior.opaque,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, color: selected ? brandBlue : textGray, size: 24),
-                  const SizedBox(height: 4),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected ? brandBlue : textGray,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ),
       ),
     );
   }
