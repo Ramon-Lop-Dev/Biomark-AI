@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'loading.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
 
@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Syne', // opcional: agrega la fuente en pubspec.yaml
         useMaterial3: true,
       ),
-      home: const LoginScreen(),
+      home: const SplashScreen(),
     );
   }
 }
@@ -69,10 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
         .showSnackBar(const SnackBar(content: Text('Login de prueba exitoso')));
 
     Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(builder: (context) => const HomeScreen()),
-  );
-
+      context,
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
+    );
   }
 
   @override
