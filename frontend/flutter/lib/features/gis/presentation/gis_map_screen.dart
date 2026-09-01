@@ -212,8 +212,10 @@ class _GisMapScreenState extends State<GisMapScreen> {
       ),
     ];
 
-    return Stack(
-      children: [
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(initialCenter: _userLocation, initialZoom: 13.2),
@@ -297,7 +299,8 @@ class _GisMapScreenState extends State<GisMapScreen> {
             onFocus: _focusCenter,
           ),
         ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -327,22 +330,25 @@ class _SearchHeader extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: .88),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(color: Colors.black12, blurRadius: 12),
-              ],
-            ),
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search_rounded),
-                hintText: 'Buscar centros de salud...',
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 16),
+          child: Material(
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .88),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black12, blurRadius: 12),
+                ],
+              ),
+              child: TextField(
+                controller: controller,
+                onChanged: onChanged,
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search_rounded),
+                  hintText: 'Buscar centros de salud...',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 16),
+                ),
               ),
             ),
           ),

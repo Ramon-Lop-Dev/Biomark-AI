@@ -1,8 +1,8 @@
 // Arranca la aplicación y define la pantalla de autenticación inicial.
 import 'package:flutter/material.dart';
 
+import 'app_shell.dart';
 import 'biomark_brand.dart';
-import 'home_screen.dart';
 import 'register_screen.dart';
 
 void main() {
@@ -69,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(builder: (context) => const AppShell()),
     );
   }
 

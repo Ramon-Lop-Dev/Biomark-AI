@@ -1,10 +1,30 @@
-// Shell de Inicio y navegación principal de Biomark AI.
+// Pantalla de inicio (Home) de Biomark AI.
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
 import 'features/chat/presentation/chat_screen.dart';
 import 'features/gis/presentation/gis_map_screen.dart';
 import 'features/progress/presentation/progress_screen.dart';
+import 'features/reminders/presentation/reminders_screen.dart';
+
+/// Transición personalizada (duplicada para evitar circular imports)
+class _FadeSlidePageRoute<T> extends MaterialPageRoute<T> {
+  _FadeSlidePageRoute({required super.builder, super.settings});
+
+  @override
+  Widget buildTransitions(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
+    return FadeTransition(
+      opacity: animation,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.2, 0),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
+    );
+  }
+}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,31 +34,15 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _navIndex = 0;
   int _dosisTomadas = 3;
   static const _dosisTotal = 5;
 
-  final _navLabels = const ['Inicio', 'Mejoría', 'Mapa', 'Avisos', 'Perfil'];
-  final _navIcons = const [
-    Icons.home_rounded,
-    Icons.insights_rounded,
-    Icons.location_on_rounded,
-    Icons.notifications_rounded,
-    Icons.person_outline_rounded,
-  ];
-
-  void _handleNavTap(int index) {
-    if (index == 4) {
-      _showMessage('Perfil estará disponible en la siguiente sección.');
-      return;
-    }
-    setState(() => _navIndex = index);
-  }
-
-  void _openChat() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ChatScreen()),
+  void _addDose() {
+    if (_dosisTomadas < _dosisTotal) setState(() => _dosisTomadas++);
+    _showMessage(
+      _dosisTomadas == _dosisTotal
+          ? 'Meta completada.'
+          : 'Dosis registrada: $_dosisTomadas/$_dosisTotal',
     );
   }
 
@@ -50,55 +54,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      _buildHomeBody(),
-      const ProgressScreen(),
-      const GisMapScreen(),
-      const _PlaceholderBody(
-        title: 'Avisos',
-        icon: Icons.notifications_rounded,
-      ),
-      const _PlaceholderBody(
-        title: 'Perfil',
-        icon: Icons.person_outline_rounded,
-      ),
-    ];
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
-      appBar: _buildAppBar(),
-      body: SafeArea(child: pages[_navIndex]),
-      bottomNavigationBar: _buildBottomNav(),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: const Color(0xFFF9F9FC),
-      elevation: 0,
-      titleSpacing: 16,
-      title: Image.asset(
-        'assets/branding/Logo_Horizontal.png',
-        width: 140,
-        height: 40,
-        fit: BoxFit.contain,
-        semanticLabel: 'Biomark AI',
-      ),
-      actions: [
-        IconButton(
-          tooltip: 'Notificaciones',
-          icon: const Icon(
-            Icons.notifications_none_rounded,
-            color: BiomarkColors.black,
-          ),
-          onPressed: () => _showMessage('No tienes notificaciones nuevas.'),
-        ),
-        const SizedBox(width: 6),
-      ],
-    );
-  }
-
-  Widget _buildHomeBody() {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
@@ -120,7 +75,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Conversa con\nBiomark',
                 Icons.health_and_safety_rounded,
                 BiomarkColors.blue,
-                _openChat,
+                () => Navigator.push(
+                  context,
+                  _FadeSlidePageRoute(builder: (_) => const ChatScreen()),
+                ),
               ),
             ),
             const SizedBox(width: 14),
@@ -129,7 +87,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Mapa de\nSalud',
                 Icons.map_outlined,
                 BiomarkColors.green,
-                () => _selectTab(2),
+                () => Navigator.push(
+                  context,
+                  _FadeSlidePageRoute(builder: (_) => const GisMapScreen()),
+                ),
               ),
             ),
           ],
@@ -151,7 +112,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Mi\nProgreso',
                 Icons.show_chart_rounded,
                 BiomarkColors.blue,
-                () => _selectTab(1),
+                () => Navigator.push(
+                  context,
+                  _FadeSlidePageRoute(builder: (_) => const ProgressScreen()),
+                ),
               ),
             ),
           ],
@@ -183,6 +147,10 @@ class _HomeScreenState extends State<HomeScreen> {
           '9:00 AM',
           Icons.vaccines_rounded,
           BiomarkColors.green,
+          () => Navigator.push(
+            context,
+            _FadeSlidePageRoute(builder: (_) => const RemindersScreen()),
+          ),
         ),
         const SizedBox(height: 12),
         _buildReminder(
@@ -192,12 +160,14 @@ class _HomeScreenState extends State<HomeScreen> {
           '2:30 PM',
           Icons.medical_services_outlined,
           BiomarkColors.blue,
+          () => Navigator.push(
+            context,
+            _FadeSlidePageRoute(builder: (_) => const RemindersScreen()),
+          ),
         ),
       ],
     );
   }
-
-  void _selectTab(int index) => setState(() => _navIndex = index);
 
   Widget _buildMedicationGoal() {
     return Container(
@@ -267,15 +237,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _addDose() {
-    if (_dosisTomadas < _dosisTotal) setState(() => _dosisTomadas++);
-    _showMessage(
-      _dosisTomadas == _dosisTotal
-          ? 'Meta completada.'
-          : 'Dosis registrada: $_dosisTomadas/$_dosisTotal',
-    );
-  }
-
   Widget _buildFeatureButton(
     String title,
     IconData icon,
@@ -326,13 +287,14 @@ class _HomeScreenState extends State<HomeScreen> {
     String time,
     IconData icon,
     Color color,
+    VoidCallback? onTap,
   ) {
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => _showMessage('$title: $day · $time'),
+        onTap: onTap ?? () => _showMessage('$title: $day · $time'),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -383,129 +345,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  Widget _buildBottomNav() {
-    return SafeArea(
-      top: false,
-      child: SizedBox(
-        height: 96,
-        child: Stack(
-          alignment: Alignment.topCenter,
-          children: [
-            Positioned(
-              left: 18,
-              right: 18,
-              top: 28,
-              bottom: 8,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(32),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .08),
-                      blurRadius: 12,
-                      offset: const Offset(4, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(child: _navItem(0)),
-                    Expanded(child: _navItem(1)),
-                    const SizedBox(width: 62),
-                    Expanded(child: _navItem(2)),
-                    Expanded(child: _navItem(3)),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              top: 0,
-              child: GestureDetector(
-                onTap: _openChat,
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF46AB39), Color(0xFF006E03)],
-                    ),
-                    border: Border.all(
-                      color: const Color(0xFFF9F9FC),
-                      width: 4,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: BiomarkColors.green.withValues(alpha: .45),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.chat_bubble_rounded,
-                    color: Colors.white,
-                    size: 26,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _navItem(int index) {
-    final selected = _navIndex == index;
-    return GestureDetector(
-      onTap: () => _handleNavTap(index),
-      behavior: HitTestBehavior.opaque,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _navIcons[index],
-              color: selected ? BiomarkColors.green : const Color(0xFF3F4A3B),
-              size: 20,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              _navLabels[index],
-              style: TextStyle(
-                color: selected ? BiomarkColors.green : const Color(0xFF3F4A3B),
-                fontSize: 10.5,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaceholderBody extends StatelessWidget {
-  final String title;
-  final IconData icon;
-
-  const _PlaceholderBody({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, size: 54, color: BiomarkColors.black),
-        const SizedBox(height: 12),
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-      ],
-    ),
-  );
 }
