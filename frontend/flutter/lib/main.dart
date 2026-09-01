@@ -69,8 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Login de prueba exitoso')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Login de prueba exitoso')));
 
     Navigator.pushReplacement(
       context,
@@ -175,7 +176,11 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Row(
             children: [
               Expanded(
-                child: _buildGlassTabItem(texto: 'Iniciar Sesión', activo: true, onTap: () {}),
+                child: _buildGlassTabItem(
+                  texto: 'Iniciar Sesión',
+                  activo: true,
+                  onTap: () {},
+                ),
               ),
               Expanded(
                 child: _buildGlassTabItem(
@@ -538,11 +543,7 @@ class _LoginScreenState extends State<LoginScreen> {
               'Tus datos médicos están encriptados y protegidos según los '
               'estándares de salud de Nicaragua. Tu privacidad es nuestra '
               'prioridad.',
-              style: TextStyle(
-                fontSize: 12,
-                color: textGray,
-                height: 1.4,
-              ),
+              style: TextStyle(fontSize: 12, color: textGray, height: 1.4),
             ),
           ),
         ],
