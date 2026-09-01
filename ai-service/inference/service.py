@@ -40,3 +40,22 @@ class ClinicalService:
             fuentes = ["Conocimiento general del modelo"]
 
         return validar_respuesta(respuesta, risk_level), risk_level, fuentes
+
+    def sugerir_accion(self, mensaje_usuario: str):
+        """Sugiere una siguiente acción no destructiva para que el cliente
+        pueda pedir confirmación antes de escribir datos del usuario.
+
+        No diagnostica ni crea recordatorios: solo clasifica la intención
+        explícita del mensaje y devuelve None cuando no es suficientemente
+        clara.
+        """
+        texto = mensaje_usuario.lower()
+        if any(term in texto for term in ("mejoré", "mejore", "estoy mejor", "empeoré", "empeore", "sigo igual")):
+            return "REGISTER_PROGRESS"
+        if any(term in texto for term in ("recordatorio", "cita médica", "cita medica", "que me recuerdes")):
+            return "REGISTER_REMINDER"
+        if any(term in texto for term in ("centro de salud", "hospital", "clínica", "clinica", "dónde atenderme", "donde atenderme")):
+            return "SHOW_NEAREST_CENTER"
+        if any(term in texto for term in ("estoy tomando", "me recetaron", "medicamento", "pastilla", "medicina")):
+            return "REGISTER_MEDICATION"
+        return None
