@@ -21,9 +21,15 @@ const getSmartMap = asyncHandler(async (req, res) => {
     return res.status(200).json(data);
 });
 
+const getClosestHealthCenter = asyncHandler(async (req, res) => {
+    const { latitude, longitude, radius_km } = req.query;
+    const data = await gisService.getClosestHealthCenter(latitude, longitude, radius_km);
+    return res.status(200).json(data || { message: 'No hay centros cercanos en este radio' });
+});
+
 const recommendNavigation = asyncHandler(async (req, res) => {
     const { latitude, longitude, radius_km } = req.query;
     return res.status(200).json(await gisService.recommendNavigation(latitude, longitude, radius_km));
 });
 
-module.exports = { getHealthCenters, getNearbyHealthCenters, getSmartMap, recommendNavigation };
+module.exports = { getHealthCenters, getNearbyHealthCenters, getSmartMap, getClosestHealthCenter, recommendNavigation };

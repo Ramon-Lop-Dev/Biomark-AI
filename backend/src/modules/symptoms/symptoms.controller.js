@@ -12,4 +12,9 @@ const addSymptom = asyncHandler(async (req, res) => {
     return res.status(201).json(registro);
 });
 
-module.exports = { getSymptoms, addSymptom };
+const saveSymptomToHistory = asyncHandler(async (req, res) => {
+    const registro = await symptomsService.guardarSintomasEnHistorial(req.usuarioId, req.body);
+    return res.status(201).json(registro);
+});
+
+module.exports = { getSymptoms, addSymptom, saveSymptomToHistory };

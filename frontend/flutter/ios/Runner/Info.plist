@@ -26,6 +26,14 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+    <string>Biomark AI necesita acceso a la cámara para analizar imágenes de la piel o garganta.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Biomark AI usa tu ubicación para mostrar centros de salud cercanos.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Biomark AI necesita acceso al micrófono para grabar mensajes de audio.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Biomark AI necesita acceder a tus fotos para analizar imágenes médicas.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

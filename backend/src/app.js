@@ -48,6 +48,7 @@ const epidemiologyRoutes=require('./modules/epidemiology/epidemiology.routes')
 const chatRoutes = require('./modules/chat/chat.routes');
 const voiceRoutes = require('./modules/voice/voice.routes');
 const visionRoutes = require('./modules/vision/vision.routes');
+const progressRoutes = require('./modules/progress/progress.routes');
 const navigationRoutes = require('./modules/gis/navigation.routes');
 const { markReminderSent } = require('./modules/reminders/internal.controller');
 const { verifyInternalWebhook } = require('./middleware/internalWebhook.middleware');
@@ -65,6 +66,7 @@ app.use('/api/epidemiology', epidemiologyRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/vision', visionRoutes);
+app.use('/api/progress', progressRoutes);
 app.patch('/internal/reminders/:id/sent', verifyInternalWebhook, markReminderSent);
 
 // Ruta no encontrada (debe ir después de todas las rutas montadas)

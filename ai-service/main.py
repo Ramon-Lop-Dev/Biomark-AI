@@ -117,6 +117,7 @@ def chat_inference(data: dict, x_internal_key: str = Header(None)):
         "reply": respuesta,
         "risk_level": risk_level,
         "sources": fuentes,
+        "suggested_action": clinical_service.sugerir_accion(mensaje_usuario),
         "centro_sugerido": centro_sugerido,
     }
 
