@@ -108,7 +108,44 @@ de tu backend de Node.
    lista en `deploy/ai-service.service`, ajusta `User`/`WorkingDirectory` a tu
    instalación) y pon Nginx o Caddy delante con HTTPS, en vez de exponer el
    puerto 8000 directo a internet.
-5. Actualiza `AI_SERVICE_URL` en el backend de Node al dominio del VPS.
+5. Configura en el backend `AI_SERVICE_URL=http://ai-service:8000` cuando ambos servicios estén en el mismo `docker-compose`; no uses un dominio público para esta comunicación interna.
+
+## Contrato interno de chat
+
+El backend es el único cliente de este servicio. Cada petición requiere el header `X-Internal-Key` y usa este cuerpo:
+
+```json
+{
+  "message": "Tengo fiebre desde ayer",
+  "latitude": null,
+  "longitude": null,
+  "medical_context": null,
+  "conversation_history": []
+}
+```
+
+`POST /chat` devuelve `reply`, `risk_level`, `sources`, `suggested_action` y, si se enviaron coordenadas, `centro_sugerido`. `suggested_action` puede ser `REGISTER_PROGRESS`, `REGISTER_MEDICATION`, `REGISTER_REMINDER` o `SHOW_NEAREST_CENTER`.
+
+La acción sugerida es una intención de UX, no una orden de escritura. El cliente debe pedir confirmación y el backend debe validar y persistir la operación. La IA no diagnostica, prescribe ni confirma por sí sola que un paciente mejoró.
+
+Ejemplo:
+
+```json
+{
+  "reply": "¿Quieres registrar cómo ha evolucionado la fiebre?",
+  "risk_level": "LOW",
+  "sources": ["Conocimiento general del modelo"],
+  "suggested_action": "REGISTER_PROGRESS",
+  "centro_sugerido": null
+}
+```
+
+## Orden de arranque en VPS
+
+1. Configura `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` y `AI_SERVICE_INTERNAL_KEY` únicamente en `deploy/ai-service.env`.
+2. Inicia `ai-service` y verifica `curl http://127.0.0.1:8000/health` desde el contenedor o la red privada.
+3. Inicia el backend con la misma `AI_SERVICE_INTERNAL_KEY` y `AI_SERVICE_URL=http://ai-service:8000`.
+4. Verifica desde nginx `GET /health` y después prueba `POST /api/chat` con un JWT válido.
 
 ## Seguridad
 

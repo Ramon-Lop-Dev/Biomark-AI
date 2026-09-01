@@ -64,7 +64,7 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
       contextoClinico,
       conversationHistory
     );
-    const { reply, risk_level, sources } = data;
+    const { reply, risk_level, sources, suggested_action } = data;
 
     const nivelRiesgo = mapearNivelRiesgo(risk_level);
 
@@ -109,7 +109,8 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
       session_id: sesionId,
       reply,
       risk_level,
-      sources
+      sources,
+      suggested_action: suggested_action || null
     };
   } catch (error) {
     if (error instanceof AppError) throw error;
