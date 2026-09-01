@@ -1,12 +1,13 @@
-import 'dart:ui';
-
+// Arranca la aplicación y define la pantalla de autenticación inicial.
 import 'package:flutter/material.dart';
 
+import 'app_shell.dart';
+import 'biomark_brand.dart';
+import 'register_screen.dart';
+import 'dart:ui';
 import 'loading.dart';
 import 'home_screen.dart';
-import 'register_screen.dart';
 import 'forgot_password.dart';
-
 void main() {
   runApp(const MyApp());
 }
@@ -43,13 +44,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  // Colores base del diseño (ajusta a tu marca)
-  static const Color bgTop = Color(0xFFE0E7F2);
-  static const Color bgMid = Color.fromARGB(255, 243, 243, 244);
-  static const Color bgBottom = Color.fromARGB(255, 228, 229, 232);
-  static const Color primaryGreen = Color.fromARGB(255, 9, 61, 107);
-  static const Color textDark = Color(0xFF1F2542);
-  static const Color textGray = Color.fromARGB(255, 36, 36, 37);
+  static const Color bgTop = BiomarkColors.white;
+  static const Color bgMid = BiomarkColors.white;
+  static const Color bgBottom = BiomarkColors.white;
+  static const Color primaryGreen = BiomarkColors.blue;
+  static const Color textDark = BiomarkColors.black;
+  static const Color textGray = BiomarkColors.black;
 
   @override
   void dispose() {
@@ -75,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(builder: (context) => const AppShell()),
     );
   }
 
@@ -112,14 +112,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         const SizedBox(height: 28),
                         _buildLogo(),
-                        const SizedBox(height: 20),
-                        _buildAuthTabs(),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 24),
                         _buildTitle(),
                         const SizedBox(height: 28),
                         _buildFormCard(),
                         const SizedBox(height: 24),
-                        _buildPrivacyNote(),
+                        _buildFooter(),
                         const SizedBox(height: 12),
                       ],
                     ),
@@ -136,14 +134,14 @@ class _LoginScreenState extends State<LoginScreen> {
   // ---------------- LOGO ----------------
   Widget _buildLogo() {
     return Container(
-      width: 100,
-      height: 100,
+      width: 96,
+      height: 96,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.25),
+            color: Colors.grey.withValues(alpha: 0.25),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -151,93 +149,10 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: ClipOval(
         child: Image.asset(
-          'assets/images/logo.png',
-          width: 100,
-          height: 100,
+          'assets/branding/Icono.png',
+          width: 90,
+          height: 96,
           fit: BoxFit.cover,
-        ),
-      ),
-    );
-  }
-
-  // ---------------- PESTAÑAS INICIAR SESIÓN / REGISTRARSE (glassmorfismo) ----------------
-  Widget _buildAuthTabs() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.18),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: _buildGlassTabItem(
-                  texto: 'Iniciar Sesión',
-                  activo: true,
-                  onTap: () {},
-                ),
-              ),
-              Expanded(
-                child: _buildGlassTabItem(
-                  texto: 'Registrarse',
-                  activo: false,
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const RegisterScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassTabItem({
-    required String texto,
-    required bool activo,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: activo ? Colors.white.withOpacity(0.55) : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-          border: activo
-              ? Border.all(color: Colors.white.withOpacity(0.8), width: 1)
-              : null,
-          boxShadow: activo
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : [],
-        ),
-        child: Text(
-          texto,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: textDark,
-            fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
-            fontSize: 14,
-          ),
         ),
       ),
     );
@@ -245,10 +160,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // ---------------- TÍTULO ----------------
   Widget _buildTitle() {
-    return Text(
-      'Ingresa tus credenciales para continuar',
-      textAlign: TextAlign.center,
-      style: TextStyle(fontSize: 13.5, color: textGray),
+    return Column(
+      children: [
+        Text(
+          'Iniciar Sesión ',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            color: textDark,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Ingresa tus credenciales para continuar',
+          style: TextStyle(fontSize: 13, color: textGray),
+        ),
+      ],
     );
   }
 
@@ -258,17 +185,12 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color.fromARGB(255, 241, 238, 238),
+        color: BiomarkColors.white,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           // sombra oscura abajo-derecha
           BoxShadow(
-            color: const Color.fromARGB(
-              255,
-              33,
-              45,
-              122,
-            ).withValues(alpha: 0.25),
+            color: BiomarkColors.blue.withValues(alpha: 0.25),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
@@ -289,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 8),
             _buildClayTextField(
               controller: _emailController,
-              hint: 'ejemplo@gmail.com',
+              hint: 'tunombre123@gmail.com',
               icon: Icons.mail_outline_rounded,
               keyboardType: TextInputType.emailAddress,
               validator: (value) {
@@ -316,8 +238,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: textGray,
                 ),
                 onPressed: () {
-                  // Este botón solo debe mostrar/ocultar la contraseña,
-                  // no navegar a otra pantalla (eso lo maneja el link de abajo).
                   setState(() => _obscurePassword = !_obscurePassword);
                 },
               ),
@@ -333,12 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ForgotPasswordScreen(),
-                    ),
-                  );
+                  // TODO: navegar a recuperación de contraseña
                 },
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
@@ -348,7 +263,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text(
                   '¿Olvidaste tu contraseña?',
                   style: TextStyle(
-                    color: Color.fromARGB(255, 59, 58, 58),
+                    color: BiomarkColors.blue,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -390,7 +305,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F6FB),
+        color: BiomarkColors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -491,8 +406,8 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: _socialButton(
-            label: 'Facebook',
-            icon: Icons.facebook_rounded,
+            label: 'Apple',
+            icon: Icons.apple, // icon de Apple
             onTap: () {},
           ),
         ),
@@ -514,40 +429,39 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 14),
-        side: BorderSide(color: Colors.grey.withOpacity(0.3)),
+        side: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
 
-  // ---------------- NOTA DE PRIVACIDAD ----------------
-  Widget _buildPrivacyNote() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEDEEF2),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.verified_user_outlined,
-            color: primaryGreen,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Tus datos médicos están encriptados y protegidos según los '
-              'estándares de salud de Nicaragua. Tu privacidad es nuestra '
-              'prioridad.',
-              style: TextStyle(fontSize: 12, color: textGray, height: 1.4),
+  // ---------------- FOOTER ----------------
+  Widget _buildFooter() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          '¿No tienes una cuenta? ',
+          style: TextStyle(color: textGray, fontSize: 13),
+        ),
+
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const RegisterScreen()),
+            );
+          },
+          child: const Text(
+            ' Registrarse',
+            style: TextStyle(
+              color: BiomarkColors.green,
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
