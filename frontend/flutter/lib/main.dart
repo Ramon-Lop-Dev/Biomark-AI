@@ -253,7 +253,12 @@ class _LoginScreenState extends State<LoginScreen> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {
-                  // TODO: navegar a recuperación de contraseña
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ForgotPasswordScreen(),
+                    ), //
+                  );
                 },
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
@@ -406,8 +411,8 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: _socialButton(
-            label: 'Apple',
-            icon: Icons.apple, // icon de Apple
+            label: 'Facebook',
+            icon: Icons.facebook_rounded,
             onTap: () {},
           ),
         ),
