@@ -8,6 +8,7 @@ import 'dart:ui';
 import 'loading.dart';
 import 'home_screen.dart';
 import 'forgot_password.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -62,7 +63,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-
     // TODO: aquí va tu lógica real (Firebase Auth, API REST, etc.)
     await Future.delayed(const Duration(seconds: 2));
 
