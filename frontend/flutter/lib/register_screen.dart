@@ -1,30 +1,15 @@
-// Gestiona el formulario de registro y la selección de foto de perfil.
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_biomark/home_screen.dart';
+import 'package:flutter_biomark/main.dart'; // <-- para navegar de vuelta a LoginScreen
 import 'package:image_picker/image_picker.dart';
 
-import 'biomark_brand.dart';
-
 /// ---------------------------------------------------------------
-/// REGISTER SCREEN — mismo estilo "claymorfismo" que el login
-/// ---------------------------------------------------------------
-/// Cómo usarlo:
-/// 1. Agrega en pubspec.yaml, dentro de dependencies:
-///    image_picker: ^1.1.2
-///    y corre flutter pub get
-/// 2. Copia este archivo a lib/register_screen.dart
-/// 3. En tu main.dart, arriba del todo agrega:
-///    import 'register_screen.dart';
-/// 4. En el "Registrarse" de tu LoginScreen (_buildFooter), navega así:
-///    onTap: () {
-///      Navigator.push(
-///        context,
-///        MaterialPageRoute(builder: (context) => const RegisterScreen()),
-///      );
-///    },
+/// REGISTER SCREEN — mismo estilo "claymorfismo" que el login,
+/// con pestañas Iniciar Sesión / Registrarse arriba (igual que login)
 /// ---------------------------------------------------------------
 
 class RegisterScreen extends StatefulWidget {
@@ -58,11 +43,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final ImagePicker _imagePicker = ImagePicker();
 
-  static const Color bgTop = BiomarkColors.white;
-  static const Color bgMid = BiomarkColors.white;
-  static const Color primaryPurple = BiomarkColors.white;
-  static const Color textDark = BiomarkColors.black;
-  static const Color textGray = BiomarkColors.black;
+  // Fondo con más carácter — degradado en tonos azules de marca
+  static const Color bgTop = Color.fromARGB(255, 244, 245, 246);
+  static const Color bgMid = Color.fromARGB(255, 239, 239, 240);
+  static const Color primaryPurple = Color.fromARGB(255, 254, 254, 254);
+  static const Color accentBlue = Color.fromARGB(
+    255,
+    50,
+    96,
+    169,
+  ); // azul de marca
+  static const Color textDark = Color(0xFF1F2542);
+  static const Color textGray = Color.fromARGB(255, 36, 36, 37);
 
   @override
   void dispose() {
@@ -73,6 +65,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  void _irALogin() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+    );
   }
 
   // ---------------- SELECTOR DE EDAD (RUEDA) ----------------
@@ -97,7 +96,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha: 0.3),
+                  color: Colors.grey.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -126,7 +125,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     decoration: BoxDecoration(
                       border: Border.symmetric(
                         horizontal: BorderSide(
-                          color: BiomarkColors.blue.withValues(alpha: 0.35),
+                          color: const Color.fromARGB(
+                            255,
+                            50,
+                            96,
+                            169,
+                          ).withOpacity(0.35),
                           width: 1.2,
                         ),
                       ),
@@ -163,7 +167,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Navigator.of(sheetContext).pop(tempAge);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: BiomarkColors.blue,
+                      backgroundColor: const Color.fromARGB(255, 50, 96, 169),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -238,62 +242,116 @@ class _RegisterScreenState extends State<RegisterScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [bgTop, bgMid, BiomarkColors.white],
+            colors: [bgTop, bgMid, Color.fromARGB(255, 244, 245, 243)],
             stops: [0.0, 0.55, 1.0],
           ),
         ),
         child: SafeArea(
-          child: Stack(
-            children: [
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 28),
+                        _buildProfilePhotoPicker(),
+                        const SizedBox(height: 20),
+                        _buildAuthTabs(),
+                        const SizedBox(height: 20),
+                        _buildTitle(),
+                        const SizedBox(height: 28),
+                        _buildFormCard(),
+                        const SizedBox(height: 24),
+                      ],
                     ),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(height: 40),
-                            _buildProfilePhotoPicker(),
-                            const SizedBox(height: 20),
-                            _buildTitle(),
-                            const SizedBox(height: 28),
-                            _buildFormCard(),
-                            const SizedBox(height: 24),
-                            _buildFooter(),
-                            const SizedBox(height: 12),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              // Botón de regreso — va AL FINAL para quedar encima y ser tocable
-              Positioned(
-                top: 8,
-                left: 8,
-                child: Material(
-                  color: Colors.transparent,
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: textDark,
-                      size: 20,
-                    ),
-                    onPressed: () => Navigator.pop(context),
                   ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------- PESTAÑAS INICIAR SESIÓN / REGISTRARSE (glassmorfismo) ----------------
+  Widget _buildAuthTabs() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.18),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildGlassTabItem(
+                  texto: 'Iniciar Sesión',
+                  activo: false,
+                  onTap: _irALogin,
+                ),
+              ),
+              Expanded(
+                child: _buildGlassTabItem(
+                  texto: 'Registrarse',
+                  activo: true,
+                  onTap: () {},
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassTabItem({
+    required String texto,
+    required bool activo,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: activo ? Colors.white.withOpacity(0.55) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: activo
+              ? Border.all(color: Colors.white.withOpacity(0.8), width: 1)
+              : null,
+          boxShadow: activo
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : [],
+        ),
+        child: Text(
+          texto,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: textDark,
+            fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 14,
           ),
         ),
       ),
@@ -311,7 +369,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             height: 96,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: BiomarkColors.white,
+              color: const Color.fromARGB(255, 242, 242, 242),
               boxShadow: [
                 BoxShadow(
                   color: const Color.fromARGB(
@@ -319,7 +377,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     11,
                     56,
                     125,
-                  ).withValues(alpha: 0.25),
+                  ).withOpacity(0.25),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -336,7 +394,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   : Icon(
                       Icons.person_outline_rounded,
                       size: 44,
-                      color: BiomarkColors.blue,
+                      color: const Color.fromARGB(255, 3, 3, 63),
                     ),
             ),
           ),
@@ -354,7 +412,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: const Icon(
                 Icons.camera_alt_rounded,
                 size: 15,
-                color: BiomarkColors.blue,
+                color: Color.fromARGB(255, 5, 25, 122),
               ),
             ),
           ),
@@ -365,22 +423,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // ---------------- TÍTULO ----------------
   Widget _buildTitle() {
-    return Column(
-      children: [
-        Text(
-          'Crear Cuenta',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w800,
-            color: textDark,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Completa tus datos para registrarte',
-          style: TextStyle(fontSize: 13, color: textGray),
-        ),
-      ],
+    return Text(
+      'Completa tus datos para registrarte',
+      textAlign: TextAlign.center,
+      style: TextStyle(fontSize: 13.5, color: textGray),
     );
   }
 
@@ -394,12 +440,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: BiomarkColors.blue.withValues(alpha: 0.25),
+            color: const Color.fromARGB(255, 11, 8, 99).withOpacity(0.25),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
           const BoxShadow(
-            color: BiomarkColors.white,
+            color: Color.fromARGB(232, 189, 193, 193),
             blurRadius: 20,
             offset: Offset(-6, -6),
           ),
@@ -569,11 +615,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: BiomarkColors.white,
+        color: const Color(0xFFF4F6FB),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.15),
+            color: Colors.grey.withOpacity(0.15),
             blurRadius: 8,
             offset: const Offset(2, 2),
           ),
@@ -596,10 +642,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           prefixIcon: Icon(icon, color: textGray, size: 20),
           suffixIcon: suffixIcon,
           hintText: hint,
-          hintStyle: TextStyle(
-            color: textGray.withValues(alpha: 0.8),
-            fontSize: 14,
-          ),
+          hintStyle: TextStyle(color: textGray.withOpacity(0.8), fontSize: 14),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             vertical: 16,
@@ -618,15 +661,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleRegister,
         style: ElevatedButton.styleFrom(
-          backgroundColor: BiomarkColors.blue,
+          backgroundColor: accentBlue,
           foregroundColor: Colors.white,
           elevation: 6,
-          shadowColor: const Color.fromARGB(
-            255,
-            50,
-            96,
-            169,
-          ).withValues(alpha: 0.5),
+          shadowColor: accentBlue.withOpacity(0.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -651,7 +689,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
+        Expanded(child: Divider(color: Colors.grey.withOpacity(0.3))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
@@ -659,7 +697,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             style: TextStyle(color: textGray, fontSize: 12),
           ),
         ),
-        Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
+        Expanded(child: Divider(color: Colors.grey.withOpacity(0.3))),
       ],
     );
   }
@@ -676,7 +714,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _socialButton(label: 'Apple', icon: Icons.apple, onTap: () {}),
+          child: _socialButton(
+            label: 'Facebook',
+            icon: Icons.facebook_rounded,
+            onTap: () {},
+          ),
         ),
       ],
     );
@@ -696,35 +738,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 14),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+        side: BorderSide(color: Colors.grey.withOpacity(0.3)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-    );
-  }
-
-  // ---------------- FOOTER ----------------
-  Widget _buildFooter() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          '¿Ya tienes una cuenta? ',
-          style: TextStyle(color: textGray, fontSize: 13),
-        ),
-        GestureDetector(
-          onTap: () {
-            Navigator.pop(context); // regresa al login
-          },
-          child: const Text(
-            'Iniciar sesión',
-            style: TextStyle(
-              color: BiomarkColors.blue,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

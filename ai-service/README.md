@@ -24,8 +24,11 @@ ai-service/
 ├── voice/
 │   ├── asr.py                 # Voz -> texto (Whisper)
 │   └── tts.py                 # Texto -> voz (VITS, facebook/mms-tts-spa)
-└── vision/
-    └── classifier.py          # Clasificación de imágenes: piel y garganta
+├── vision/
+│   └── classifier.py           # Clasificación de imágenes: piel y garganta
+└── gis/
+  ├── specialty_mapper.py     # Padecimiento -> especialidades verificables
+  └── locator.py              # Selección determinista de centro real
 ```
 
 ## Endpoints
@@ -127,7 +130,7 @@ El backend es el único cliente de este servicio. Cada petición requiere el hea
 }
 ```
 
-`POST /chat` devuelve `reply`, `risk_level`, `sources`, `suggested_action` y, si se enviaron coordenadas, `centro_sugerido`. `suggested_action` puede ser `REGISTER_PROGRESS`, `REGISTER_MEDICATION`, `REGISTER_REMINDER` o `SHOW_NEAREST_CENTER`.
+`POST /chat` devuelve `reply`, `risk_level`, `sources`, `suggested_action` y, si se enviaron coordenadas, `centro_sugerido`. La recomendación usa el padecimiento detectado por reglas deterministas, prioriza la especialidad coincidente y después la menor distancia. `suggested_action` puede ser `REGISTER_PROGRESS`, `REGISTER_MEDICATION`, `REGISTER_REMINDER` o `SHOW_NEAREST_CENTER`.
 
 La acción sugerida es una intención de UX, no una orden de escritura. El cliente debe pedir confirmación y el backend debe validar y persistir la operación. La IA no diagnostica, prescribe ni confirma por sí sola que un paciente mejoró.
 
@@ -142,6 +145,8 @@ Ejemplo:
   "centro_sugerido": null
 }
 ```
+
+Cuando existe ubicación, `centro_sugerido` contiene `id`, `nombre`, `direccion`, `distancia_km`, `tipo_unidad` y `especialidad_coincidente`. Una emergencia pediátrica prioriza capacidades pediátricas hospitalarias como `Cirugía pediátrica` y `Neonatología`; un caso obstétrico prioriza `Gineco-obstetricia`, `Salud de la mujer` y `Maternidad`.
 
 ## Orden de arranque en VPS
 

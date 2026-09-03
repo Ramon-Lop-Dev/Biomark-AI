@@ -18,7 +18,7 @@ Los medicamentos se guardan en `medicamentos`, las vacunas en `vacunas` y los av
 
 `GET /api/gis/smart-map?latitude=12.1&longitude=-86.2&radius_km=15` devuelve `centros_salud`, `eventos_comunitarios` y `zonas_riesgo`. Todas las rutas GIS requieren JWT.
 
-La respuesta de `/api/chat` puede incluir `suggested_action` (`REGISTER_PROGRESS`, `REGISTER_MEDICATION`, `REGISTER_REMINDER` o `SHOW_NEAREST_CENTER`) y `centro_sugerido` cuando se envían coordenadas. El backend nunca debe exponer `AI_SERVICE_INTERNAL_KEY`.
+La respuesta de `/api/chat` puede incluir `suggested_action` (`REGISTER_PROGRESS`, `REGISTER_MEDICATION`, `REGISTER_REMINDER` o `SHOW_NEAREST_CENTER`) y `centro_sugerido` cuando se envían coordenadas. `centro_sugerido` contiene el centro real elegido por especialidad y cercanía, además de `especialidad_coincidente` y `distancia_km`. El backend rechaza `latitude` o `longitude` si llega solo una. Nunca debe exponer `AI_SERVICE_INTERNAL_KEY`.
 
 ## Chat desde Flutter
 
@@ -38,7 +38,7 @@ Content-Type: application/json
 }
 ```
 
-El primer mensaje puede omitir `session_id`; el backend crea la sesión y devuelve el UUID. Los mensajes siguientes deben reutilizarlo. La respuesta pública contiene `session_id`, `reply`, `risk_level` y `sources`.
+El primer mensaje puede omitir `session_id`; el backend crea la sesión y devuelve el UUID. Los mensajes siguientes deben reutilizarlo. La ubicación es opcional; Flutter la solicita al enviar el mensaje y continúa sin ella si el usuario no concede permiso. La respuesta pública contiene `session_id`, `reply`, `risk_level`, `sources`, `suggested_action` y `centro_sugerido`.
 
 El backend reenvía la consulta al `AI_SERVICE_URL` privado usando `X-Internal-Key`. Nunca envíes `AI_SERVICE_INTERNAL_KEY` al frontend ni publiques el puerto 8000.
 
