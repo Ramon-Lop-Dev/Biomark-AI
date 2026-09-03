@@ -95,7 +95,7 @@ Nunca publiques directamente los puertos 3000 o 5678. nginx será el único serv
 
 ## 5. nginx
 
-La configuración actual enruta `/api/` al backend y `/n8n/` a n8n. Para usar hostnames separados, configura nginx con estos nombres reales:
+La configuración actual enruta `/api/` al backend y todo el hostname `biomark-n8n.duckdns.org` a n8n. Para usar hostnames separados, configura nginx con estos nombres reales:
 
 ```nginx
 server_name biomark-api.duckdns.org;
