@@ -15,6 +15,9 @@ const sendMessageSchema = z.object({
   // nunca los reenviaba, así que esta función de GIS-en-chat era inalcanzable.
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional()
-});
+}).refine(
+  ({ latitude, longitude }) => (latitude === undefined) === (longitude === undefined),
+  { message: 'latitude y longitude deben enviarse juntas', path: ['latitude'] }
+);
 
 module.exports = { sendMessageSchema };

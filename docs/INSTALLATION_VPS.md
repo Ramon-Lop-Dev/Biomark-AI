@@ -59,6 +59,10 @@ docker compose --env-file deploy/.env up -d --build
 docker compose --env-file deploy/.env ps
 ```
 
+## 5.1 Activar centros para el recomendador
+
+En Supabase, ejecuta primero `database/migrations/005_centros_salud_recomendador.sql` y después `database/seeds/seed_centros_salud_managua.sql`. Confirma que existan `Hospital Infantil Manuel de Jesús Rivera La Mascota` y `Hospital Bertha Calderón Roque`. Ejecuta el seed una sola vez por entorno porque no es idempotente.
+
 El primer arranque puede tardar por descarga de modelos. Comprobar:
 
 ```bash

@@ -1,54 +1,88 @@
-"""Geolocalización de centros de salud reales.
-
-Este módulo NUNCA le pide al LLM que "invente" un centro de salud 
- En su lugar, hace un
-cálculo determinista (fórmula de Haversine) sobre datos reales de la
-tabla `centros_salud` de Supabase, reutilizando el mismo cliente que ya
-usa el módulo de RAG.
-"""
+"""Localiza centros reales priorizando la especialidad solicitada."""
 
 import math
-from typing import Optional
+from typing import TYPE_CHECKING, List, Optional
 
-from supabase import Client
+from gis.specialty_mapper import TIPOS_NO_APTOS_PARA_EMERGENCIA
+
+if TYPE_CHECKING:
+    from supabase import Client
 
 
 def _distancia_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Fórmula de Haversine: distancia en línea recta entre dos coordenadas."""
-    R = 6371
-    d_lat = math.radians(lat2 - lat1)
-    d_lon = math.radians(lon2 - lon1)
+    radio_tierra = 6371
+    delta_latitud = math.radians(lat2 - lat1)
+    delta_longitud = math.radians(lon2 - lon1)
     a = (
-        math.sin(d_lat / 2) ** 2
-        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lon / 2) ** 2
+        math.sin(delta_latitud / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(delta_longitud / 2) ** 2
     )
-    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return radio_tierra * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 class HealthCenterLocator:
-    def __init__(self, supabase_client: Client):
+    def __init__(self, supabase_client: "Client"):
         self.supabase = supabase_client
 
-    def buscar_mas_cercano(self, latitude: float, longitude: float) -> Optional[dict]:
-        """Retorna el centro de salud real más cercano a una coordenada,
-        o None si la tabla está vacía o hay un error de consulta."""
+    def _todos_los_centros(self) -> list:
         try:
             respuesta = self.supabase.table("centros_salud").select("*").execute()
-            centros = respuesta.data
-        except Exception as e:
-            print(f"[GIS] Error consultando centros_salud: {e}")
-            return None
+            return respuesta.data or []
+        except Exception as error:
+            print(f"[GIS] Error consultando centros_salud: {error}")
+            return []
 
-        if not centros:
-            return None
-
+    def _mas_cercano_de(self, centros: list, latitude: float, longitude: float) -> Optional[dict]:
         mas_cercano = None
         distancia_minima = float("inf")
-
         for centro in centros:
-            distancia = _distancia_km(latitude, longitude, centro["latitud"], centro["longitud"])
+            try:
+                distancia = _distancia_km(
+                    latitude, longitude, float(centro["latitud"]), float(centro["longitud"])
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
             if distancia < distancia_minima:
                 distancia_minima = distancia
                 mas_cercano = {**centro, "distancia_km": round(distancia, 1)}
-
         return mas_cercano
+
+    def buscar_mas_cercano(
+        self,
+        latitude: float,
+        longitude: float,
+        especialidades_preferidas: Optional[List[str]] = None,
+        excluir_no_aptos_para_emergencia: bool = False,
+    ) -> Optional[dict]:
+        centros = self._todos_los_centros()
+        if not centros:
+            return None
+
+        candidatos = centros
+        if excluir_no_aptos_para_emergencia:
+            centros_aptos = [
+                centro
+                for centro in centros
+                if centro.get("tipo_unidad") not in TIPOS_NO_APTOS_PARA_EMERGENCIA
+            ]
+            if centros_aptos:
+                candidatos = centros_aptos
+
+        if especialidades_preferidas:
+            for especialidad in especialidades_preferidas:
+                coincidencias = [
+                    centro
+                    for centro in candidatos
+                    if any(
+                        str(disponible).casefold() == especialidad.casefold()
+                        for disponible in (centro.get("especialidades") or [])
+                    )
+                ]
+                resultado = self._mas_cercano_de(coincidencias, latitude, longitude)
+                if resultado:
+                    resultado["especialidad_coincidente"] = especialidad
+                    return resultado
+
+        return self._mas_cercano_de(candidatos, latitude, longitude)

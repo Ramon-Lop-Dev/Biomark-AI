@@ -40,10 +40,12 @@ El Compose no levanta una base local. Esto evita que los datos del VPS diverjan 
 3. El backend valida el JWT y resuelve `public.usuarios.id`.
 4. Si existe consentimiento `CONTEXTO_MEDICO_IA`, el backend obtiene contexto clínico minimizado.
 5. El backend recupera los últimos mensajes de la sesión.
-6. El backend llama al AI Service dentro de la red Docker con `X-Internal-Key`.
-7. AI Service ejecuta safety de entrada, riesgo clínico, RAG, generación y validación de salida.
-8. Backend persiste usuario y asistente en `sesiones_chat`/`mensajes_chat` y registra auditoría.
-9. Riesgo `ALTO`/`CRITICO` crea una notificación en Supabase.
+6. Si el usuario autoriza ubicación, Flutter envía `latitude` y `longitude`; deben llegar juntas.
+7. El backend llama al AI Service dentro de la red Docker con `X-Internal-Key`.
+8. AI Service ejecuta safety de entrada, riesgo clínico, RAG, generación y validación de salida.
+9. Para `/chat`, el mapper determina especialidades por palabras clave y el localizador busca un centro real por especialidad y cercanía. En riesgo `HIGH`/`CRITICAL` excluye puestos médicos cuando existe otra opción.
+10. Backend persiste usuario y asistente en `sesiones_chat`/`mensajes_chat`, devuelve `centro_sugerido` y registra auditoría.
+11. Riesgo `ALTO`/`CRITICO` crea una notificación en Supabase.
 
 ## 4. Estructura modular
 
@@ -116,7 +118,9 @@ Antes de VPS, rotar las claves que hayan estado en archivos locales o conversaci
 
 Las tablas principales son `usuarios`, `perfiles`, `historial_medico`, `alergias`, `medicamentos`, `antecedentes_familiares`, `vacunas`, `sintomas`, `registros_sintomas`, `eventos_medicos`, `imagenes_medicas`, `recordatorios`, `notificaciones`, `sesiones_chat`, `mensajes_chat`, `centros_salud`, `eventos_comunitarios`, `zonas_riesgo`, `reportes_epidemiologicos`, `alertas_epidemiologicas`, `reportes_comunitarios`, `registros_auditoria`, `consentimientos` y `dispositivos_push`.
 
-Las migraciones `002_auditoria_operativa.sql` y `003_dispositivos_push.sql` agregan índices, coordenadas de eventos, expiración de alertas, checks y columnas push.
+Las migraciones `002_auditoria_operativa.sql`, `003_dispositivos_push.sql`, `004_seguimiento_evolucion.sql` y `005_centros_salud_recomendador.sql` agregan auditoría, push, seguimiento y campos de centros enriquecidos. Después de `005` debe cargarse `database/seeds/seed_centros_salud_managua.sql`.
+
+`centros_salud.tipo` usa el enum `tipo_centro_salud`; `tipo_unidad` conserva la descripción operativa, por ejemplo `Hospital Referencia Nacional`. `especialidades` es un array de texto y debe mantenerse sincronizado con `ai-service/gis/specialty_mapper.py`.
 
 El backend espera que los enums de Supabase tengan exactamente los valores usados por los validadores: `USUARIO`, `TRABAJADOR_SALUD`, `LIDER_COMUNITARIO`, `PROMOTOR`, `ADMIN`, `BAJO`, `MODERADO`, `ALTO`, `CRITICO`, entre otros tipos definidos por el esquema.
 
@@ -137,7 +141,7 @@ n8n conserva su configuración en el volumen `n8n_data`. Fijar una versión de i
 
 ```bash
 npm --prefix backend test
-(cd ai-service && python3 -m unittest test_safety.py)
+(cd ai-service && python3 -m unittest discover -p 'test*.py')
 find backend/src -name '*.js' -print0 | xargs -0 -n1 node --check
 python3 -m compileall -q ai-service
 ```

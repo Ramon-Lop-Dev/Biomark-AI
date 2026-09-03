@@ -8,6 +8,7 @@ Esta carpeta centraliza la documentación operativa, técnica y de integración 
 - [Manual de instalación en VPS](INSTALLATION_VPS.md): preparación del servidor, variables de entorno, Docker Compose, HTTPS, backups y checklist de producción.
 - [Especificación OpenAPI](openapi.yaml): contrato de la API pública y sus rutas protegidas.
 - [Colección Postman](postman/Biomark-AI.postman_collection.json): pruebas de auth, salud, chat, GIS, epidemiología, recordatorios y notificaciones.
+- [Datos GIS](../database/README.md): migración y seed de centros usados por la recomendación clínica.
 - [README general del repositorio](../README.md): visión general, estructura y arranque rápido.
 
 ## Cómo usar esta documentación

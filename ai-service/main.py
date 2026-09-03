@@ -26,6 +26,7 @@ from voice.asr import ASRService
 from voice.tts import TTSService
 from vision.classifier import VisionService
 from gis.locator import HealthCenterLocator
+from gis.specialty_mapper import especialidades_sugeridas
 
 app = FastAPI(title="Biomark AI - Production Engine")
 
@@ -105,10 +106,24 @@ def chat_inference(data: dict, x_internal_key: str = Header(None)):
     latitude = data.get("latitude")
     longitude = data.get("longitude")
     if latitude is not None and longitude is not None:
-        centro_sugerido = locator.buscar_mas_cercano(latitude, longitude)
+        try:
+            latitude = float(latitude)
+            longitude = float(longitude)
+            if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+                raise ValueError
+        except (TypeError, ValueError):
+            latitude = longitude = None
+
+    if latitude is not None and longitude is not None:
+        centro_sugerido = locator.buscar_mas_cercano(
+            latitude,
+            longitude,
+            especialidades_preferidas=especialidades_sugeridas(mensaje_usuario),
+            excluir_no_aptos_para_emergencia=risk_level in ("CRITICAL", "HIGH"),
+        )
         if centro_sugerido:
             respuesta += (
-                f"\n\nEl centro de salud más cercano a tu ubicación es "
+                f"\n\nEl centro recomendado para tu caso es "
                 f"{centro_sugerido['nombre']} (a {centro_sugerido['distancia_km']} km)"
                 + (f", en {centro_sugerido['direccion']}." if centro_sugerido.get("direccion") else ".")
             )

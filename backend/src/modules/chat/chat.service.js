@@ -57,6 +57,10 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
     ]);
     if (errorHistorial) console.error('[Chat] No se pudo cargar el historial reciente:', errorHistorial.message);
     const conversationHistory = (historial || []).reverse();
+    const ultimoTurno = conversationHistory[conversationHistory.length - 1];
+    if (ultimoTurno && ultimoTurno.emisor === 'USUARIO' && ultimoTurno.mensaje === message) {
+      conversationHistory.pop();
+    }
     const { data } = await chatRepo.postChat(
       message,
       latitude,
@@ -64,7 +68,7 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
       contextoClinico,
       conversationHistory
     );
-    const { reply, risk_level, sources, suggested_action } = data;
+    const { reply, risk_level, sources, suggested_action, centro_sugerido } = data;
 
     const nivelRiesgo = mapearNivelRiesgo(risk_level);
 
@@ -87,6 +91,13 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
       detalle: {
         risk_level,
         nivel_riesgo: nivelRiesgo,
+        centro_recomendado: centro_sugerido
+          ? {
+              id: centro_sugerido.id,
+              especialidad_coincidente: centro_sugerido.especialidad_coincidente || null,
+              distancia_km: centro_sugerido.distancia_km
+            }
+          : null,
         contexto_medico_compartido: Boolean(contextoClinico),
         campos_contexto: contextoClinico ? Object.keys(contextoClinico) : [],
         mensajes_historial_compartidos: conversationHistory.length
@@ -110,7 +121,8 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
       reply,
       risk_level,
       sources,
-      suggested_action: suggested_action || null
+      suggested_action: suggested_action || null,
+      centro_sugerido: centro_sugerido || null
     };
   } catch (error) {
     if (error instanceof AppError) throw error;

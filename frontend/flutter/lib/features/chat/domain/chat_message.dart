@@ -1,4 +1,6 @@
 // Representa un mensaje de conversación y los metadatos clínicos de la respuesta.
+import '../data/chat_api.dart';
+
 class ChatMessage {
   final String text;
   final bool isUser;
@@ -6,6 +8,7 @@ class ChatMessage {
   final List<String> sources;
   final String? actionType;
   final String? imagePath;
+  final HealthCenterRecommendation? recommendedCenter;
 
   const ChatMessage(
     this.text,
@@ -14,5 +17,6 @@ class ChatMessage {
     this.sources = const [],
     this.actionType,
     this.imagePath,
+    this.recommendedCenter,
   });
 }
