@@ -8,7 +8,6 @@ import 'dart:ui';
 import 'loading.dart';
 import 'home_screen.dart';
 import 'forgot_password.dart';
-
 void main() {
   runApp(const MyApp());
 }
@@ -63,6 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+
     // TODO: aquí va tu lógica real (Firebase Auth, API REST, etc.)
     await Future.delayed(const Duration(seconds: 2));
 
@@ -112,19 +112,107 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         const SizedBox(height: 28),
                         _buildLogo(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
+                        _buildAuthTabs(),
+                        const SizedBox(height: 20),
                         _buildTitle(),
                         const SizedBox(height: 28),
                         _buildFormCard(),
                         const SizedBox(height: 24),
-                        _buildFooter(),
-                        const SizedBox(height: 12),
                       ],
                     ),
                   ),
                 ),
               );
             },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------- PESTAÑAS INICIAR SESIÓN / REGISTRARSE (glassmorfismo) ----------------
+  Widget _buildAuthTabs() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.5),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildGlassTabItem(
+                  texto: 'Iniciar Sesión',
+                  activo: true,
+                  onTap: () {},
+                ),
+              ),
+              Expanded(
+                child: _buildGlassTabItem(
+                  texto: 'Registrarse',
+                  activo: false,
+                  onTap: () {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGlassTabItem({
+    required String texto,
+    required bool activo,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: activo
+              ? primaryGreen.withValues(alpha: 0.12)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: activo
+              ? Border.all(color: primaryGreen.withValues(alpha: 0.35), width: 1)
+              : null,
+          boxShadow: activo
+              ? [
+                  BoxShadow(
+                    color: primaryGreen.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : [],
+        ),
+        child: Text(
+          texto,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: activo ? primaryGreen : textDark,
+            fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 14,
           ),
         ),
       ),
@@ -437,36 +525,6 @@ class _LoginScreenState extends State<LoginScreen> {
         side: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-    );
-  }
-
-  // ---------------- FOOTER ----------------
-  Widget _buildFooter() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          '¿No tienes una cuenta? ',
-          style: TextStyle(color: textGray, fontSize: 13),
-        ),
-
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const RegisterScreen()),
-            );
-          },
-          child: const Text(
-            ' Registrarse',
-            style: TextStyle(
-              color: BiomarkColors.green,
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
