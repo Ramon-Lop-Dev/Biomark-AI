@@ -42,6 +42,24 @@ class _HomeScreenState extends State<HomeScreen> {
   int _dosisTomadas = 3;
   static const _dosisTotal = 5;
 
+  // Placeholder mientras se conecta la base de datos.
+  // Cuando tengas tu backend listo, _cargarNombreUsuario() lo reemplaza
+  // con el nombre real (ver initState más abajo).
+  String _nombreUsuario = 'Familia';
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarNombreUsuario();
+  }
+
+  Future<void> _cargarNombreUsuario() async {
+    // TODO: aquí va tu lógica real de base de datos (Firebase, API REST, etc.)
+    // Ejemplo:
+    // final usuario = await MiServicio.obtenerUsuarioActual();
+    // if (mounted) setState(() => _nombreUsuario = usuario.nombre);
+  }
+
   void _addDose() {
     if (_dosisTomadas < _dosisTotal) setState(() => _dosisTomadas++);
     _showMessage(
@@ -62,9 +80,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        const Text(
-          '¡Hola, Familia!',
-          style: TextStyle(
+        Text(
+          '¡Hola, $_nombreUsuario!',
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
             color: BiomarkColors.black,
