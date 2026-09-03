@@ -33,6 +33,20 @@ flowchart LR
 
 El Compose no levanta una base local. Esto evita que los datos del VPS diverjan de Supabase, donde ya se aplicaron RLS y las migraciones.
 
+### Despliegue distribuido: Contabo + RunPod
+
+En producción los servicios se separan así:
+
+```text
+Flutter --HTTPS--> nginx (Contabo) --> backend (Contabo) --HTTPS--> ai-service (RunPod)
+                                      |                         |
+                                      +--> n8n (Contabo)         +--> Supabase
+```
+
+Contabo ejecuta `backend`, `nginx` y `n8n` mediante `docker-compose.contabo.yml`. RunPod ejecuta únicamente la imagen construida con `Dockerfile.ai-service`. Como los servidores no comparten la red Docker `biomark`, `AI_SERVICE_URL` en Contabo debe ser la URL HTTPS del proxy del puerto 8000 de RunPod, y `AI_SERVICE_INTERNAL_KEY` debe ser idéntica en ambos servidores.
+
+El backend nunca debe llamar `http://ai-service:8000` en esta topología. La URL de RunPod debe usar HTTPS, almacenamiento persistente para los modelos y el caché RAG, y el endpoint del AI Service solo debe aceptar peticiones con `X-Internal-Key`. La URL puede ser técnicamente pública, pero la clave interna debe ser larga, aleatoria y rotarse si se expone.
+
 ## 3. Flujo de una conversación
 
 1. Flutter obtiene un JWT de Supabase mediante `/api/auth/login` o Google.
@@ -83,6 +97,8 @@ ai-service/
 
 database/migrations/             Migraciones aplicadas en Supabase
 docs/                            OpenAPI, Postman y manuales
+docker-compose.contabo.yml       Compose de producción para Contabo
+database/seeds/                   Datasets iniciales controlados
 ```
 
 Cada archivo de código incluye un encabezado breve con su responsabilidad.
