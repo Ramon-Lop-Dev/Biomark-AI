@@ -330,15 +330,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: activo ? Colors.white.withOpacity(0.55) : Colors.transparent,
+          color: activo ? accentBlue.withOpacity(0.12) : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: activo
-              ? Border.all(color: Colors.white.withOpacity(0.8), width: 1)
+              ? Border.all(color: accentBlue.withOpacity(0.35), width: 1)
               : null,
           boxShadow: activo
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: accentBlue.withOpacity(0.08),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
@@ -349,7 +349,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           texto,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: textDark,
+            color: activo ? accentBlue : textDark,
             fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
             fontSize: 14,
           ),
@@ -714,11 +714,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: _socialButton(
-            label: 'Facebook',
-            icon: Icons.facebook_rounded,
-            onTap: () {},
-          ),
+          child: _socialButton(label: 'Apple', icon: Icons.apple, onTap: () {}),
         ),
       ],
     );
