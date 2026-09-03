@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../../biomark_brand.dart';
 import '../../../core/design/biomark_clay.dart';
@@ -77,6 +78,23 @@ class _ChatScreenState extends State<ChatScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
+  }
+
+  Future<Position?> _getChatLocation() async {
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) return null;
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+      return Geolocator.getCurrentPosition();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _showClosestCenterDialog() async {
@@ -456,9 +474,12 @@ class _ChatScreenState extends State<ChatScreen>
     _scrollToBottom();
 
     try {
+      final position = await _getChatLocation();
       final response = await _chatApi.sendMessage(
         message: text,
         sessionId: _sessionId,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
       );
       if (!mounted) return;
       setState(() {
@@ -471,6 +492,7 @@ class _ChatScreenState extends State<ChatScreen>
             riskLevel: response.riskLevel,
             sources: response.sources,
             actionType: actionType,
+            recommendedCenter: response.recommendedCenter,
           ),
         );
         _isSending = false;
@@ -690,7 +712,9 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    if (!message.isUser && message.actionType != null) {
+    if (!message.isUser &&
+      message.actionType != null &&
+      message.recommendedCenter == null) {
       return Align(
         alignment: Alignment.centerLeft,
         child: Padding(
@@ -785,6 +809,49 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
+class _RecommendedCenter extends StatelessWidget {
+  final HealthCenterRecommendation center;
+
+  const _RecommendedCenter({required this.center});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: BiomarkColors.blue.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.local_hospital_rounded, color: BiomarkColors.blue),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Centro recomendado',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(center.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                if (center.specialty != null) Text('Área: ${center.specialty}'),
+                Text('Distancia aproximada: ${center.distanceKm} km'),
+                if (center.address != null && center.address!.isNotEmpty)
+                  Text(center.address!),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _FollowUpActionCard extends StatelessWidget {
   final String actionType;
 
@@ -838,6 +905,8 @@ class _FollowUpActionCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
+                if (message.recommendedCenter != null)
+                  _RecommendedCenter(center: message.recommendedCenter!),
                 child: const Text('Registrar evolución'),
               ),
             ),

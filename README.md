@@ -32,6 +32,7 @@ flowchart LR
 - RAG sobre documentos institucionales y contenido contextual.
 - Seguimiento de evolución con estados `MEJORO`, `IGUAL`, `EMPEORO` y `NO_SEGURO`.
 - Mapa GIS con centros de salud, eventos comunitarios y zonas de riesgo.
+- Recomendación de centros de salud por padecimiento, especialidad y cercanía, con ubicación opcional.
 - Medicamentos, vacunas, notificaciones y recordatorios.
 - Integración con Supabase Auth, almacenamiento y base de datos relacional.
 - Automatización de recordatorios vía n8n y FCM.
@@ -78,6 +79,8 @@ cp deploy/.env.example deploy/.env
 ```
 
 Ajusta los valores reales antes de levantar el proyecto. No publiques `SUPABASE_SERVICE_ROLE_KEY`, `AI_SERVICE_INTERNAL_KEY` ni `N8N_WEBHOOK_SECRET`.
+
+Antes de probar el recomendador clínico, aplica `database/migrations/005_centros_salud_recomendador.sql` en Supabase y carga una vez `database/seeds/seed_centros_salud_managua.sql`.
 
 ### 3. Levantar servicios
 

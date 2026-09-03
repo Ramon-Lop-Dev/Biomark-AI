@@ -13,12 +13,40 @@ class ChatApiException implements Exception {
   String toString() => message;
 }
 
+class HealthCenterRecommendation {
+  final String? id;
+  final String name;
+  final double distanceKm;
+  final String? address;
+  final String? specialty;
+
+  const HealthCenterRecommendation({
+    this.id,
+    required this.name,
+    required this.distanceKm,
+    this.address,
+    this.specialty,
+  });
+
+  factory HealthCenterRecommendation.fromJson(Map<String, dynamic> json) {
+    final distance = json['distancia_km'];
+    return HealthCenterRecommendation(
+      id: json['id'] as String?,
+      name: json['nombre'] as String? ?? 'Centro de salud',
+      distanceKm: distance is num ? distance.toDouble() : 0,
+      address: json['direccion'] as String?,
+      specialty: json['especialidad_coincidente'] as String?,
+    );
+  }
+}
+
 class ChatReply {
   final String sessionId;
   final String reply;
   final String riskLevel;
   final List<String> sources;
   final String? suggestedAction;
+  final HealthCenterRecommendation? recommendedCenter;
 
   const ChatReply({
     required this.sessionId,
@@ -26,6 +54,7 @@ class ChatReply {
     required this.riskLevel,
     required this.sources,
     this.suggestedAction,
+    this.recommendedCenter,
   });
 
   factory ChatReply.fromJson(Map<String, dynamic> json) {
@@ -37,6 +66,9 @@ class ChatReply {
           .whereType<String>()
           .toList(),
       suggestedAction: json['suggested_action'] as String?,
+        recommendedCenter: json['centro_sugerido'] is Map<String, dynamic>
+          ? HealthCenterRecommendation.fromJson(json['centro_sugerido'] as Map<String, dynamic>)
+          : null,
     );
   }
 }
@@ -55,9 +87,15 @@ class ChatApi {
   Future<ChatReply> sendMessage({
     required String message,
     String? sessionId,
+    double? latitude,
+    double? longitude,
   }) async {
     final payload = <String, dynamic>{'message': message};
     if (sessionId != null) payload['session_id'] = sessionId;
+    if (latitude != null && longitude != null) {
+      payload['latitude'] = latitude;
+      payload['longitude'] = longitude;
+    }
 
     final response = await _client
         .post(
