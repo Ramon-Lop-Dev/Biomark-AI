@@ -8,7 +8,7 @@ services:
     networks: [biomark]
 
   n8n:
-    image: n8nio/n8n:1.96.3
+    image: n8nio/n8n:1.123.77
     environment:
       N8N_HOST: ${N8N_HOST}
       N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
