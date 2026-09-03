@@ -17,9 +17,10 @@ Esta carpeta centraliza la documentación operativa, técnica y de integración 
 
 1. Empezar por [../README.md](../README.md) para conocer objetivos y estructura.
 2. Revisar [TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md) antes de tocar la arquitectura o despliegue.
-3. Consultar [INSTALLATION_VPS.md](INSTALLATION_VPS.md) para producción y operación en servidor.
-4. Importar [openapi.yaml](openapi.yaml) en Swagger Editor o Swagger UI para validar contratos.
-5. Probar endpoints con la colección de Postman, priorizando login, health y chat.
+3. Seguir [DEPLOYMENT_CONTABO_RUNPOD.md](DEPLOYMENT_CONTABO_RUNPOD.md) para desplegar ambos servidores.
+4. Consultar [INSTALLATION_VPS.md](INSTALLATION_VPS.md) para operación común y checklist.
+5. Importar [openapi.yaml](openapi.yaml) en Swagger Editor o Swagger UI para validar contratos.
+6. Probar endpoints con la colección de Postman, priorizando login, health y chat.
 
 ## Alcance de la API
 

@@ -1,4 +1,6 @@
-# Manual de instalación y despliegue en VPS
+# Manual de instalación y despliegue
+
+La arquitectura oficial de producción es distribuida. Para el procedimiento completo consulta [DEPLOYMENT_CONTABO_RUNPOD.md](DEPLOYMENT_CONTABO_RUNPOD.md). Este archivo resume la operación común de los servidores.
 
 ## Requisitos
 
@@ -9,7 +11,7 @@
 - Supabase configurado con schema, RLS, Storage y proveedores Auth.
 - VPS con memoria suficiente para los modelos AI; 8 GB es un mínimo práctico para comenzar y debe validarse con carga real.
 
-## 1. Preparar el servidor
+## 1. Preparar Contabo
 
 ```bash
 sudo apt update
@@ -22,7 +24,7 @@ sudo ufw allow 443/tcp
 sudo ufw enable
 ```
 
-## 2. Descargar el proyecto
+## 2. Descargar el proyecto en Contabo
 
 ```bash
 git clone URL_DEL_REPOSITORIO biomark-ai
@@ -31,7 +33,7 @@ cd biomark-ai
 
 No copiar `backend/.env` al VPS. Si alguna clave estuvo expuesta, rotarla antes.
 
-## 3. Crear secretos
+## 3. Crear secretos y variables
 
 ```bash
 mkdir -p deploy
@@ -95,12 +97,12 @@ unset AI_KEY
 
 La respuesta debe incluir `centro_sugerido`. Con el seed cargado, el caso pediátrico debe poder seleccionar La Mascota y un caso obstétrico debe poder seleccionar Bertha Calderón.
 
-El primer arranque puede tardar por descarga de modelos. Comprobar:
+Comprobar los servicios de Contabo:
 
 ```bash
-curl http://DOMINIO/health
-curl http://DOMINIO/ready
-docker compose logs -f backend ai-service n8n
+curl http://biomark-api.duckdns.org/health
+curl http://biomark-api.duckdns.org/ready
+docker compose --env-file deploy/.env -f docker-compose.contabo.yml logs --tail=100 backend nginx n8n
 ```
 
 ## 6. HTTPS
@@ -111,21 +113,24 @@ La configuración inicial escucha en HTTP para permitir el provisionamiento. Ant
 
 Entrar por el dominio protegido, crear usuario administrador y configurar el webhook de eventos. El workflow debe validar `X-Webhook-Secret`, enviar FCM y confirmar en `/internal/reminders/:id/sent`. No publicar `/internal` en Internet.
 
-## 8. Actualizar
+## 8. Actualizar Contabo
 
 ```bash
-git pull
-docker compose --env-file deploy/.env up -d --build
-docker image prune
+git pull origin main
+docker compose --env-file deploy/.env -f docker-compose.contabo.yml up -d --build backend n8n nginx
 ```
 
 Probar healthchecks después de cada actualización. Fijar versiones de imágenes, especialmente n8n, en vez de usar `latest`.
 
-## 9. Backups y recuperación
+## 9. RunPod
+
+RunPod ejecuta únicamente `ai-service`. En el Pod sin Docker, activa `/workspace/biomark-venv`, carga `/workspace/ai-service.env` y arranca Uvicorn dentro de una sesión persistente `tmux`. El detalle está en [DEPLOYMENT_CONTABO_RUNPOD.md](DEPLOYMENT_CONTABO_RUNPOD.md).
+
+## 10. Backups y recuperación
 
 Respaldar Supabase según su plan y realizar copia cifrada del volumen `n8n_data`. Los volúmenes `ai_models` y `ai_rag` pueden regenerarse, pero conservarlos evita descargas y reindexaciones largas.
 
-## 10. Lista de aceptación
+## 11. Lista de aceptación
 
 - [ ] Claves antiguas rotadas.
 - [ ] RLS verificado.

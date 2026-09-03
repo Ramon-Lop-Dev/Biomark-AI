@@ -78,36 +78,47 @@ SUPABASE_BUCKET_MINSA=documentos-minsa
 UMBRAL_RELEVANCIA=0.75
 ```
 
-Construye y ejecuta el AI Service desde la raíz del repositorio. El contexto debe ser la raíz porque el Dockerfile copia `ai-service/`:
+Este Pod ejecuta el AI Service directamente con Python. El entorno virtual se instala una sola vez:
 
 ```bash
-docker build -f Dockerfile.ai-service -t biomark-ai-service:latest .
-mkdir -p /workspace/huggingface-cache /workspace/chroma-db
-docker run -d \
-  --name biomark-ai-service \
-  --gpus all \
-  --restart unless-stopped \
-  --env-file /workspace/ai-service.env \
-  -p 8000:8000 \
-  -v /workspace/huggingface-cache:/root/.cache/huggingface \
-  -v /workspace/chroma-db:/app/chroma_db \
-  biomark-ai-service:latest
+cd /workspace/biomark-ai
+python3 -m venv --system-site-packages /workspace/biomark-venv
+source /workspace/biomark-venv/bin/activate
+pip install -r ai-service/requirements.txt
+mkdir -p /workspace/.cache/huggingface /workspace/chroma-db
+python -m py_compile ai-service/main.py ai-service/inference/service.py
 ```
 
-Comprueba el servicio dentro del Pod:
+Configura `/workspace/ai-service.env` con `AI_SERVICE_INTERNAL_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PORT=8000`, `MODEL_ID`, `SUPABASE_BUCKET_MINSA` y `UMBRAL_RELEVANCIA`.
+
+Inicia Uvicorn dentro de `tmux` para que sobreviva al cierre de la terminal:
+
+```bash
+apt-get update && apt-get install -y tmux
+```
+
+Ya dentro de la sesión `tmux`, ejecuta:
+
+```bash
+source /workspace/biomark-venv/bin/activate
+set -a; source /workspace/ai-service.env; set +a
+export PYTHONPATH=/workspace/biomark-ai/ai-service
+uvicorn main:app --app-dir /workspace/biomark-ai/ai-service --host 0.0.0.0 --port 8000
+```
+
+Para crear la sesión antes de ejecutar esos comandos, usa:
+
+```bash
+tmux new -s biomark-ai
+```
+
+Para salir sin detener el servicio, pulsa `Ctrl+B` y después `D`. Verifica desde otra terminal:
 
 ```bash
 curl -fsS http://127.0.0.1:8000/health
-docker logs --tail=200 biomark-ai-service
 ```
 
-En RunPod copia la URL HTTPS exacta mostrada para el puerto 8000. Suele tener un formato parecido a:
-
-```text
-https://POD_ID-8000.proxy.runpod.net
-```
-
-No inventes la URL; usa la que muestre RunPod en `Connect`.
+En RunPod copia la URL HTTPS exacta que aparece en `Connect` para el puerto `8000`; normalmente se parece a `https://POD_ID-8000.proxy.runpod.net`. No inventes la URL.
 
 ## 4. Preparar Contabo
 
@@ -160,10 +171,10 @@ N8N_WEBHOOK_SECRET=EL_SECRETO_DE_N8N
 En `deploy/.env` configura n8n. Para una primera prueba local detrás de nginx:
 
 ```env
-N8N_HOST=TU_DOMINIO_PUBLICO
+N8N_HOST=biomark-n8n.duckdns.org
 N8N_PROTOCOL=http
-WEBHOOK_URL=http://TU_DOMINIO_PUBLICO/n8n/
-N8N_EDITOR_BASE_URL=http://TU_DOMINIO_PUBLICO/n8n/
+WEBHOOK_URL=http://biomark-n8n.duckdns.org/
+N8N_EDITOR_BASE_URL=http://biomark-n8n.duckdns.org/
 N8N_SECURE_COOKIE=false
 N8N_ENCRYPTION_KEY=UNA_CLAVE_LARGA_Y_PERMANENTE
 GENERIC_TIMEZONE=America/Managua
@@ -267,18 +278,13 @@ RunPod:
 
 ```bash
 cd /workspace/biomark-ai
-git pull
-docker build -f Dockerfile.ai-service -t biomark-ai-service:latest .
-docker rm -f biomark-ai-service
-docker run -d \
-  --name biomark-ai-service \
-  --gpus all \
-  --restart unless-stopped \
-  --env-file /workspace/ai-service.env \
-  -p 8000:8000 \
-  -v /workspace/huggingface-cache:/root/.cache/huggingface \
-  -v /workspace/chroma-db:/app/chroma_db \
-  biomark-ai-service:latest
+git pull origin main
+find ai-service -type d -name __pycache__ -prune -exec rm -rf {} +
+source /workspace/biomark-venv/bin/activate
+set -a; source /workspace/ai-service.env; set +a
+export PYTHONPATH=/workspace/biomark-ai/ai-service
+tmux new -s biomark-ai
+uvicorn main:app --app-dir /workspace/biomark-ai/ai-service --host 0.0.0.0 --port 8000
 ```
 
-Conserva el almacenamiento persistente de RunPod. Sin él, se volverían a descargar los modelos y el índice RAG.
+Si ya existe la sesión, usa `tmux attach -t biomark-ai` en vez de crear otra. Para pausar el gasto, pulsa `Ctrl+C`, sal de la terminal y detén el Pod desde RunPod. Conserva el almacenamiento persistente para no perder modelos, caché e índice RAG.
