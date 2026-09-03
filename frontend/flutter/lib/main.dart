@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'app_shell.dart';
 import 'biomark_brand.dart';
 import 'register_screen.dart';
+import 'dart:ui';
+import 'loading.dart';
+import 'home_screen.dart';
+import 'forgot_password.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,10 +19,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Biomark AI',
+      title: 'Login Biomark',
       debugShowCheckedModeBanner: false,
-      theme: biomarkTheme,
-      home: const LoginScreen(),
+      theme: ThemeData(
+        fontFamily: 'Syne', // opcional: agrega la fuente en pubspec.yaml
+        useMaterial3: true,
+      ),
+      home: const SplashScreen(),
     );
   }
 }
@@ -56,7 +63,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-
     // TODO: aquí va tu lógica real (Firebase Auth, API REST, etc.)
     await Future.delayed(const Duration(seconds: 2));
 
@@ -247,7 +253,12 @@ class _LoginScreenState extends State<LoginScreen> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {
-                  // TODO: navegar a recuperación de contraseña
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ForgotPasswordScreen(),
+                    ), //
+                  );
                 },
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
@@ -400,8 +411,8 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(width: 12),
         Expanded(
           child: _socialButton(
-            label: 'Apple',
-            icon: Icons.apple, // icon de Apple
+            label: 'Facebook',
+            icon: Icons.facebook_rounded,
             onTap: () {},
           ),
         ),
