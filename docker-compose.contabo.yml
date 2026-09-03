@@ -9,12 +9,12 @@ services:
     networks: [biomark]
 
   n8n:
-    image: n8nio/n8n:1.96.3
+    image: n8nio/n8n:1.123.77
     environment:
       N8N_HOST: ${N8N_HOST}
       N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
-      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678/}
-      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL:-http://localhost:5678/}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://biomark-n8n.duckdns.org/}
+      N8N_EDITOR_BASE_URL: ${N8N_EDITOR_BASE_URL:-http://biomark-n8n.duckdns.org/}
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
       DB_TYPE: sqlite
       N8N_SECURE_COOKIE: ${N8N_SECURE_COOKIE:-false}
