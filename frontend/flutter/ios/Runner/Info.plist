@@ -34,6 +34,17 @@
     <string>Biomark AI necesita acceso al micrófono para grabar mensajes de audio.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>Biomark AI necesita acceder a tus fotos para analizar imágenes médicas.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.biomarkai.reset</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>biomarkai</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

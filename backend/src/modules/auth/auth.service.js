@@ -51,7 +51,9 @@ const registerUser = async (email, password, fullName) => {
 
   return {
     user_id: usuario.id,
-    token: data.session?.access_token || null
+    token: data.session?.access_token || null,
+    refresh_token: data.session?.refresh_token || null,
+    expires_in: data.session?.expires_in || null
   };
 };
 
@@ -64,6 +66,7 @@ const loginUser = async (email, password) => {
 
   return {
     token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
     expires_in: data.session.expires_in || 3600
   };
 };
@@ -118,6 +121,7 @@ const loginWithGoogle = async (idToken, accessToken, fullNameFallback) => {
 
   return {
     token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
     expires_in: data.session.expires_in || 3600,
     is_new_user: esNuevo
   };

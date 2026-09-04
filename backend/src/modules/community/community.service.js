@@ -2,6 +2,7 @@
 const communityRepo = require('./community.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');
+const { publicarEvento } = require('../../config/n8nClient');
 
 const getEvents = async () => {
   const { data, error } = await communityRepo.listarEventos();
@@ -22,6 +23,18 @@ const createEvent = async (usuarioId, payload) => {
     accion: 'CREACION',
     detalle: { titulo: evento.titulo }
   });
+
+  // Publica el evento hacia n8n para notificar por push la nueva
+  // jornada comunitaria a los dispositivos activos. No debe bloquear
+  // ni hacer fallar la creación del evento si n8n está caído: mismo
+  // patrón que reminders.service.js. Se usa la clave
+  // "evento_comunitario" (no "evento") para no chocar con el campo
+  // "evento" que ya usa el sobre de n8nClient.publicarEvento().
+  try {
+    await publicarEvento('evento_comunitario.creado', { evento_comunitario: evento });
+  } catch (error) {
+    console.error('[Community] No se pudo publicar el evento en n8n:', error.message);
+  }
 
   return evento;
 };

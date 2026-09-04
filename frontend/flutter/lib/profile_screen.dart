@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
 import 'main.dart'; // para poder cerrar sesión y volver a LoginScreen
+import 'core/auth/auth_api.dart';
+import 'core/auth/auth_session.dart';
+import 'core/config/app_config.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -231,17 +234,32 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _cerrarSesion(BuildContext context) async {
+    final token = AuthSession.instance.accessToken;
+    if (token != null && token.isNotEmpty) {
+      final authApi = AuthApi(baseUrl: AppConfig.apiUrl);
+      try {
+        await authApi.logout(accessToken: token);
+      } catch (_) {
+        // El cierre local debe funcionar aunque el backend no responda.
+      } finally {
+        authApi.dispose();
+      }
+    }
+    await AuthSession.instance.clear();
+    if (!context.mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   Widget _buildBotonCerrarSesion(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        onPressed: () {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (route) => false, // limpia todo el stack de navegación
-          );
-        },
+        onPressed: () => _cerrarSesion(context),
         icon: const Icon(
           Icons.logout_rounded,
           color: Colors.redAccent,
@@ -271,5 +289,5 @@ class _ItemPerfil {
   final String label;
   final VoidCallback? onTap;
 
-  _ItemPerfil({required this.icon, required this.label, this.onTap});
+  _ItemPerfil({required this.icon, required this.label}) : onTap = null;
 }

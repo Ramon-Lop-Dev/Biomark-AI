@@ -54,6 +54,7 @@ flowchart LR
 ├── docker-compose.yml       # Orquestación local/servidor
 ├── Dockerfile.ai-service    # Imagen AI Service
 ├── Dockerfile.backend       # Imagen backend
+├── docker-compose.contabo.yml # Backend, nginx y n8n en Contabo
 ├── README.md                # Vista general del proyecto
 └── .gitignore
 ```
@@ -87,6 +88,8 @@ Antes de probar el recomendador clínico, aplica `database/migrations/005_centro
 ```bash
 docker compose --env-file deploy/.env up -d --build
 ```
+
+En la arquitectura distribuida, RunPod ejecuta únicamente `ai-service` y Contabo ejecuta `backend`, `nginx` y `n8n`. En Contabo usa `docker-compose.contabo.yml` y configura `AI_SERVICE_URL` con la URL HTTPS del puerto 8000 de RunPod. El Compose principal se conserva para desarrollo en un solo servidor.
 
 Comprueba estado:
 

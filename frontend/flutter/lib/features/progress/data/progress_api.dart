@@ -2,15 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../../../core/auth/auth_session.dart';
+import '../../../core/config/app_config.dart';
 
 import '../domain/progress_snapshot.dart';
 
 class ProgressApi {
-  static const _apiUrl = String.fromEnvironment(
-    'BIOMARK_API_URL',
-    defaultValue: 'http://10.0.2.2:3000',
-  );
-  static const _accessToken = String.fromEnvironment('BIOMARK_ACCESS_TOKEN');
+  static const _apiUrl = AppConfig.apiUrl;
+  static String get _accessToken => AuthSession.instance.accessToken ?? '';
 
   static ProgressSnapshot defaultSnapshot() {
     return const ProgressSnapshot(
