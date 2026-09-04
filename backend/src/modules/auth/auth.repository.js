@@ -40,7 +40,9 @@ const refreshSession = (refreshToken) => supabaseAuth.auth.refreshSession({ refr
 // Envía el correo de recuperación de contraseña (Supabase gestiona la
 // plantilla y el enlace). Se usa el cliente anon: es lo mismo que haría
 // cualquier cliente público, no requiere privilegios de admin.
-const resetPasswordForEmail = (email) => supabaseAuth.auth.resetPasswordForEmail(email);
+const resetPasswordForEmail = (email) => supabaseAuth.auth.resetPasswordForEmail(email, {
+  redirectTo: 'biomarkai://reset-password'
+});
 
 // Cambia la contraseña de un usuario ya identificado (por su id interno
 // de Supabase Auth, NO el id de public.usuarios) usando la Admin API.
