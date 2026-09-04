@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'main.dart'; 
+import 'app_shell.dart';
+import 'forgot_password.dart';
+import 'core/auth/auth_api.dart';
+import 'core/auth/auth_session.dart';
+import 'core/config/app_config.dart';
+import 'core/auth/reset_password_link_listener.dart';
 
 class SplashColors {
   static const bg = Color(0xFFEEF3FC);
@@ -53,10 +59,40 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _irALogin() async {
     await Future.delayed(const Duration(milliseconds: 2600));
     if (!mounted) return;
+    if (ResetPasswordLinkListener.instance.pendingAccessToken != null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+      );
+      return;
+    }
+    var hasSession = AuthSession.instance.isLoggedIn;
+    if (hasSession && AuthSession.instance.isExpired) {
+      final refreshToken = AuthSession.instance.refreshToken;
+      if (refreshToken == null || refreshToken.isEmpty) {
+        await AuthSession.instance.clear();
+        hasSession = false;
+      } else {
+        final authApi = AuthApi(baseUrl: AppConfig.apiUrl);
+        try {
+          final session = await authApi.refresh(refreshToken: refreshToken);
+          await AuthSession.instance.saveSession(
+            accessToken: session.token,
+            refreshToken: session.refreshToken,
+            expiresIn: session.expiresIn,
+          );
+        } catch (_) {
+          await AuthSession.instance.clear();
+          hasSession = false;
+        } finally {
+          authApi.dispose();
+        }
+      }
+    }
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, animation, _) => const LoginScreen(),
+        pageBuilder: (_, animation, _) => hasSession ? const AppShell() : const LoginScreen(),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },

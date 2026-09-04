@@ -9,6 +9,8 @@ import 'package:record/record.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../../biomark_brand.dart';
+import '../../../core/auth/auth_session.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/design/biomark_clay.dart';
 import '../data/chat_api.dart';
 import '../../progress/data/progress_api.dart';
@@ -40,11 +42,8 @@ class _ChatScreenState extends State<ChatScreen>
     ),
   ];
 
-  static const _apiUrl = String.fromEnvironment(
-    'BIOMARK_API_URL',
-    defaultValue: 'http://10.0.2.2:3000',
-  );
-  static const _accessToken = String.fromEnvironment('BIOMARK_ACCESS_TOKEN');
+  static const _apiUrl = AppConfig.apiUrl;
+  static String get _accessToken => AuthSession.instance.accessToken ?? '';
   String? _sessionId;
   String? _errorMessage;
   bool _isSending = false;

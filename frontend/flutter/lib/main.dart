@@ -7,7 +7,16 @@ import 'register_screen.dart';
 import 'dart:ui';
 import 'loading.dart';
 import 'forgot_password.dart';
-void main() {
+import 'core/auth/auth_api.dart';
+import 'core/auth/auth_session.dart';
+import 'core/auth/google_auth_helper.dart';
+import 'core/auth/reset_password_link_listener.dart';
+import 'core/config/app_config.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AuthSession.instance.init();
+  await ResetPasswordLinkListener.instance.init();
   runApp(const MyApp());
 }
 
@@ -35,13 +44,26 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+  with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _isLoading = false;
+  final _authApi = AuthApi(baseUrl: AppConfig.apiUrl);
+  late final AnimationController _entranceController;
+  late final Animation<double> _contentFade;
+  late final Animation<Offset> _contentSlide;
+    bool _animationsReady = false;
+
+    Animation<double> get _safeContentFade => _animationsReady
+      ? _contentFade
+      : const AlwaysStoppedAnimation<double>(1);
+    Animation<Offset> get _safeContentSlide => _animationsReady
+      ? _contentSlide
+      : const AlwaysStoppedAnimation<Offset>(Offset.zero);
 
   static const Color bgTop = BiomarkColors.white;
   static const Color bgMid = BiomarkColors.white;
@@ -51,10 +73,67 @@ class _LoginScreenState extends State<LoginScreen> {
   static const Color textGray = BiomarkColors.black;
 
   @override
+  void initState() {
+    super.initState();
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..forward();
+    final curve = CurvedAnimation(
+      parent: _entranceController,
+      curve: Curves.easeOutCubic,
+    );
+    _contentFade = curve;
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(curve);
+    _animationsReady = true;
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _authApi.dispose();
+    if (_animationsReady) _entranceController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showAuthDialog({
+    required String title,
+    required String message,
+    required IconData icon,
+    String actionLabel = 'Continuar',
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        surfaceTintColor: Colors.white,
+        icon: Icon(
+          icon,
+          size: 46,
+          color: isError ? Colors.redAccent : primaryGreen,
+        ),
+        title: Text(title, textAlign: TextAlign.center),
+        content: Text(message, textAlign: TextAlign.center),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            style: FilledButton.styleFrom(
+              backgroundColor: isError ? Colors.redAccent : primaryGreen,
+            ),
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleLogin() async {
@@ -62,20 +141,79 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // TODO: aquí va tu lógica real (Firebase Auth, API REST, etc.)
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final session = await _authApi.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      await AuthSession.instance.saveSession(
+        accessToken: session.token,
+        refreshToken: session.refreshToken,
+        expiresIn: session.expiresIn,
+      );
+      if (!mounted) return;
+      await _showAuthDialog(
+        title: '¡Bienvenido!',
+        message: 'Has iniciado sesión correctamente en Biomark AI.',
+        icon: Icons.check_circle_outline_rounded,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AppShell()));
+    } on AuthApiException catch (error) {
+      await _showAuthDialog(
+        title: 'No pudimos iniciar sesión',
+        message: error.message,
+        icon: Icons.error_outline_rounded,
+        actionLabel: 'Entendido',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
-    setState(() => _isLoading = false);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Login de prueba exitoso')));
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const AppShell()),
-    );
+  Future<void> _handleGoogleLogin() async {
+    setState(() => _isLoading = true);
+    try {
+      final google = await GoogleAuthHelper.signIn();
+      if (google == null) return;
+      final session = await _authApi.loginWithGoogle(
+        idToken: google.idToken,
+        accessToken: google.accessToken,
+        fullName: google.fullName,
+      );
+      await AuthSession.instance.saveSession(
+        accessToken: session.token,
+        refreshToken: session.refreshToken,
+        expiresIn: session.expiresIn,
+      );
+      if (!mounted) return;
+      await _showAuthDialog(
+        title: '¡Bienvenido!',
+        message: 'Tu cuenta de Google está lista para usar Biomark AI.',
+        icon: Icons.check_circle_outline_rounded,
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AppShell()));
+    } on AuthApiException catch (error) {
+      await _showAuthDialog(
+        title: 'No pudimos conectar Google',
+        message: error.message,
+        icon: Icons.error_outline_rounded,
+        actionLabel: 'Entendido',
+        isError: true,
+      );
+    } on GoogleAuthException catch (error) {
+      await _showAuthDialog(
+        title: 'No pudimos conectar Google',
+        message: error.message,
+        icon: Icons.error_outline_rounded,
+        actionLabel: 'Entendido',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -109,15 +247,40 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 28),
-                        _buildLogo(),
-                        const SizedBox(height: 20),
-                        _buildAuthTabs(),
-                        const SizedBox(height: 20),
-                        _buildTitle(),
-                        const SizedBox(height: 28),
-                        _buildFormCard(),
-                        const SizedBox(height: 24),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 520),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 28),
+                              FadeTransition(
+                                opacity: _safeContentFade,
+                                child: _buildLogo(),
+                              ),
+                              const SizedBox(height: 20),
+                              FadeTransition(
+                                opacity: _safeContentFade,
+                                child: _buildAuthTabs(),
+                              ),
+                              const SizedBox(height: 20),
+                              SlideTransition(
+                                position: _safeContentSlide,
+                                child: FadeTransition(
+                                  opacity: _safeContentFade,
+                                  child: _buildTitle(),
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              SlideTransition(
+                                position: _safeContentSlide,
+                                child: FadeTransition(
+                                  opacity: _safeContentFade,
+                                  child: _buildFormCard(),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -288,6 +451,7 @@ class _LoginScreenState extends State<LoginScreen> {
             offset: Offset(-6, -6),
           ),
         ],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.75)),
       ),
       child: Form(
         key: _formKey,
@@ -316,6 +480,7 @@ class _LoginScreenState extends State<LoginScreen> {
               controller: _passwordController,
               hint: '••••••••••',
               icon: Icons.lock_outline_rounded,
+              floatingHint: false,
               obscureText: _obscurePassword,
               suffixIcon: IconButton(
                 icon: Icon(
@@ -391,6 +556,7 @@ class _LoginScreenState extends State<LoginScreen> {
     required String hint,
     required IconData icon,
     bool obscureText = false,
+    bool floatingHint = true,
     Widget? suffixIcon,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
@@ -411,6 +577,7 @@ class _LoginScreenState extends State<LoginScreen> {
             offset: Offset(-2, -2),
           ),
         ],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
       ),
       child: TextFormField(
         controller: controller,
@@ -421,11 +588,12 @@ class _LoginScreenState extends State<LoginScreen> {
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: textGray, size: 20),
           suffixIcon: suffixIcon,
-          hintText: hint,
-          hintStyle: TextStyle(
-            color: textGray.withValues(alpha: 0.8),
-            fontSize: 14,
-          ),
+            hintText: floatingHint ? null : hint,
+            floatingLabelBehavior: floatingHint
+              ? FloatingLabelBehavior.auto
+              : FloatingLabelBehavior.never,
+            labelText: floatingHint ? hint : null,
+          floatingLabelStyle: TextStyle(color: primaryGreen.withValues(alpha: 0.9)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             vertical: 16,
@@ -492,7 +660,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: _socialButton(
             label: 'Google',
             icon: Icons.g_mobiledata_rounded,
-            onTap: () {},
+            onTap: _handleGoogleLogin,
           ),
         ),
         const SizedBox(width: 12),
