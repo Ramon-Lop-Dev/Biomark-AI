@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'core/auth/auth_api.dart';
+import 'core/auth/reset_password_link_listener.dart';
+import 'core/config/app_config.dart';
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -6,11 +9,13 @@ class ForgotPasswordScreen extends StatefulWidget {
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
 }
 
-enum _Paso { correo, otp, nuevaClave }
+enum _Paso { correo, esperandoCorreo, nuevaClave }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   _Paso _paso = _Paso.correo;
   bool _isLoading = false;
+  final _authApi = AuthApi(baseUrl: AppConfig.apiUrl);
+  String? _recoveryAccessToken;
 
   // ---- Colores (idénticos a LoginScreen) ----
   static const Color bgTop = Color(0xFFE0E7F2);
@@ -25,10 +30,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailFormKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
 
-  final List<TextEditingController> _otpControllers =
-      List.generate(4, (_) => TextEditingController());
-  final List<FocusNode> _otpFocusNodes = List.generate(4, (_) => FocusNode());
-
   final _passFormKey = GlobalKey<FormState>();
   final _newPassController = TextEditingController();
   final _confirmPassController = TextEditingController();
@@ -36,16 +37,28 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _obscureConfirm = true;
 
   @override
+  void initState() {
+    super.initState();
+    ResetPasswordLinkListener.instance.listen(_onRecoveryLink);
+    final pendingToken = ResetPasswordLinkListener.instance.pendingAccessToken;
+    if (pendingToken != null) _onRecoveryLink(pendingToken);
+  }
+
+  void _onRecoveryLink(String accessToken) {
+      if (!mounted) return;
+      setState(() {
+        _recoveryAccessToken = accessToken;
+        _paso = _Paso.nuevaClave;
+      });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
-    for (final c in _otpControllers) {
-      c.dispose();
-    }
-    for (final f in _otpFocusNodes) {
-      f.dispose();
-    }
     _newPassController.dispose();
     _confirmPassController.dispose();
+    _authApi.dispose();
+    ResetPasswordLinkListener.instance.removeListener(_onRecoveryLink);
     super.dispose();
   }
 
@@ -56,44 +69,31 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!_emailFormKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // TODO: aquí va tu lógica real de envío de correo (API, Firebase, etc.)
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      _paso = _Paso.otp;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Código enviado a ${_emailController.text}'),
-        backgroundColor: primaryGreen,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  Future<void> _verificarCodigo() async {
-    final codigo = _otpControllers.map((c) => c.text).join();
-    if (codigo.length < 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingresa el código completo')),
-      );
+    try {
+      final message = await _authApi.forgotPassword(email: _emailController.text.trim());
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _paso = _Paso.esperandoCorreo;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       return;
+    } on AuthApiException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
     }
-    setState(() => _isLoading = true);
-
-    // TODO: aquí va tu validación real del OTP
-    await Future.delayed(const Duration(seconds: 2));
 
     if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-      _paso = _Paso.nuevaClave;
-    });
+    setState(() => _isLoading = false);
   }
 
   Future<void> _reenviarCodigo() async {
+    try {
+      await _authApi.forgotPassword(email: _emailController.text.trim());
+    } on AuthApiException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      return;
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Reenviando código a ${_emailController.text}...'),
@@ -107,8 +107,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!_passFormKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // TODO: aquí va tu lógica real para actualizar la contraseña
-    await Future.delayed(const Duration(seconds: 2));
+    if (_recoveryAccessToken == null || _recoveryAccessToken!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Abre el enlace recibido por correo.')));
+      return;
+    }
+
+    try {
+      await _authApi.resetPassword(
+        accessToken: _recoveryAccessToken!,
+        newPassword: _newPassController.text,
+      );
+    } on AuthApiException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -193,10 +206,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           onTap: () {
             if (_paso == _Paso.correo) {
               Navigator.pop(context);
-            } else if (_paso == _Paso.otp) {
+            } else if (_paso == _Paso.esperandoCorreo) {
               setState(() => _paso = _Paso.correo);
             } else {
-              setState(() => _paso = _Paso.otp);
+              setState(() => _paso = _Paso.esperandoCorreo);
             }
           },
         ),
@@ -238,7 +251,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       case _Paso.correo:
         icon = Icons.mail_lock_outlined;
         break;
-      case _Paso.otp:
+      case _Paso.esperandoCorreo:
         icon = Icons.password_rounded;
         break;
       case _Paso.nuevaClave:
@@ -278,9 +291,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         titulo = 'Recuperar contraseña';
         subtitulo = 'Ingresa tu correo y te enviaremos un código';
         break;
-      case _Paso.otp:
-        titulo = 'Verifica tu código';
-        subtitulo = 'Enviamos un código a ${_emailController.text.isEmpty ? "tu correo" : _emailController.text}';
+      case _Paso.esperandoCorreo:
+        titulo = 'Revisa tu correo';
+        subtitulo = 'Enviamos un enlace a ${_emailController.text.isEmpty ? "tu correo" : _emailController.text}. Ábrelo para continuar.';
         break;
       case _Paso.nuevaClave:
         titulo = 'Nueva contraseña';
@@ -310,7 +323,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   // ---- Indicador de pasos (puntitos tipo clay) ----
   Widget _buildPasosIndicador() {
-    final pasos = [_Paso.correo, _Paso.otp, _Paso.nuevaClave];
+    final pasos = [_Paso.correo, _Paso.esperandoCorreo, _Paso.nuevaClave];
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(pasos.length, (i) {
@@ -345,7 +358,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     switch (_paso) {
       case _Paso.correo:
         return _buildTarjetaCorreo();
-      case _Paso.otp:
+      case _Paso.esperandoCorreo:
         return _buildTarjetaOtp();
       case _Paso.nuevaClave:
         return _buildTarjetaNuevaClave();
@@ -400,7 +413,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             const SizedBox(height: 24),
             _buildBotonPrincipal(
-              texto: 'Enviar código',
+              texto: 'Enviar enlace',
               color: primaryGreen,
               onPressed: _enviarCodigo,
             ),
@@ -410,27 +423,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-  // ---- PASO 2: OTP ----
+  // ---- PASO 2: espera del enlace ----
   Widget _buildTarjetaOtp() {
     return _buildClayCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(4, (i) => _buildOtpBox(i)),
-          ),
-          const SizedBox(height: 22),
-          _buildBotonPrincipal(
-            texto: 'Verificar código',
-            color: primaryGreen,
-            onPressed: _verificarCodigo,
+          const Icon(Icons.mark_email_read_outlined, size: 42, color: primaryGreen),
+          const SizedBox(height: 18),
+          Text(
+            'Abre el enlace que enviamos a tu correo. La app continuará automáticamente.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: textGray, fontSize: 13),
           ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('¿No recibiste el código? ', style: TextStyle(color: textGray, fontSize: 13)),
+              Text('¿No recibiste el enlace? ', style: TextStyle(color: textGray, fontSize: 13)),
               GestureDetector(
                 onTap: _reenviarCodigo,
                 child: const Text(
@@ -441,51 +451,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildOtpBox(int index) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Container(
-        width: 54,
-        height: 60,
-        decoration: BoxDecoration(
-          color: bgMid,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.18),
-              blurRadius: 8,
-              offset: const Offset(3, 3),
-            ),
-            const BoxShadow(
-              color: Colors.white,
-              blurRadius: 8,
-              offset: Offset(-3, -3),
-            ),
-          ],
-        ),
-        child: TextField(
-          controller: _otpControllers[index],
-          focusNode: _otpFocusNodes[index],
-          textAlign: TextAlign.center,
-          keyboardType: TextInputType.number,
-          maxLength: 1,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: textDark),
-          decoration: const InputDecoration(
-            counterText: '',
-            border: InputBorder.none,
-          ),
-          onChanged: (value) {
-            if (value.isNotEmpty && index < 3) {
-              FocusScope.of(context).requestFocus(_otpFocusNodes[index + 1]);
-            } else if (value.isEmpty && index > 0) {
-              FocusScope.of(context).requestFocus(_otpFocusNodes[index - 1]);
-            }
-          },
-        ),
       ),
     );
   }
@@ -504,6 +469,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               controller: _newPassController,
               hint: '••••••••••',
               icon: Icons.lock_outline_rounded,
+              floatingHint: false,
               obscureText: _obscureNew,
               suffixIcon: IconButton(
                 icon: Icon(
@@ -525,6 +491,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               controller: _confirmPassController,
               hint: '••••••••••',
               icon: Icons.lock_outline_rounded,
+              floatingHint: false,
               obscureText: _obscureConfirm,
               suffixIcon: IconButton(
                 icon: Icon(
@@ -565,6 +532,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     required String hint,
     required IconData icon,
     bool obscureText = false,
+    bool floatingHint = true,
     Widget? suffixIcon,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
@@ -595,8 +563,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: textGray, size: 20),
           suffixIcon: suffixIcon,
-          hintText: hint,
-          hintStyle: TextStyle(color: textGray.withValues(alpha: 0.8), fontSize: 14),
+            hintText: floatingHint ? null : hint,
+            floatingLabelBehavior: floatingHint
+              ? FloatingLabelBehavior.auto
+              : FloatingLabelBehavior.never,
+            labelText: floatingHint ? hint : null,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         ),
