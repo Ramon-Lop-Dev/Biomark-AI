@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'biomark_brand.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
-import 'features/chat/presentation/chat_screen.dart';
+import 'survey_service.dart';
 import 'features/gis/presentation/gis_map_screen.dart';
 import 'features/progress/presentation/progress_screen.dart';
 import 'features/reminders/presentation/reminders_screen.dart';
@@ -14,19 +14,14 @@ class _FadeSlidePageRoute<T> extends MaterialPageRoute<T> {
   _FadeSlidePageRoute({required super.builder, super.settings});
 
   @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
+  Widget buildTransitions(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
     return FadeTransition(
       opacity: animation,
       child: SlideTransition(
-        position: Tween<Offset>(begin: const Offset(0.2, 0), end: Offset.zero)
-            .animate(
-              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-            ),
+        position: Tween<Offset>(
+          begin: const Offset(0.2, 0),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
         child: child,
       ),
     );
@@ -43,13 +38,7 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _navIndex = 0;
 
-  final _navLabels = const [
-    'Inicio',
-    'Mejoría',
-    'Mapa',
-    'Recordatorio',
-    'Perfil',
-  ];
+  final _navLabels = const ['Inicio', 'Mejoría', 'Mapa', 'Recordatorio', 'Perfil'];
   final _navIcons = const [
     Icons.home_rounded,
     Icons.insights_rounded,
@@ -67,10 +56,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _openChat() {
-    Navigator.push(
-      context,
-      _FadeSlidePageRoute(builder: (_) => const ChatScreen()),
-    );
+    SurveyService.abrirChat(context);
   }
 
   void _openProfile() {
@@ -301,8 +287,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
       initialTime: TimeOfDay.now(),
     );
     if (picked != null) {
-      _hourController.text =
-          '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      _hourController.text = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
     }
   }
 
@@ -321,10 +306,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
   void _createReminder() {
     if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor ingresa un título'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Por favor ingresa un título'), backgroundColor: Colors.red),
       );
       return;
     }
@@ -346,9 +328,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
     // Visualización solo - Confirma la creación
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          'Recordatorio "${_titleController.text}" creado (visualización)',
-        ),
+        content: Text('Recordatorio "${_titleController.text}" creado (visualización)'),
         backgroundColor: BiomarkColors.green,
       ),
     );
@@ -381,10 +361,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                   children: [
                     const Text(
                       'Nuevo Recordatorio',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                     ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded),
@@ -405,10 +382,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                     children: [
                       _buildTypeButton('MEDICAMENTO', Icons.medication_rounded),
                       const SizedBox(width: 10),
-                      _buildTypeButton(
-                        'CITA_MEDICA',
-                        Icons.medical_services_outlined,
-                      ),
+                      _buildTypeButton('CITA_MEDICA', Icons.medical_services_outlined),
                       const SizedBox(width: 10),
                       _buildTypeButton('VACUNA', Icons.vaccines_rounded),
                     ],
@@ -420,13 +394,8 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                   controller: _titleController,
                   decoration: InputDecoration(
                     labelText: 'Título *',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -435,13 +404,8 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                   controller: _descriptionController,
                   decoration: InputDecoration(
                     labelText: 'Descripción',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   ),
                   maxLines: 2,
                 ),
@@ -453,20 +417,14 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                       child: GestureDetector(
                         onTap: () => _selectDate(context),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.grey),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
                             children: [
-                              const Icon(
-                                Icons.calendar_today_rounded,
-                                size: 18,
-                              ),
+                              const Icon(Icons.calendar_today_rounded, size: 18),
                               const SizedBox(width: 8),
                               Text(
                                 '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
@@ -481,10 +439,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                       child: GestureDetector(
                         onTap: () => _selectTime(context),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           decoration: BoxDecoration(
                             border: Border.all(color: Colors.grey),
                             borderRadius: BorderRadius.circular(12),
@@ -497,9 +452,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                                 child: TextField(
                                   controller: _hourController,
                                   enabled: false,
-                                  decoration: const InputDecoration(
-                                    border: InputBorder.none,
-                                  ),
+                                  decoration: const InputDecoration(border: InputBorder.none),
                                 ),
                               ),
                             ],
@@ -517,17 +470,12 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: BiomarkColors.green,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: _createReminder,
                     child: const Text(
                       'Crear Recordatorio',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -557,11 +505,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? Colors.white : BiomarkColors.black,
-            ),
+            Icon(icon, size: 16, color: isSelected ? Colors.white : BiomarkColors.black),
             const SizedBox(width: 6),
             Text(
               typeLabel,

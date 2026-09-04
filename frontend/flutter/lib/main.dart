@@ -6,8 +6,9 @@ import 'biomark_brand.dart';
 import 'register_screen.dart';
 import 'dart:ui';
 import 'loading.dart';
-import 'home_screen.dart';
+// import 'home_screen.dart';
 import 'forgot_password.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -194,7 +195,10 @@ class _LoginScreenState extends State<LoginScreen> {
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: activo
-              ? Border.all(color: primaryGreen.withValues(alpha: 0.35), width: 1)
+              ? Border.all(
+                  color: primaryGreen.withValues(alpha: 0.35),
+                  width: 1,
+                )
               : null,
           boxShadow: activo
               ? [

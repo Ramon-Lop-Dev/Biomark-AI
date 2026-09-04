@@ -2,7 +2,8 @@
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
-import 'features/chat/presentation/chat_screen.dart';
+import 'survey_service.dart';
+import 'health_history.dart';
 import 'features/gis/presentation/gis_map_screen.dart';
 import 'features/progress/presentation/progress_screen.dart';
 import 'features/reminders/presentation/reminders_screen.dart';
@@ -98,10 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Conversa con\nBiomark',
                 Icons.health_and_safety_rounded,
                 BiomarkColors.blue,
-                () => Navigator.push(
-                  context,
-                  _FadeSlidePageRoute(builder: (_) => const ChatScreen()),
-                ),
+                () => SurveyService.abrirChat(context),
               ),
             ),
             const SizedBox(width: 14),
@@ -126,7 +124,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Mis\nAntecedentes',
                 Icons.folder_shared_outlined,
                 BiomarkColors.green,
-                () => _showMessage('Antecedentes estará disponible pronto.'),
+                () => Navigator.push(
+                  context,
+                  _FadeSlidePageRoute(builder: (_) => const AntecedentesScreen()),
+                ),
               ),
             ),
             const SizedBox(width: 14),
@@ -268,22 +269,37 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
+      elevation: 3,
+      shadowColor: Colors.black.withValues(alpha: .08),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
+        splashColor: color.withValues(alpha: .15),
+        highlightColor: color.withValues(alpha: .08),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
           child: Column(
             children: [
               Container(
-                width: 46,
-                height: 46,
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(14),
+                  gradient: LinearGradient(
+                    colors: [color, color.withValues(alpha: .72)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: .35),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-                child: Icon(icon, color: Colors.white, size: 22),
+                child: Icon(icon, color: Colors.white, size: 24),
               ),
               const SizedBox(height: 10),
               Text(
