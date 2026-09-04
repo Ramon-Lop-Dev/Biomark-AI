@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import '../../../core/auth/auth_session.dart';
+import '../../../core/config/app_config.dart';
 
 import '../domain/health_center.dart';
 
@@ -21,11 +23,8 @@ class GisMapData {
 class GisApi {
   GisApi({http.Client? client}) : _client = client ?? http.Client();
 
-  static const _apiUrl = String.fromEnvironment(
-    'BIOMARK_API_URL',
-    defaultValue: 'http://10.0.2.2:3000',
-  );
-  static const _accessToken = String.fromEnvironment('BIOMARK_ACCESS_TOKEN');
+  static const _apiUrl = AppConfig.apiUrl;
+  static String get _accessToken => AuthSession.instance.accessToken ?? '';
   final http.Client _client;
 
   Future<GisMapData> fetchNearby({
