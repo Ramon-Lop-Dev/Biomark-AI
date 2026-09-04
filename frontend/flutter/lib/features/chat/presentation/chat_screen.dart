@@ -905,8 +905,6 @@ class _FollowUpActionCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                if (message.recommendedCenter != null)
-                  _RecommendedCenter(center: message.recommendedCenter!),
                 child: const Text('Registrar evolución'),
               ),
             ),

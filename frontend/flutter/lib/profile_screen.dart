@@ -271,5 +271,5 @@ class _ItemPerfil {
   final String label;
   final VoidCallback? onTap;
 
-  _ItemPerfil({required this.icon, required this.label, this.onTap});
+  _ItemPerfil({required this.icon, required this.label}) : onTap = null;
 }

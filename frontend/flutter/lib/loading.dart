@@ -56,8 +56,8 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, animation, __) => const LoginScreen(),
-        transitionsBuilder: (_, animation, __, child) {
+        pageBuilder: (_, animation, _) => const LoginScreen(),
+        transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
       ),
@@ -92,13 +92,13 @@ class _SplashScreenState extends State<SplashScreen>
                     boxShadow: [
                       // sombra clara arriba-izquierda (relieve)
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.95),
+                        color: Colors.white.withValues(alpha: 0.95),
                         blurRadius: 16,
                         offset: const Offset(-8, -8),
                       ),
                       // sombra oscura abajo-derecha (hundido)
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.12),
+                        color: Colors.black.withValues(alpha: 0.12),
                         blurRadius: 18,
                         offset: const Offset(8, 8),
                       ),
@@ -197,7 +197,7 @@ class _ClayLoadingDotsState extends State<_ClayLoadingDots>
                     color: SplashColors.blue,
                     boxShadow: [
                       BoxShadow(
-                        color: SplashColors.blue.withOpacity(0.35),
+                        color: SplashColors.blue.withValues(alpha: 0.35),
                         blurRadius: 6,
                         offset: const Offset(0, 3),
                       ),
