@@ -216,89 +216,92 @@ class _GisMapScreenState extends State<GisMapScreen> {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-        FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(initialCenter: _userLocation, initialZoom: 13.2),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.biomark.ai',
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _userLocation,
+              initialZoom: 13.2,
             ),
-            if (_showRiskZones)
-              CircleLayer(
-                circles: _riskZones
-                    .map(
-                      (zone) => CircleMarker(
-                        point: LatLng(zone.latitude, zone.longitude),
-                        radius: zone.radiusKm * 1000,
-                        useRadiusInMeter: true,
-                        color: Colors.red.withValues(alpha: .18),
-                        borderColor: Colors.red.withValues(alpha: .55),
-                        borderStrokeWidth: 2,
-                      ),
-                    )
-                    .toList(),
-              ),
-            MarkerLayer(markers: markers),
-          ],
-        ),
-        Positioned(
-          top: 12,
-          left: 16,
-          right: 16,
-          child: _SearchHeader(
-            controller: _searchController,
-            onChanged: (_) => setState(() {}),
-            onRefresh: _loadMap,
-            loading: _loading,
-          ),
-        ),
-        Positioned(
-          top: 76,
-          left: 0,
-          right: 0,
-          child: _FilterRow(
-            selected: _selectedFilter,
-            onSelected: (filter) => setState(() => _selectedFilter = filter),
-          ),
-        ),
-        if (_errorMessage != null)
-          Positioned(
-            top: 122,
-            left: 16,
-            right: 16,
-            child: _StatusBanner(message: _errorMessage!),
-          ),
-        Positioned(
-          right: 16,
-          bottom: 220,
-          child: Column(
             children: [
-              _MapControl(
-                icon: Icons.my_location_rounded,
-                tooltip: 'Mi ubicación',
-                onTap: () => _mapController.move(_userLocation, 14.5),
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.biomark.ai',
               ),
-              const SizedBox(height: 12),
-              _MapControl(
-                icon: Icons.warning_amber_rounded,
-                tooltip: 'Capas de riesgo',
-                active: _showRiskZones,
-                onTap: () => setState(() => _showRiskZones = !_showRiskZones),
-              ),
+              if (_showRiskZones)
+                CircleLayer(
+                  circles: _riskZones
+                      .map(
+                        (zone) => CircleMarker(
+                          point: LatLng(zone.latitude, zone.longitude),
+                          radius: zone.radiusKm * 1000,
+                          useRadiusInMeter: true,
+                          color: Colors.red.withValues(alpha: .18),
+                          borderColor: Colors.red.withValues(alpha: .55),
+                          borderStrokeWidth: 2,
+                        ),
+                      )
+                      .toList(),
+                ),
+              MarkerLayer(markers: markers),
             ],
           ),
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: _CenterCarousel(
-            centers: centers,
-            onTap: _showCenterDetails,
-            onFocus: _focusCenter,
+          Positioned(
+            top: 12,
+            left: 16,
+            right: 16,
+            child: _SearchHeader(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              onRefresh: _loadMap,
+              loading: _loading,
+            ),
           ),
-        ),
+          Positioned(
+            top: 76,
+            left: 0,
+            right: 0,
+            child: _FilterRow(
+              selected: _selectedFilter,
+              onSelected: (filter) => setState(() => _selectedFilter = filter),
+            ),
+          ),
+          if (_errorMessage != null)
+            Positioned(
+              top: 122,
+              left: 16,
+              right: 16,
+              child: _StatusBanner(message: _errorMessage!),
+            ),
+          Positioned(
+            right: 16,
+            bottom: 220,
+            child: Column(
+              children: [
+                _MapControl(
+                  icon: Icons.my_location_rounded,
+                  tooltip: 'Mi ubicación',
+                  onTap: () => _mapController.move(_userLocation, 14.5),
+                ),
+                const SizedBox(height: 12),
+                _MapControl(
+                  icon: Icons.warning_amber_rounded,
+                  tooltip: 'Capas de riesgo',
+                  active: _showRiskZones,
+                  onTap: () => setState(() => _showRiskZones = !_showRiskZones),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _CenterCarousel(
+              centers: centers,
+              onTap: _showCenterDetails,
+              onFocus: _focusCenter,
+            ),
+          ),
         ],
       ),
     );

@@ -356,7 +356,10 @@ class _LoginScreenState extends State<LoginScreen>
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: activo
-              ? Border.all(color: primaryGreen.withValues(alpha: 0.35), width: 1)
+              ? Border.all(
+                  color: primaryGreen.withValues(alpha: 0.35),
+                  width: 1,
+                )
               : null,
           boxShadow: activo
               ? [
