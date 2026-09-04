@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'main.dart'; 
+import 'app_shell.dart';
+import 'forgot_password.dart';
+import 'core/auth/auth_api.dart';
+import 'core/auth/auth_session.dart';
+import 'core/config/app_config.dart';
+import 'core/auth/reset_password_link_listener.dart';
 
 class SplashColors {
   static const bg = Color(0xFFEEF3FC);
@@ -53,11 +59,41 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _irALogin() async {
     await Future.delayed(const Duration(milliseconds: 2600));
     if (!mounted) return;
+    if (ResetPasswordLinkListener.instance.pendingAccessToken != null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+      );
+      return;
+    }
+    var hasSession = AuthSession.instance.isLoggedIn;
+    if (hasSession && AuthSession.instance.isExpired) {
+      final refreshToken = AuthSession.instance.refreshToken;
+      if (refreshToken == null || refreshToken.isEmpty) {
+        await AuthSession.instance.clear();
+        hasSession = false;
+      } else {
+        final authApi = AuthApi(baseUrl: AppConfig.apiUrl);
+        try {
+          final session = await authApi.refresh(refreshToken: refreshToken);
+          await AuthSession.instance.saveSession(
+            accessToken: session.token,
+            refreshToken: session.refreshToken,
+            expiresIn: session.expiresIn,
+          );
+        } catch (_) {
+          await AuthSession.instance.clear();
+          hasSession = false;
+        } finally {
+          authApi.dispose();
+        }
+      }
+    }
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, animation, __) => const LoginScreen(),
-        transitionsBuilder: (_, animation, __, child) {
+        pageBuilder: (_, animation, _) => hasSession ? const AppShell() : const LoginScreen(),
+        transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
       ),
@@ -92,13 +128,13 @@ class _SplashScreenState extends State<SplashScreen>
                     boxShadow: [
                       // sombra clara arriba-izquierda (relieve)
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.95),
+                        color: Colors.white.withValues(alpha: 0.95),
                         blurRadius: 16,
                         offset: const Offset(-8, -8),
                       ),
                       // sombra oscura abajo-derecha (hundido)
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.12),
+                        color: Colors.black.withValues(alpha: 0.12),
                         blurRadius: 18,
                         offset: const Offset(8, 8),
                       ),
@@ -197,7 +233,7 @@ class _ClayLoadingDotsState extends State<_ClayLoadingDots>
                     color: SplashColors.blue,
                     boxShadow: [
                       BoxShadow(
-                        color: SplashColors.blue.withOpacity(0.35),
+                        color: SplashColors.blue.withValues(alpha: 0.35),
                         blurRadius: 6,
                         offset: const Offset(0, 3),
                       ),

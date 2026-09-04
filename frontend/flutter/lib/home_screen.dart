@@ -46,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // Placeholder mientras se conecta la base de datos.
   // Cuando tengas tu backend listo, _cargarNombreUsuario() lo reemplaza
   // con el nombre real (ver initState más abajo).
-  String _nombreUsuario = 'Familia';
+  final String _nombreUsuario = 'Familia';
 
   @override
   void initState() {

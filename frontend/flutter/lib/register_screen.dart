@@ -1,11 +1,10 @@
-import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_biomark/home_screen.dart';
 import 'package:flutter_biomark/main.dart'; // <-- para navegar de vuelta a LoginScreen
-import 'package:image_picker/image_picker.dart';
+import 'core/auth/auth_api.dart';
+import 'core/auth/auth_session.dart';
+import 'core/config/app_config.dart';
 
 /// ---------------------------------------------------------------
 /// REGISTER SCREEN — mismo estilo "claymorfismo" que el login,
@@ -19,34 +18,33 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen>
+  with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _ageController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-
-  // Edad seleccionada con la rueda
-  int? _selectedAge;
-  static const int _minAge = 13;
-  static const int _maxAge = 99;
-  static const int _defaultAge = 18;
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  final _authApi = AuthApi(baseUrl: AppConfig.apiUrl);
+  late final AnimationController _entranceController;
+  late final Animation<double> _contentFade;
+  late final Animation<Offset> _contentSlide;
+    bool _animationsReady = false;
 
-  // Foto de perfil seleccionada (guardada en memoria, funciona en web y móvil)
-  Uint8List? _profileImageBytes;
-
-  final ImagePicker _imagePicker = ImagePicker();
+    Animation<double> get _safeContentFade => _animationsReady
+      ? _contentFade
+      : const AlwaysStoppedAnimation<double>(1);
+    Animation<Offset> get _safeContentSlide => _animationsReady
+      ? _contentSlide
+      : const AlwaysStoppedAnimation<Offset>(Offset.zero);
 
   // Fondo con más carácter — degradado en tonos azules de marca
   static const Color bgTop = Color.fromARGB(255, 244, 245, 246);
   static const Color bgMid = Color.fromARGB(255, 239, 239, 240);
-  static const Color primaryPurple = Color.fromARGB(255, 254, 254, 254);
   static const Color accentBlue = Color.fromARGB(
     255,
     50,
@@ -57,14 +55,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
   static const Color textGray = Color.fromARGB(255, 36, 36, 37);
 
   @override
+  void initState() {
+    super.initState();
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..forward();
+    final curve = CurvedAnimation(
+      parent: _entranceController,
+      curve: Curves.easeOutCubic,
+    );
+    _contentFade = curve;
+    _contentSlide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(curve);
+    _animationsReady = true;
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
-    _usernameController.dispose();
     _emailController.dispose();
-    _ageController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _authApi.dispose();
+    if (_animationsReady) _entranceController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showAuthDialog({
+    required String title,
+    required String message,
+    required IconData icon,
+    String actionLabel = 'Continuar',
+    bool isError = false,
+  }) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        surfaceTintColor: Colors.white,
+        icon: Icon(
+          icon,
+          size: 46,
+          color: isError ? Colors.redAccent : accentBlue,
+        ),
+        title: Text(title, textAlign: TextAlign.center),
+        content: Text(message, textAlign: TextAlign.center),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            style: FilledButton.styleFrom(
+              backgroundColor: isError ? Colors.redAccent : accentBlue,
+            ),
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
   }
 
   void _irALogin() {
@@ -74,161 +127,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // ---------------- SELECTOR DE EDAD (RUEDA) ----------------
-  Future<void> _pickAge() async {
-    int tempAge = _selectedAge ?? _defaultAge;
-
-    final int? result = await showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetContext) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: const EdgeInsets.only(top: 12, bottom: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                '¿Qué edad tienes?',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: textDark,
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 180,
-                child: CupertinoPicker(
-                  scrollController: FixedExtentScrollController(
-                    initialItem: tempAge - _minAge,
-                  ),
-                  itemExtent: 42,
-                  useMagnifier: true,
-                  magnification: 1.15,
-                  // Overlay SIN fondo sólido — solo dos líneas, así no tapa
-                  // el número que queda resaltado en el centro.
-                  selectionOverlay: Container(
-                    decoration: BoxDecoration(
-                      border: Border.symmetric(
-                        horizontal: BorderSide(
-                          color: const Color.fromARGB(
-                            255,
-                            50,
-                            96,
-                            169,
-                          ).withOpacity(0.35),
-                          width: 1.2,
-                        ),
-                      ),
-                    ),
-                  ),
-                  onSelectedItemChanged: (index) {
-                    tempAge = _minAge + index;
-                  },
-                  children: List.generate(_maxAge - _minAge + 1, (index) {
-                    final age = _minAge + index;
-                    return Center(
-                      child: Text(
-                        '$age años',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: textDark,
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Devolvemos la edad seleccionada como resultado del
-                      // bottom sheet en vez de depender de setState aquí.
-                      Navigator.of(sheetContext).pop(tempAge);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 50, 96, 169),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: const Text(
-                      'Confirmar',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-
-    if (result == null || !mounted) return;
-
-    setState(() {
-      _selectedAge = result;
-      _ageController.text = '$_selectedAge años';
-    });
-  }
-
-  Future<void> _pickProfileImage() async {
-    final XFile? picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 800,
-      imageQuality: 95,
-    );
-    if (picked == null) return;
-
-    final bytes = await picked.readAsBytes();
-    setState(() => _profileImageBytes = bytes);
-  }
-
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    // TODO: aquí va tu lógica real de registro (Firebase Auth, API REST, etc.)
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() => _isLoading = false);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registro de prueba exitoso!')),
-    );
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-    );
+    try {
+      final result = await _authApi.register(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        fullName: _nameController.text.trim(),
+      );
+      if (result.token != null && result.token!.isNotEmpty) {
+        await AuthSession.instance.saveSession(
+          accessToken: result.token!,
+          refreshToken: result.refreshToken,
+          expiresIn: result.expiresIn ?? 3600,
+        );
+      }
+      if (!mounted) return;
+      final requiresConfirmation = result.requiresEmailConfirmation;
+      await _showAuthDialog(
+        title: requiresConfirmation ? '¡Cuenta creada!' : '¡Registro exitoso!',
+        message: requiresConfirmation
+            ? 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.'
+            : 'Tu cuenta de Biomark AI está lista.',
+        icon: Icons.check_circle_outline_rounded,
+        actionLabel: 'Ir a iniciar sesión',
+      );
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+    } on AuthApiException catch (error) {
+      await _showAuthDialog(
+        title: 'No pudimos crear tu cuenta',
+        message: error.message,
+        icon: Icons.error_outline_rounded,
+        actionLabel: 'Entendido',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -261,15 +200,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 28),
-                        _buildProfilePhotoPicker(),
-                        const SizedBox(height: 20),
-                        _buildAuthTabs(),
-                        const SizedBox(height: 20),
-                        _buildTitle(),
-                        const SizedBox(height: 28),
-                        _buildFormCard(),
-                        const SizedBox(height: 24),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 520),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 28),
+                              FadeTransition(
+                                opacity: _safeContentFade,
+                                child: _buildLogo(),
+                              ),
+                              const SizedBox(height: 20),
+                              FadeTransition(
+                                opacity: _safeContentFade,
+                                child: _buildAuthTabs(),
+                              ),
+                              const SizedBox(height: 20),
+                              SlideTransition(
+                                position: _safeContentSlide,
+                                child: FadeTransition(
+                                  opacity: _safeContentFade,
+                                  child: _buildTitle(),
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                              SlideTransition(
+                                position: _safeContentSlide,
+                                child: FadeTransition(
+                                  opacity: _safeContentFade,
+                                  child: _buildFormCard(),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -277,6 +241,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
               );
             },
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogo() {
+    return Container(
+      width: 96,
+      height: 96,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Image.asset(
+          'assets/branding/Icono.png',
+          width: 90,
+          height: 96,
+          fit: BoxFit.cover,
         ),
       ),
     );
@@ -291,9 +281,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Container(
           padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.18),
+            color: Colors.white.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1),
           ),
           child: Row(
             children: [
@@ -330,15 +320,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         padding: const EdgeInsets.symmetric(vertical: 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: activo ? accentBlue.withOpacity(0.12) : Colors.transparent,
+          color: activo ? accentBlue.withValues(alpha: 0.12) : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: activo
-              ? Border.all(color: accentBlue.withOpacity(0.35), width: 1)
+              ? Border.all(color: accentBlue.withValues(alpha: 0.35), width: 1)
               : null,
           boxShadow: activo
               ? [
                   BoxShadow(
-                    color: accentBlue.withOpacity(0.08),
+                    color: accentBlue.withValues(alpha: 0.08),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
@@ -354,69 +344,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             fontSize: 14,
           ),
         ),
-      ),
-    );
-  }
-
-  // ---------------- FOTO DE PERFIL ----------------
-  Widget _buildProfilePhotoPicker() {
-    return GestureDetector(
-      onTap: _pickProfileImage,
-      child: Stack(
-        children: [
-          Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color.fromARGB(255, 242, 242, 242),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color.fromARGB(
-                    255,
-                    11,
-                    56,
-                    125,
-                  ).withOpacity(0.25),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: ClipOval(
-              child: _profileImageBytes != null
-                  ? Image.memory(
-                      _profileImageBytes!,
-                      width: 96,
-                      height: 96,
-                      fit: BoxFit.cover,
-                    )
-                  : Icon(
-                      Icons.person_outline_rounded,
-                      size: 44,
-                      color: const Color.fromARGB(255, 3, 3, 63),
-                    ),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: primaryPurple,
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: const Icon(
-                Icons.camera_alt_rounded,
-                size: 15,
-                color: Color.fromARGB(255, 5, 25, 122),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -440,7 +367,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: const Color.fromARGB(255, 11, 8, 99).withOpacity(0.25),
+            color: const Color.fromARGB(255, 11, 8, 99).withValues(alpha: 0.25),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
@@ -450,6 +377,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             offset: Offset(-6, -6),
           ),
         ],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.75)),
       ),
       child: Form(
         key: _formKey,
@@ -465,23 +393,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Ingresa tu nombre completo';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            _buildLabel('Nombre de usuario'),
-            const SizedBox(height: 8),
-            _buildClayTextField(
-              controller: _usernameController,
-              hint: '@tunombre',
-              icon: Icons.alternate_email_rounded,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Ingresa un nombre de usuario';
-                }
-                if (value.contains(' ')) {
-                  return 'Sin espacios';
                 }
                 return null;
               },
@@ -503,31 +414,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               },
             ),
             const SizedBox(height: 16),
-            _buildLabel('¿Qué edad tienes?'),
-            const SizedBox(height: 8),
-            _buildClayTextField(
-              controller: _ageController,
-              hint: 'Selecciona tu edad',
-              icon: Icons.cake_outlined,
-              readOnly: true,
-              onTap: _pickAge,
-              validator: (value) {
-                if (_selectedAge == null) {
-                  return 'Selecciona tu edad';
-                }
-                if (_selectedAge! < _minAge) {
-                  return 'Debes tener al menos $_minAge años';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
             _buildLabel('Contraseña'),
             const SizedBox(height: 8),
             _buildClayTextField(
               controller: _passwordController,
               hint: '••••••••••',
               icon: Icons.lock_outline_rounded,
+              floatingHint: false,
               obscureText: _obscurePassword,
               suffixIcon: IconButton(
                 icon: Icon(
@@ -544,8 +437,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 if (value == null || value.isEmpty) {
                   return 'Ingresa una contraseña';
                 }
-                if (value.length < 6) {
-                  return 'Mínimo 6 caracteres';
+                if (value.length < 8) {
+                  return 'Mínimo 8 caracteres';
+                }
+                if (!RegExp(r'[A-Za-z]').hasMatch(value)) {
+                  return 'Debe incluir al menos una letra';
+                }
+                if (!RegExp(r'[0-9]').hasMatch(value)) {
+                  return 'Debe incluir al menos un número';
                 }
                 return null;
               },
@@ -557,6 +456,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               controller: _confirmPasswordController,
               hint: '••••••••••',
               icon: Icons.lock_outline_rounded,
+              floatingHint: false,
               obscureText: _obscureConfirmPassword,
               suffixIcon: IconButton(
                 icon: Icon(
@@ -580,10 +480,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 24),
             _buildRegisterButton(),
-            const SizedBox(height: 22),
-            _buildDivider(),
-            const SizedBox(height: 18),
-            _buildSocialButtons(),
           ],
         ),
       ),
@@ -607,6 +503,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required String hint,
     required IconData icon,
     bool obscureText = false,
+    bool floatingHint = true,
     bool readOnly = false,
     VoidCallback? onTap,
     Widget? suffixIcon,
@@ -619,7 +516,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
+            color: Colors.grey.withValues(alpha: 0.15),
             blurRadius: 8,
             offset: const Offset(2, 2),
           ),
@@ -629,6 +526,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             offset: Offset(-2, -2),
           ),
         ],
+        border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
       ),
       child: TextFormField(
         controller: controller,
@@ -641,8 +539,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: textGray, size: 20),
           suffixIcon: suffixIcon,
-          hintText: hint,
-          hintStyle: TextStyle(color: textGray.withOpacity(0.8), fontSize: 14),
+            hintText: floatingHint ? null : hint,
+            floatingLabelBehavior: floatingHint
+              ? FloatingLabelBehavior.auto
+              : FloatingLabelBehavior.never,
+            labelText: floatingHint ? hint : null,
+          floatingLabelStyle: TextStyle(color: accentBlue.withValues(alpha: 0.9)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             vertical: 16,
@@ -664,7 +566,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           backgroundColor: accentBlue,
           foregroundColor: Colors.white,
           elevation: 6,
-          shadowColor: accentBlue.withOpacity(0.5),
+          shadowColor: accentBlue.withValues(alpha: 0.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -686,57 +588,4 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildDivider() {
-    return Row(
-      children: [
-        Expanded(child: Divider(color: Colors.grey.withOpacity(0.3))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            'o regístrate con',
-            style: TextStyle(color: textGray, fontSize: 12),
-          ),
-        ),
-        Expanded(child: Divider(color: Colors.grey.withOpacity(0.3))),
-      ],
-    );
-  }
-
-  Widget _buildSocialButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: _socialButton(
-            label: 'Google',
-            icon: Icons.g_mobiledata_rounded,
-            onTap: () {},
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _socialButton(label: 'Apple', icon: Icons.apple, onTap: () {}),
-        ),
-      ],
-    );
-  }
-
-  Widget _socialButton({
-    required String label,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 20, color: textDark),
-      label: Text(
-        label,
-        style: const TextStyle(color: textDark, fontWeight: FontWeight.w600),
-      ),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        side: BorderSide(color: Colors.grey.withOpacity(0.3)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
-  }
 }

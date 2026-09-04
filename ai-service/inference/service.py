@@ -9,7 +9,13 @@ punto único, para que main.py no repita la misma lógica tres veces.
 
 from typing import List, Tuple
 
-from safety.checker import safety_layer_check, MENSAJE_BLOQUEO, clasificar_riesgo, validar_respuesta, MENSAJE_URGENCIA
+from safety.checker import (
+    MENSAJE_BLOQUEO,
+    MENSAJE_URGENCIA,
+    clasificar_riesgo,
+    safety_layer_check,
+    validar_respuesta,
+)
 from rag.retriever import RagRetriever
 from inference.generator import TextGenerator
 
@@ -31,7 +37,12 @@ class ClinicalService:
             return MENSAJE_URGENCIA, "CRITICAL", ["Clinical Safety Policy"]
 
         contexto, fuentes = self.retriever.buscar_contexto_relevante(mensaje_usuario)
-        respuesta = self.generator.generate_response(mensaje_usuario, contexto, medical_context, conversation_history)
+        respuesta = self.generator.generate_response(
+            mensaje_usuario,
+            contexto,
+            medical_context,
+            conversation_history,
+        )
 
         risk_level = riesgo_detectado
         if risk_level == "LOW" and contexto:

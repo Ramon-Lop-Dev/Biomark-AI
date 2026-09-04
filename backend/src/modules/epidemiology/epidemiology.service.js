@@ -2,6 +2,7 @@
 const epidemiologyRepo = require('./epidemiology.repository');
 const AppError = require('../../utils/AppError');
 const auditService = require('../audit/audit.service');
+const { publicarEvento } = require('../../config/n8nClient');
 
 const getAlerts = async (zonaRiesgoId) => {
   const { data, error } = await epidemiologyRepo.listarAlertas(zonaRiesgoId);
@@ -47,6 +48,16 @@ const createAlert = async (usuarioId, payload) => {
     accion: 'CREACION',
     detalle: { nivel_alerta: alerta.nivel_alerta, zona_riesgo_id: alerta.zona_riesgo_id }
   });
+
+  // Publica el evento hacia n8n para que la alerta se traduzca en
+  // notificaciones push a los usuarios del municipio de la zona
+  // afectada. No debe bloquear ni hacer fallar la creación de la
+  // alerta si n8n está caído: mismo patrón que reminders.service.js.
+  try {
+    await publicarEvento('alerta.epidemiologica.creada', { alerta });
+  } catch (error) {
+    console.error('[Epidemiology] No se pudo publicar el evento en n8n:', error.message);
+  }
 
   return alerta;
 };
