@@ -1,0 +1,1476 @@
+{
+  "name": "Biomark AI - Eventos backend -> n8n",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Biomark AI · Webhook unico de eventos\n\nConfirmado con el codigo real del backend:\n\n- `n8nClient.js` -> `publicarEvento(evento, payload)` hace:\n  `axios.post(N8N_WEBHOOK_URL, { evento, ...payload }, { headers: { 'X-Webhook-Secret': N8N_WEBHOOK_SECRET } })`\n- Por eso este es UN SOLO webhook para los 3 tipos de evento, diferenciados por `body.evento`.\n\n### Eventos confirmados\n- `recordatorio.creado` -> body: `{ evento, recordatorio: {...}, usuario_id }`  [CONFIRMADO 100%]\n\n### Eventos PENDIENTES de confirmar\n- Alertas epidemiologicas: nombre de evento y payload real -> pendiente ver `epidemiology/*.service.js`\n- Eventos comunitarios: nombre de evento y payload real -> pendiente ver `community/*.service.js`\n\nMientras tanto esas 2 ramas son placeholders (NoOp) para no romper el Switch.\n\n### Variables de entorno necesarias en n8n\n- `N8N_WEBHOOK_SECRET` (igual que el backend)\n- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`\n- `FCM_PROJECT_ID`\n- `BACKEND_INTERNAL_URL` (ASUNCION: `http://backend:3000` segun docker-compose -> CONFIRMAR)\n\n### Credencial necesaria\nGoogle API (Service Account) con scope `https://www.googleapis.com/auth/firebase.messaging`, cargada en n8n (NO en este archivo).",
+        "height": 560,
+        "width": 480
+      },
+      "id": "b6c7e0b8-5b0e-4c77-a73b-b417140b2745",
+      "name": "Notas del workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3696,
+        1216
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "eventos-backend",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a2e8b67d-e8e9-45de-88b5-489ac2edc9a2",
+      "name": "Webhook eventos backend",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        3744,
+        1840
+      ],
+      "webhookId": "eventos-backend"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond_secret",
+              "leftValue": "={{$json.headers['x-webhook-secret']}}",
+              "rightValue": "={{$env.N8N_WEBHOOK_SECRET}}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "494d623a-4160-4aa3-b818-a41291246ff3",
+      "name": "IF Secreto valido",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3984,
+        1840
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": \"unauthorized\" } }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "ca21d56e-9b34-4240-a861-08669920281a",
+      "name": "Responder 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        4224,
+        2112
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "c_recordatorio",
+                    "leftValue": "={{$json.body.evento}}",
+                    "rightValue": "recordatorio.creado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "recordatorio.creado"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "c_alerta",
+                    "leftValue": "={{$json.body.evento}}",
+                    "rightValue": "alerta.epidemiologica.creada",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "alerta.epidemiologica (PLACEHOLDER)"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "c_comunidad",
+                    "leftValue": "={{$json.body.evento}}",
+                    "rightValue": "evento_comunitario.creado",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "evento_comunitario (PLACEHOLDER)"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "b3ea7509-a7f6-4bb9-ac3a-d15530577426",
+      "name": "Switch por tipo de evento",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        4464,
+        1840
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": \"evento desconocido\", \"evento_recibido\": $json.body.evento } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "123e130e-39a2-4cfd-a7ed-74e97d49dc4f",
+      "name": "Responder evento desconocido",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        4736,
+        2240
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a_reminder_id",
+              "name": "recordatorio_id",
+              "value": "={{$json.body.recordatorio.id}}",
+              "type": "string"
+            },
+            {
+              "id": "a_usuario_id",
+              "name": "usuario_id",
+              "value": "={{$json.body.usuario_id}}",
+              "type": "string"
+            },
+            {
+              "id": "a_titulo",
+              "name": "titulo",
+              "value": "={{$json.body.recordatorio.titulo}}",
+              "type": "string"
+            },
+            {
+              "id": "a_descripcion",
+              "name": "descripcion",
+              "value": "={{$json.body.recordatorio.descripcion}}",
+              "type": "string"
+            },
+            {
+              "id": "a_tipo",
+              "name": "tipo",
+              "value": "={{$json.body.recordatorio.tipo}}",
+              "type": "string"
+            },
+            {
+              "id": "a_fecha",
+              "name": "fecha_programada",
+              "value": "={{$json.body.recordatorio.fecha_programada}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b0a94c5c-1354-43d0-84eb-7a420461c9f8",
+      "name": "Extraer recordatorio",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4736,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/dispositivos_push",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "usuario_id",
+              "value": "=eq.{{$json.usuario_id}}"
+            },
+            {
+              "name": "activo",
+              "value": "eq.true"
+            },
+            {
+              "name": "select",
+              "value": "fcm_token,plataforma"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8fb72213-2d4a-4966-aeed-946404f429ce",
+      "name": "Supabase Obtener tokens push",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4976,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const extra = $('Extraer recordatorio').first().json;\nconst tokens = $input.all().map(item => item.json);\nreturn [{\n  json: {\n    ...extra,\n    tokens,\n    count: tokens.length\n  }\n}];"
+      },
+      "id": "b96f6747-00aa-48b8-9224-e8d07b69f71c",
+      "name": "Consolidar tokens",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5216,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond_count",
+              "leftValue": "={{$json.count}}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "20f61f7a-1787-4374-8410-cad16890b44b",
+      "name": "IF Hay dispositivos activos",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5456,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"detalle\": \"sin dispositivos push activos\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "ec2553fb-9ec2-4f6e-b78b-3f7040251fc4",
+      "name": "Responder sin dispositivos",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        5696,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "tokens",
+        "options": {}
+      },
+      "id": "c326dd5a-f581-41d2-94e8-7369bd2e0553",
+      "name": "Separar tokens",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        5696,
+        1408
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fcm.googleapis.com/v1/projects/{{$env.FCM_PROJECT_ID}}/messages:send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"message\": {\n    \"token\": $json.fcm_token,\n    \"notification\": {\n      \"title\": $('Consolidar tokens').first().json.titulo,\n      \"body\": $('Consolidar tokens').first().json.descripcion || $('Consolidar tokens').first().json.titulo\n    },\n    \"data\": {\n      \"recordatorio_id\": $('Consolidar tokens').first().json.recordatorio_id,\n      \"tipo\": $('Consolidar tokens').first().json.tipo\n    }\n  }\n} }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "988691b7-39cc-4f28-ab9d-caefd1afac9e",
+      "name": "Enviar notificacion FCM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5936,
+        1408
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "continueOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "5764c1db-e197-45d2-818b-43b6bbef4f5a",
+      "name": "Consolidar envios FCM",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        6176,
+        1408
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{$env.BACKEND_INTERNAL_URL}}/internal/reminders/{{$('Consolidar tokens').first().json.recordatorio_id}}/sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Webhook-Secret",
+              "value": "={{$env.N8N_WEBHOOK_SECRET}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "e338db66-efa7-4711-98ab-38c868da7e6f",
+      "name": "Marcar recordatorio enviado (PENDIENTE->ENVIADO)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6416,
+        1408
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"dispositivos_notificados\": $('Consolidar tokens').first().json.count } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "75aca46e-1c95-46c8-bede-b022fe90df40",
+      "name": "Responder 200 OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        6656,
+        1408
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Rama: Alerta epidemiologica\n\nRequiere agregar en `epidemiology.service.js` (createAlert):\n\n```js\nconst { publicarEvento } = require('../../config/n8nClient');\ntry {\n  await publicarEvento('alerta.epidemiologica.creada', { alerta });\n} catch (error) {\n  console.error('[Epidemiology] No se pudo publicar el evento en n8n:', error.message);\n}\n```\n\nAudiencia: no existe tabla usuario<->zona, asi que se usa el match de texto `zonas_riesgo.municipio` = `perfiles.municipio`. Si mas adelante agregan una relacion mas precisa, reemplazar el nodo 'Supabase Obtener usuarios por municipio'.",
+        "height": 340,
+        "width": 420
+      },
+      "id": "a2ad89a5-558c-4e05-9172-ed4b4224d9cd",
+      "name": "Nota alerta epidemiologica",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4720,
+        1872
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b_alerta_id",
+              "name": "alerta_id",
+              "value": "={{$json.body.alerta.id}}",
+              "type": "string"
+            },
+            {
+              "id": "b_zona_riesgo_id",
+              "name": "zona_riesgo_id",
+              "value": "={{$json.body.alerta.zona_riesgo_id}}",
+              "type": "string"
+            },
+            {
+              "id": "b_nivel_alerta",
+              "name": "nivel_alerta",
+              "value": "={{$json.body.alerta.nivel_alerta}}",
+              "type": "string"
+            },
+            {
+              "id": "b_mensaje",
+              "name": "mensaje",
+              "value": "={{$json.body.alerta.mensaje}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "13fae073-bb82-4473-a1db-5ad7246ee951",
+      "name": "Extraer alerta",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        5184,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/zonas_riesgo",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=eq.{{$json.zona_riesgo_id}}"
+            },
+            {
+              "name": "select",
+              "value": "municipio"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e60a0552-3989-400f-9abf-77ae01bcac72",
+      "name": "Supabase Obtener municipio de la zona",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5424,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const extra = $('Extraer alerta').first().json;\nconst municipio = ($input.first().json.municipio) || null;\nreturn [{ json: { ...extra, municipio } }];"
+      },
+      "id": "5831c8d6-4ccc-4ead-ac16-0f14d3559661",
+      "name": "Extraer municipio de la zona",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5664,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/perfiles",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "municipio",
+              "value": "=eq.{{$json.municipio}}"
+            },
+            {
+              "name": "select",
+              "value": "usuario_id"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "338b4156-eda0-41c2-a1cb-adc9e024c9a0",
+      "name": "Supabase Obtener usuarios por municipio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5904,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const extra = $('Extraer municipio de la zona').first().json;\nconst usuarioIds = $input.all().map(item => item.json.usuario_id).filter(Boolean);\nreturn [{ json: { ...extra, usuario_ids: usuarioIds, usuarios_count: usuarioIds.length } }];"
+      },
+      "id": "4a8f84b4-afe7-45f6-828a-8ed956ee36a1",
+      "name": "Consolidar usuarios del municipio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6144,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond_usuarios_count",
+              "leftValue": "={{$json.usuarios_count}}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f6f0723f-756a-41be-a030-685f3cb68167",
+      "name": "IF Hay usuarios en el municipio",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        6384,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"detalle\": \"sin usuarios registrados en el municipio de la zona\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "61646dc4-51d8-4e36-b7c0-0f57ac59cc66",
+      "name": "Responder sin usuarios en municipio",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        6624,
+        2224
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/dispositivos_push",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "usuario_id",
+              "value": "=in.({{$json.usuario_ids.join(',')}})"
+            },
+            {
+              "name": "activo",
+              "value": "eq.true"
+            },
+            {
+              "name": "select",
+              "value": "fcm_token,plataforma"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b449835e-7393-4ab8-b10c-a908bbe2a157",
+      "name": "Supabase Obtener tokens del municipio",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6624,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const extra = $('Consolidar usuarios del municipio').first().json;\nconst tokens = $input.all().map(item => item.json);\nreturn [{ json: { ...extra, tokens, count: tokens.length } }];"
+      },
+      "id": "79f1c1e1-5b3c-4f27-8bef-7e136d19ef92",
+      "name": "Consolidar tokens alerta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        6864,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond_count_alerta",
+              "leftValue": "={{$json.count}}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ebf6bd20-005f-4245-ad9c-077bd917c1ac",
+      "name": "IF Hay dispositivos activos alerta",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        7104,
+        2000
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"detalle\": \"sin dispositivos push activos en el municipio\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "dcf19874-746e-47e9-a7c6-0683ecc9d5ec",
+      "name": "Responder sin dispositivos alerta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        7344,
+        2224
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "tokens",
+        "options": {}
+      },
+      "id": "e861e84b-3ba9-412f-a187-b0f4b976dad9",
+      "name": "Separar tokens alerta",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        7344,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fcm.googleapis.com/v1/projects/{{$env.FCM_PROJECT_ID}}/messages:send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"message\": {\n    \"token\": $json.fcm_token,\n    \"notification\": {\n      \"title\": \"Alerta epidemiologica (\" + $('Consolidar tokens alerta').first().json.nivel_alerta + \")\",\n      \"body\": $('Consolidar tokens alerta').first().json.mensaje\n    },\n    \"data\": {\n      \"alerta_id\": $('Consolidar tokens alerta').first().json.alerta_id,\n      \"zona_riesgo_id\": $('Consolidar tokens alerta').first().json.zona_riesgo_id,\n      \"nivel_alerta\": $('Consolidar tokens alerta').first().json.nivel_alerta\n    }\n  }\n} }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "f052fa19-9e29-4ac8-84da-063719ea3e85",
+      "name": "Enviar FCM alerta epidemiologica",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        7584,
+        1808
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "continueOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "dda9894e-9ade-4803-bbc3-013d925bf14d",
+      "name": "Consolidar envios FCM alerta",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        7824,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"dispositivos_notificados\": $('Consolidar tokens alerta').first().json.count } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "51ac970f-364e-4f92-ab43-8ba4e29e4b99",
+      "name": "Responder 200 OK alerta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        8064,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Rama: Evento comunitario\n\nRequiere agregar en `community.service.js` (createEvent):\n\n```js\nconst { publicarEvento } = require('../../config/n8nClient');\ntry {\n  await publicarEvento('evento_comunitario.creado', { evento_comunitario: evento });\n} catch (error) {\n  console.error('[Community] No se pudo publicar el evento en n8n:', error.message);\n}\n```\n\nAudiencia por decision del usuario: broadcast a TODOS los dispositivos push activos (sin filtrar por municipio/zona). Si luego se quiere segmentar, agregar filtro de municipio/zona en el nodo de Supabase de abajo.",
+        "height": 300,
+        "width": 420
+      },
+      "id": "aad431b0-4ab3-4adf-9ed0-557abf7286eb",
+      "name": "Nota evento comunitario",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4672,
+        2512
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c_evento_id",
+              "name": "evento_id",
+              "value": "={{$json.body.evento_comunitario.id}}",
+              "type": "string"
+            },
+            {
+              "id": "c_titulo",
+              "name": "titulo",
+              "value": "={{$json.body.evento_comunitario.titulo}}",
+              "type": "string"
+            },
+            {
+              "id": "c_descripcion",
+              "name": "descripcion",
+              "value": "={{$json.body.evento_comunitario.descripcion}}",
+              "type": "string"
+            },
+            {
+              "id": "c_fecha_evento",
+              "name": "fecha_evento",
+              "value": "={{$json.body.evento_comunitario.fecha_evento}}",
+              "type": "string"
+            },
+            {
+              "id": "c_ubicacion",
+              "name": "ubicacion",
+              "value": "={{$json.body.evento_comunitario.ubicacion}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4f31d473-abb8-4ed8-a23b-17ee648eb99f",
+      "name": "Extraer evento comunitario",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        5184,
+        2480
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/dispositivos_push",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "activo",
+              "value": "eq.true"
+            },
+            {
+              "name": "select",
+              "value": "fcm_token,plataforma"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "29cbafa6-0d01-4da6-9397-59d67bc2aaf2",
+      "name": "Supabase Obtener todos los tokens activos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5424,
+        2480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const extra = $('Extraer evento comunitario').first().json;\nconst tokens = $input.all().map(item => item.json);\nreturn [{ json: { ...extra, tokens, count: tokens.length } }];"
+      },
+      "id": "57b252ce-9b7e-4c94-aadd-ec46fd86581b",
+      "name": "Consolidar tokens comunidad",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5664,
+        2480
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond_count_comunidad",
+              "leftValue": "={{$json.count}}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ff5b12d1-47cc-47f3-8ac6-ceda1ade4fcf",
+      "name": "IF Hay dispositivos activos comunidad",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        5904,
+        2480
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"detalle\": \"sin dispositivos push activos\" } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "e0c40f89-7157-442d-bff8-0e74b690834e",
+      "name": "Responder sin dispositivos comunidad",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        6144,
+        2704
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "tokens",
+        "options": {}
+      },
+      "id": "85f2c4f5-0cf4-4739-b70e-0be0d76ee2e9",
+      "name": "Separar tokens comunidad",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        6144,
+        2304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://fcm.googleapis.com/v1/projects/{{$env.FCM_PROJECT_ID}}/messages:send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"message\": {\n    \"token\": $json.fcm_token,\n    \"notification\": {\n      \"title\": $('Consolidar tokens comunidad').first().json.titulo,\n      \"body\": $('Consolidar tokens comunidad').first().json.descripcion || 'Nueva jornada comunitaria disponible'\n    },\n    \"data\": {\n      \"evento_id\": $('Consolidar tokens comunidad').first().json.evento_id,\n      \"fecha_evento\": $('Consolidar tokens comunidad').first().json.fecha_evento\n    }\n  }\n} }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "0c1bb8a9-963a-4839-a4ea-1534968c012e",
+      "name": "Enviar FCM evento comunitario",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6384,
+        2304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "continueOnFail": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "5e9c60b8-e986-46c0-ae75-fdb1e548399d",
+      "name": "Consolidar envios FCM comunidad",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        6624,
+        2416
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"ok\", \"dispositivos_notificados\": $('Consolidar tokens comunidad').first().json.count } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "00468f3a-0b8c-4ce9-8768-dec1934a0194",
+      "name": "Responder 200 OK comunidad",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        6880,
+        2416
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook eventos backend": {
+      "main": [
+        [
+          {
+            "node": "IF Secreto valido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Secreto valido": {
+      "main": [
+        [
+          {
+            "node": "Switch por tipo de evento",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch por tipo de evento": {
+      "main": [
+        [
+          {
+            "node": "Extraer recordatorio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extraer alerta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extraer evento comunitario",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder evento desconocido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer recordatorio": {
+      "main": [
+        [
+          {
+            "node": "Supabase Obtener tokens push",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Obtener tokens push": {
+      "main": [
+        [
+          {
+            "node": "Consolidar tokens",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar tokens": {
+      "main": [
+        [
+          {
+            "node": "IF Hay dispositivos activos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Hay dispositivos activos": {
+      "main": [
+        [
+          {
+            "node": "Separar tokens",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sin dispositivos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar tokens": {
+      "main": [
+        [
+          {
+            "node": "Enviar notificacion FCM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar notificacion FCM": {
+      "main": [
+        [
+          {
+            "node": "Consolidar envios FCM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar envios FCM": {
+      "main": [
+        [
+          {
+            "node": "Marcar recordatorio enviado (PENDIENTE->ENVIADO)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar recordatorio enviado (PENDIENTE->ENVIADO)": {
+      "main": [
+        [
+          {
+            "node": "Responder 200 OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer alerta": {
+      "main": [
+        [
+          {
+            "node": "Supabase Obtener municipio de la zona",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Obtener municipio de la zona": {
+      "main": [
+        [
+          {
+            "node": "Extraer municipio de la zona",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer municipio de la zona": {
+      "main": [
+        [
+          {
+            "node": "Supabase Obtener usuarios por municipio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Obtener usuarios por municipio": {
+      "main": [
+        [
+          {
+            "node": "Consolidar usuarios del municipio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar usuarios del municipio": {
+      "main": [
+        [
+          {
+            "node": "IF Hay usuarios en el municipio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Hay usuarios en el municipio": {
+      "main": [
+        [
+          {
+            "node": "Supabase Obtener tokens del municipio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sin usuarios en municipio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Obtener tokens del municipio": {
+      "main": [
+        [
+          {
+            "node": "Consolidar tokens alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar tokens alerta": {
+      "main": [
+        [
+          {
+            "node": "IF Hay dispositivos activos alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Hay dispositivos activos alerta": {
+      "main": [
+        [
+          {
+            "node": "Separar tokens alerta",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sin dispositivos alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar tokens alerta": {
+      "main": [
+        [
+          {
+            "node": "Enviar FCM alerta epidemiologica",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar FCM alerta epidemiologica": {
+      "main": [
+        [
+          {
+            "node": "Consolidar envios FCM alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar envios FCM alerta": {
+      "main": [
+        [
+          {
+            "node": "Responder 200 OK alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer evento comunitario": {
+      "main": [
+        [
+          {
+            "node": "Supabase Obtener todos los tokens activos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Obtener todos los tokens activos": {
+      "main": [
+        [
+          {
+            "node": "Consolidar tokens comunidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar tokens comunidad": {
+      "main": [
+        [
+          {
+            "node": "IF Hay dispositivos activos comunidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Hay dispositivos activos comunidad": {
+      "main": [
+        [
+          {
+            "node": "Separar tokens comunidad",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sin dispositivos comunidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar tokens comunidad": {
+      "main": [
+        [
+          {
+            "node": "Enviar FCM evento comunitario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar FCM evento comunitario": {
+      "main": [
+        [
+          {
+            "node": "Consolidar envios FCM comunidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidar envios FCM comunidad": {
+      "main": [
+        [
+          {
+            "node": "Responder 200 OK comunidad",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e92186be-651f-4734-924c-4c65293585c1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5ce18b3cdc5ead03a948679376f570fa5d61b139f7ddb068b7e8f9281e6fc0ad"
+  },
+  "id": "k3nFL1iyhHoLaZDU",
+  "tags": []
+}
