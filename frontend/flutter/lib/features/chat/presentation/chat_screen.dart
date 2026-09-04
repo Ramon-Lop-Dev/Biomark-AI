@@ -713,8 +713,8 @@ class _MessageBubble extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     if (!message.isUser &&
-      message.actionType != null &&
-      message.recommendedCenter == null) {
+        message.actionType != null &&
+        message.recommendedCenter == null) {
       return Align(
         alignment: Alignment.centerLeft,
         child: Padding(
@@ -838,7 +838,10 @@ class _RecommendedCenter extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 3),
-                Text(center.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  center.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 if (center.specialty != null) Text('Área: ${center.specialty}'),
                 Text('Distancia aproximada: ${center.distanceKm} km'),
                 if (center.address != null && center.address!.isNotEmpty)
