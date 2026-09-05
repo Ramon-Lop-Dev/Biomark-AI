@@ -17,6 +17,8 @@ import '../../progress/data/progress_api.dart';
 import '../data/vision_api.dart';
 import '../data/voice_api.dart';
 import '../domain/chat_message.dart';
+import '../../gis/presentation/gis_map_screen.dart';
+import '../../gis/domain/health_center.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -90,115 +92,40 @@ class _ChatScreenState extends State<ChatScreen>
           permission == LocationPermission.deniedForever) {
         return null;
       }
-      return Geolocator.getCurrentPosition();
+      return await Geolocator.getCurrentPosition();
     } catch (_) {
       return null;
     }
   }
 
-  Future<void> _showClosestCenterDialog() async {
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: BiomarkColors.green.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(
-                        Icons.local_hospital_rounded,
-                        color: BiomarkColors.green,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Centro de salud más cercano',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  'Centro de Salud Villa Libertad',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Consulta general · Atención rápida · 2.4 km',
-                  style: TextStyle(
-                    color: Colors.black54,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.location_on_rounded,
-                        color: BiomarkColors.blue,
-                      ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Calle Principal 120, próximo al parque central',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded),
-                        label: const Text('Cerrar'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.directions_rounded),
-                        label: const Text('Ir ahora'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+  Future<void> _showClosestCenterDialog({
+    HealthCenterRecommendation? center,
+  }) async {
+    final recommendedCenter = center ??
+        (_messages.lastWhere(
+          (message) => message.recommendedCenter != null,
+          orElse: () => const ChatMessage('', false),
+        ).recommendedCenter);
+
+    if (recommendedCenter == null) return;
+
+    final mapCenter = HealthCenter(
+      id: recommendedCenter.id ?? 'recommended-center',
+      name: recommendedCenter.name,
+      type: 'CENTRO_SALUD',
+      latitude: recommendedCenter.latitude ?? 12.1364,
+      longitude: recommendedCenter.longitude ?? -86.2514,
+      address: recommendedCenter.address ?? 'Dirección no disponible',
+      phone: '',
+      distanceKm: recommendedCenter.distanceKm,
     );
 
-    // TODO: conectar con /api/gis/nearby para obtener el centro real más cercano.
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GisMapScreen(initialCenter: mapCenter),
+      ),
+    );
   }
 
   Future<void> _showProgressDialog() async {
@@ -799,6 +726,11 @@ class _MessageBubble extends StatelessWidget {
                       style: textTheme.bodySmall,
                     ),
                   ),
+                if (!message.isUser && message.recommendedCenter != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: _RecommendedCenter(center: message.recommendedCenter!),
+                  ),
               ],
             ),
           ),
@@ -823,29 +755,46 @@ class _RecommendedCenter extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.2)),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.local_hospital_rounded, color: BiomarkColors.blue),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Centro recomendado',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.local_hospital_rounded, color: BiomarkColors.blue),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Centro recomendado',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      center.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    if (center.specialty != null) Text('Área: ${center.specialty}'),
+                    Text('Distancia aproximada: ${center.distanceKm} km'),
+                    if (center.address != null && center.address!.isNotEmpty)
+                      Text(center.address!),
+                  ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  center.name,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                if (center.specialty != null) Text('Área: ${center.specialty}'),
-                Text('Distancia aproximada: ${center.distanceKm} km'),
-                if (center.address != null && center.address!.isNotEmpty)
-                  Text(center.address!),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () {
+                final state = context.findAncestorStateOfType<_ChatScreenState>();
+                state?._showClosestCenterDialog(center: center);
+              },
+              icon: const Icon(Icons.map_rounded),
+              label: const Text('Ver en mapa'),
             ),
           ),
         ],

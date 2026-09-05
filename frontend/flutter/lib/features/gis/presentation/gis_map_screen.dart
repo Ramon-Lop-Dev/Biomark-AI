@@ -8,7 +8,9 @@ import '../data/gis_api.dart';
 import '../domain/health_center.dart';
 
 class GisMapScreen extends StatefulWidget {
-  const GisMapScreen({super.key});
+  const GisMapScreen({super.key, this.initialCenter});
+
+  final HealthCenter? initialCenter;
 
   @override
   State<GisMapScreen> createState() => _GisMapScreenState();
@@ -31,6 +33,14 @@ class _GisMapScreenState extends State<GisMapScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialCenter != null) {
+      setState(() {
+        _userLocation = LatLng(widget.initialCenter!.latitude, widget.initialCenter!.longitude);
+        _centers = [widget.initialCenter!];
+        _loading = false;
+      });
+      _mapController.move(_userLocation, 15);
+    }
     _loadMap();
   }
 
