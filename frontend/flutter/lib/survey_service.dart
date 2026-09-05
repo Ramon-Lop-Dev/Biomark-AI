@@ -4,8 +4,13 @@
 // Cuando conectes tu backend, reemplaza `completado`/`respuestas` por una
 // consulta real (o guarda también en SharedPreferences para que persista
 // entre sesiones sin depender del backend).
-import 'package:flutter/material.dart';
+import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import 'core/auth/auth_session.dart';
+import 'core/config/app_config.dart';
 import 'health_survey.dart';
 import 'features/chat/presentation/chat_screen.dart';
 
@@ -44,24 +49,121 @@ class SurveyService {
   /// Respuestas de la encuesta — luego las envías a tu backend/IA.
   static Map<String, dynamic> respuestas = {};
 
-  static void guardarRespuestas({
+  static Future<void> guardarRespuestas({
     required List<String> enfermedadesCronicas,
     required List<String> antecedentesHereditarios,
     required List<String> alergias,
     required String medicamentosActuales,
-  }) {
+    bool consentimientoMedico = true,
+  }) async {
     respuestas = {
       'enfermedadesCronicas': enfermedadesCronicas,
       'antecedentesHereditarios': antecedentesHereditarios,
       'alergias': alergias,
       'medicamentosActuales': medicamentosActuales,
+      'consentimientoMedico': consentimientoMedico,
     };
     completado = true;
 
-    // TODO: aquí va tu lógica real para persistir esto:
-    // - Enviarlo a tu backend/API asociado al usuario logueado
-    // - O guardarlo local con SharedPreferences para que sobreviva
-    //   a cerrar la app (hasta que tengas backend conectado)
+    final token = AuthSession.instance.accessToken;
+    if (token == null || token.isEmpty) {
+      return;
+    }
+
+    final apiUrl = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
+    try {
+      await http.put(
+        Uri.parse('$apiUrl/api/users/consent'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'tipo_consentimiento': 'CONTEXTO_MEDICO_IA',
+          'otorgado': consentimientoMedico,
+        }),
+      );
+
+      final condiciones = enfermedadesCronicas
+          .where((item) => item.trim().isNotEmpty)
+          .map((item) => item.trim())
+          .toSet()
+          .toList();
+      for (final condicion in condiciones) {
+        await http.post(
+          Uri.parse('$apiUrl/api/medical-history'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'nombre_condicion': condicion,
+            'fecha_diagnostico': DateTime.now().toIso8601String().split('T').first,
+            'notas': 'Registrado desde la encuesta de salud inicial.',
+          }),
+        );
+      }
+
+      final antecedentes = antecedentesHereditarios
+          .where((item) => item.trim().isNotEmpty)
+          .map((item) => item.trim())
+          .toSet()
+          .toList();
+      for (final antecedente in antecedentes) {
+        await http.post(
+          Uri.parse('$apiUrl/api/medical-history/family-history'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'parentesco': 'Familiar',
+            'nombre_condicion': antecedente,
+            'notas': 'Registrado desde la encuesta de salud inicial.',
+          }),
+        );
+      }
+
+      final alergiasRegistradas = alergias
+          .where((item) => item.trim().isNotEmpty)
+          .map((item) => item.trim())
+          .toSet()
+          .toList();
+      for (final alergia in alergiasRegistradas) {
+        await http.post(
+          Uri.parse('$apiUrl/api/medical-history/allergies'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'alergeno': alergia,
+            'severidad': 'LEVE',
+            'notas': 'Registrado desde la encuesta de salud inicial.',
+          }),
+        );
+      }
+
+      final medicamentos = medicamentosActuales.trim();
+      if (medicamentos.isNotEmpty) {
+        await http.post(
+          Uri.parse('$apiUrl/api/medical-history/medications'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'nombre_medicamento': medicamentos,
+            'dosis': 'No especificada',
+            'frecuencia': 'Segun indicación',
+            'fecha_inicio': DateTime.now().toIso8601String().split('T').first,
+          }),
+        );
+      }
+    } catch (_) {
+      // No bloqueamos la experiencia del usuario si la sincronización falla.
+      // El estado local ya quedó completado y el chat puede seguir usando el flujo.
+    }
   }
 
   /// Agrega un nuevo valor a una categoría de lista existente
