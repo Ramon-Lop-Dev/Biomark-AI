@@ -32,7 +32,7 @@ const aprovisionarUsuario = async (authId, correo, nombreCompleto) => {
   return usuario;
 };
 
-const registerUser = async (email, password, fullName) => {
+const registerUser = async (email, password, fullName, tipoCuenta = 'PERSONAL') => {
   const { data, error } = await authRepo.signUpWithPassword(email, password, fullName);
 
   if (error) {
@@ -41,6 +41,13 @@ const registerUser = async (email, password, fullName) => {
   }
 
   const usuario = await aprovisionarUsuario(data.user.id, email, fullName);
+
+  if (tipoCuenta === 'PROMOTOR') {
+    const { error: roleRequestError } = await authRepo.createRoleRequest(usuario.id, 'PROMOTOR');
+    if (roleRequestError) {
+      throw new AppError('La cuenta fue creada, pero no se pudo registrar la solicitud de promotor', 500);
+    }
+  }
 
   await auditService.registrar({
     usuarioId: usuario.id,

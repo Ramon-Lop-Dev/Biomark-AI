@@ -421,6 +421,7 @@ class _RegisterScreenState extends State<RegisterScreen>
               hint: '••••••••••',
               icon: Icons.lock_outline_rounded,
               floatingHint: false,
+              String _accountType = 'PERSONAL';
               obscureText: _obscurePassword,
               suffixIcon: IconButton(
                 icon: Icon(
@@ -432,6 +433,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                 onPressed: () {
                   setState(() => _obscurePassword = !_obscurePassword);
                 },
+                    accountType: _accountType,
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -446,7 +448,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                 if (!RegExp(r'[0-9]').hasMatch(value)) {
                   return 'Debe incluir al menos un número';
                 }
-                return null;
+                        : _accountType == 'PROMOTOR'
+                            ? 'Tu cuenta está lista. La solicitud de promotor debe ser aprobada por un administrador.'
+                            : 'Tu cuenta de Biomark AI está lista.',
               },
             ),
             const SizedBox(height: 16),
