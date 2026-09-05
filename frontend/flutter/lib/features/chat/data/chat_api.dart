@@ -19,6 +19,8 @@ class HealthCenterRecommendation {
   final double distanceKm;
   final String? address;
   final String? specialty;
+  final double? latitude;
+  final double? longitude;
 
   const HealthCenterRecommendation({
     this.id,
@@ -26,16 +28,22 @@ class HealthCenterRecommendation {
     required this.distanceKm,
     this.address,
     this.specialty,
+    this.latitude,
+    this.longitude,
   });
 
   factory HealthCenterRecommendation.fromJson(Map<String, dynamic> json) {
     final distance = json['distancia_km'];
+    final lat = json['latitud'];
+    final lon = json['longitud'];
     return HealthCenterRecommendation(
       id: json['id'] as String?,
       name: json['nombre'] as String? ?? 'Centro de salud',
       distanceKm: distance is num ? distance.toDouble() : 0,
       address: json['direccion'] as String?,
       specialty: json['especialidad_coincidente'] as String?,
+      latitude: lat is num ? lat.toDouble() : null,
+      longitude: lon is num ? lon.toDouble() : null,
     );
   }
 }

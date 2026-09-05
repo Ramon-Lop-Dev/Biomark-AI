@@ -27,6 +27,9 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     'Enfermedad cardíaca',
     'Enfermedad renal',
     'Hipotiroidismo',
+    'Artritis',
+    'Epilepsia',
+    'Obesidad',
     'Ninguna',
   ];
 
@@ -36,15 +39,20 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     'Cáncer',
     'Enfermedades cardíacas',
     'Enfermedades renales',
+    'Enfermedades neurológicas',
+    'Asma',
     'Ninguna',
   ];
 
   final List<String> _opcionesAlergias = const [
     'Penicilina',
     'Aspirina/AINEs',
+    'Ibuprofeno',
     'Polen',
     'Mariscos',
     'Frutos secos',
+    'Látex',
+    'Antibióticos',
     'Ninguna conocida',
   ];
 
@@ -53,6 +61,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   final Set<String> _hereditariasSeleccionadas = {};
   final Set<String> _alergiasSeleccionadas = {};
   final TextEditingController _medicamentosController = TextEditingController();
+  bool _consentimientoMedico = true;
 
   @override
   void dispose() {
@@ -98,14 +107,16 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     }
   }
 
-  void _finalizar() {
-    SurveyService.guardarRespuestas(
+  Future<void> _finalizar() async {
+    await SurveyService.guardarRespuestas(
       enfermedadesCronicas: _cronicasSeleccionadas.toList(),
       antecedentesHereditarios: _hereditariasSeleccionadas.toList(),
       alergias: _alergiasSeleccionadas.toList(),
       medicamentosActuales: _medicamentosController.text.trim(),
+      consentimientoMedico: _consentimientoMedico,
     );
 
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const ChatScreen()),
@@ -241,6 +252,46 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
       case _PasoEncuesta.resumen:
         return _buildPasoResumen();
     }
+  }
+
+  Widget _buildConsentimientoCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Checkbox(
+            value: _consentimientoMedico,
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _consentimientoMedico = value);
+            },
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Permito que Biomark AI use mi historial médico para personalizar mi respuesta.',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Esta información ayuda a la IA a sugerir mejores alertas, recomendaciones y centros de salud más apropiados.',
+                  style: TextStyle(color: Colors.black.withValues(alpha: 0.7), fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildPasoSeleccionMultiple({
@@ -384,6 +435,8 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
           _medicamentosController.text.trim().isEmpty ? {'Ninguno indicado'} : {_medicamentosController.text.trim()},
           Icons.medication_liquid_rounded,
         ),
+        const SizedBox(height: 18),
+        _buildConsentimientoCard(),
       ],
     );
   }
