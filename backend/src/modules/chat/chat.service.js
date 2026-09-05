@@ -132,7 +132,31 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
   }
 };
 
+const obtenerHistorial = async (usuarioId, sessionId) => {
+  let sesion = sessionId;
+  if (sesion) {
+    const { data, error } = await chatRepo.buscarSesionActiva(usuarioId, sesion);
+    if (error || !data) throw new AppError('La sesión de chat no existe', 404);
+  } else {
+    const { data, error } = await chatRepo.listarUltimaSesion(usuarioId);
+    if (error) throw new AppError('No se pudo cargar el historial del chat', 500);
+    sesion = data?.id;
+  }
+
+  if (!sesion) return { session_id: null, messages: [] };
+  const { data, error } = await chatRepo.listarMensajesSesion(usuarioId, sesion);
+  if (error) throw new AppError('No se pudo cargar el historial del chat', 500);
+  return {
+    session_id: sesion,
+    messages: (data || []).map(({ emisor, mensaje, nivel_riesgo }) => ({
+      emisor,
+      mensaje,
+      nivel_riesgo
+    }))
+  };
+};
+
 // resolverSesion se exporta para que voice.service.js la reutilice (Voice
 // comparte sesiones_chat/mensajes_chat con Chat — no es un dominio propio,
 // ver corrección aplicada en voice.service.js).
-module.exports = { enviarMensaje, resolverSesion };
+module.exports = { enviarMensaje, resolverSesion, obtenerHistorial };

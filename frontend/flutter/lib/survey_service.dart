@@ -50,6 +50,8 @@ class SurveyService {
   static Map<String, dynamic> respuestas = {};
 
   static Future<void> guardarRespuestas({
+    required int edad,
+    required String sexo,
     required List<String> enfermedadesCronicas,
     required List<String> antecedentesHereditarios,
     required List<String> alergias,
@@ -57,6 +59,8 @@ class SurveyService {
     bool consentimientoMedico = true,
   }) async {
     respuestas = {
+      'edad': edad,
+      'sexo': sexo,
       'enfermedadesCronicas': enfermedadesCronicas,
       'antecedentesHereditarios': antecedentesHereditarios,
       'alergias': alergias,
@@ -72,6 +76,22 @@ class SurveyService {
 
     final apiUrl = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
     try {
+      final nacimiento = DateTime(
+        DateTime.now().year - edad,
+        DateTime.now().month,
+        DateTime.now().day,
+      );
+      await http.put(
+        Uri.parse('$apiUrl/api/users/profile'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'fecha_nacimiento': nacimiento.toIso8601String().split('T').first,
+          'sexo': sexo,
+        }),
+      );
       await http.put(
         Uri.parse('$apiUrl/api/users/consent'),
         headers: {

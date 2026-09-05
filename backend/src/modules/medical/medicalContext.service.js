@@ -17,7 +17,8 @@ const obtenerContextoClinico = async (usuarioId) => {
         }
 
         // 2. Ejecutar consultas en paralelo para máxima velocidad
-        const [alergiasRes, medsRes, historialRes, antecedentesRes, vacunasRes, sintomasRes] = await Promise.all([
+        const [perfilRes, alergiasRes, medsRes, historialRes, antecedentesRes, vacunasRes, sintomasRes] = await Promise.all([
+            supabase.from('perfiles').select('fecha_nacimiento, sexo').eq('usuario_id', usuarioId).maybeSingle(),
             supabase.from('alergias').select('alergeno, severidad').eq('usuario_id', usuarioId),
             supabase.from('medicamentos').select('nombre_medicamento, dosis, frecuencia').eq('usuario_id', usuarioId).is('fecha_fin', null),
             supabase.from('historial_medico').select('nombre_condicion, fecha_diagnostico').eq('usuario_id', usuarioId).limit(20),
@@ -28,6 +29,7 @@ const obtenerContextoClinico = async (usuarioId) => {
 
         // 3. Retornar el objeto estructurado
         return {
+            perfil: perfilRes.data || {},
             alergias: alergiasRes.data || [],
             medicamentos: medsRes.data || [],
             historial: historialRes.data || [],

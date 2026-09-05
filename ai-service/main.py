@@ -9,10 +9,11 @@ Funciona igual en Google Colab (pruebas) y en un VPS (producción) — lo
 único que cambia entre entornos es cómo se arranca (ver README.md).
 """
 
+import json
 import os
 import tempfile
 
-from fastapi import FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import Response
 from supabase import create_client, Client
 
@@ -82,7 +83,11 @@ def chat_inference(data: dict, x_internal_key: str = Header(None)):
     if not mensaje_usuario.strip():
         raise HTTPException(status_code=400, detail="El campo 'message' es obligatorio")
 
-    respuesta, risk_level, fuentes = clinical_service.responder(mensaje_usuario)
+    respuesta, risk_level, fuentes = clinical_service.responder(
+        mensaje_usuario,
+        medical_context=data.get("medical_context"),
+        conversation_history=data.get("conversation_history"),
+    )
 
     # GIS: si el cliente manda coordenadas, se busca el centro de salud
     # REAL más cercano (nunca inventado por el LLM) y se agrega tanto al
@@ -124,7 +129,12 @@ def chat_inference(data: dict, x_internal_key: str = Header(None)):
 
 
 @app.post("/voice")
-def voice_endpoint(archivo: UploadFile = File(...), x_internal_key: str = Header(None)):
+def voice_endpoint(
+    archivo: UploadFile = File(...),
+    medical_context: str = Form("{}"),
+    conversation_history: str = Form("[]"),
+    x_internal_key: str = Header(None),
+):
     verificar_clave(x_internal_key)
     if not asr_service.disponible:
         raise HTTPException(status_code=503, detail="El servicio de voz (ASR) no está disponible")
@@ -146,7 +156,16 @@ def voice_endpoint(archivo: UploadFile = File(...), x_internal_key: str = Header
     if not texto_transcrito:
         raise HTTPException(status_code=422, detail="No se pudo transcribir el audio")
 
-    respuesta, risk_level, fuentes = clinical_service.responder(texto_transcrito)
+    try:
+        contexto = json.loads(medical_context)
+        historial = json.loads(conversation_history)
+    except json.JSONDecodeError:
+        contexto, historial = None, []
+    respuesta, risk_level, fuentes = clinical_service.responder(
+        texto_transcrito,
+        medical_context=contexto,
+        conversation_history=historial,
+    )
     return {
         "transcription": texto_transcrito,
         "reply": respuesta,

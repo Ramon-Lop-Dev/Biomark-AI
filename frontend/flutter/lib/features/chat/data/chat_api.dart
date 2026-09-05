@@ -81,6 +81,26 @@ class ChatReply {
   }
 }
 
+class ChatHistoryMessage {
+  final String text;
+  final bool isUser;
+  final String? riskLevel;
+
+  const ChatHistoryMessage({
+    required this.text,
+    required this.isUser,
+    this.riskLevel,
+  });
+
+  factory ChatHistoryMessage.fromJson(Map<String, dynamic> json) {
+    return ChatHistoryMessage(
+      text: json['mensaje'] as String? ?? '',
+      isUser: json['emisor'] == 'USUARIO',
+      riskLevel: json['nivel_riesgo'] as String?,
+    );
+  }
+}
+
 class ChatApi {
   ChatApi({
     required this.baseUrl,
@@ -133,6 +153,24 @@ class ChatApi {
     }
 
     return ChatReply.fromJson(body);
+  }
+
+  Future<({String? sessionId, List<ChatHistoryMessage> messages})> loadHistory() async {
+    final response = await _client.get(
+      Uri.parse('${baseUrl.replaceFirst(RegExp(r'/$'), '')}/api/chat/history'),
+      headers: {'Authorization': 'Bearer $accessToken'},
+    ).timeout(const Duration(seconds: 30));
+    final decoded = response.body.isEmpty ? const {} : jsonDecode(response.body);
+    if (response.statusCode < 200 || response.statusCode >= 300 || decoded is! Map<String, dynamic>) {
+      throw const ChatApiException('No se pudo cargar el historial del chat.');
+    }
+    return (
+      sessionId: decoded['session_id'] as String?,
+      messages: (decoded['messages'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(ChatHistoryMessage.fromJson)
+          .toList(),
+    );
   }
 
   void dispose() => _client.close();
