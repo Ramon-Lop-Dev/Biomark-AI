@@ -14,8 +14,19 @@ app.use(helmet({
     // comprobación en Chrome; el resto de cabeceras de Helmet permanece activo.
     crossOriginOpenerPolicy: { policy: 'unsafe-none' }
 })); // Cabeceras HTTP seguras
-const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean);
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : false }));
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+const isAllowedOrigin = (origin) => {
+    if (!origin) return true;
+    if (allowedOrigins.includes(origin)) return true;
+
+    // Flutter Web usa puertos dinámicos durante el desarrollo local. Solo
+    // permitimos loopback, nunca cualquier dominio externo.
+    return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+$/.test(origin);
+};
+app.use(cors({ origin: (origin, callback) => callback(null, isAllowedOrigin(origin)) }));
 
 // 2. Parseo de payloads
 app.use(express.json({ limit: '256kb' }));

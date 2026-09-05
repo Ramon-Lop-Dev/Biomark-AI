@@ -64,6 +64,11 @@ N8N_WEBHOOK_URL=http://n8n:5678/webhook/biomark-events
 N8N_WEBHOOK_SECRET=TU_SECRETO_DE_N8N
 ```
 
+El backend permite además orígenes locales de Flutter Web con cualquier puerto
+dinámico (`http://localhost:<puerto>`, `http://127.0.0.1:<puerto>` y
+`http://[::1]:<puerto>`). No agregues `*` a `CORS_ORIGINS`; los dominios
+públicos deben declararse explícitamente.
+
 En `/opt/biomark-ai/deploy/.env`:
 
 ```env
