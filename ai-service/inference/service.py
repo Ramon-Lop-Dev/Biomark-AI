@@ -7,6 +7,7 @@ por el mismo Safety Layer + RAG + generación de texto. Este módulo es ese
 punto único, para que main.py no repita la misma lógica tres veces.
 """
 
+import re
 from typing import List, Tuple
 
 from safety.checker import (
@@ -36,8 +37,8 @@ class ClinicalService:
         if riesgo_detectado == "CRITICAL":
             return MENSAJE_URGENCIA, "CRITICAL", ["Clinical Safety Policy"]
 
-        texto = mensaje_usuario.strip().lower()
-        saludos = {"hola", "buenas", "buenos días", "buenos dias", "buenas tardes", "buenas noches"}
+        texto = re.sub(r"[¿?¡!.,]", "", mensaje_usuario.strip().lower())
+        saludos = {"hola", "buenas", "buenos dias", "buenos días", "buenas tardes", "buenas noches"}
         if texto in saludos:
             return (
                 "Hola, soy Biomark AI. Puedo orientarte sobre tus síntomas, "
