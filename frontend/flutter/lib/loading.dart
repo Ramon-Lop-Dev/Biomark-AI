@@ -26,6 +26,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late final AnimationController _controller;
+  late final AnimationController _fadeController;
   late final Animation<double> _scaleAnim;
   late final Animation<double> _fadeAnim;
 
@@ -43,14 +44,12 @@ class _SplashScreenState extends State<SplashScreen>
       end: 1.05,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..forward();
     _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 900),
-        )..forward(),
-        curve: Curves.easeIn,
-      ),
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
     );
 
     _irALogin();
@@ -103,6 +102,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
