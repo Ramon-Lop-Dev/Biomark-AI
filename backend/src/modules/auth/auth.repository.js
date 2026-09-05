@@ -65,6 +65,9 @@ const createUsuario = (authId, correo) =>
 const createPerfil = (usuarioId, nombreCompleto) =>
   supabase.from('perfiles').insert({ usuario_id: usuarioId, nombre_completo: nombreCompleto });
 
+const createRoleRequest = (usuarioId, role) =>
+  supabase.from('solicitudes_roles').insert({ usuario_id: usuarioId, rol_solicitado: role });
+
 // Usado únicamente para revertir un insert en "usuarios" cuando el insert
 // subsecuente en "perfiles" falla (ver auth.service.js: aprovisionarUsuario).
 const eliminarUsuario = (usuarioId) =>
@@ -81,5 +84,6 @@ module.exports = {
   findUsuarioByAuthId,
   createUsuario,
   createPerfil,
+  createRoleRequest,
   eliminarUsuario
 };

@@ -9,8 +9,8 @@ const asyncHandler = require('../../utils/asyncHandler');
 // errorHandler.middleware.js gracias a asyncHandler.
 
 const register = asyncHandler(async (req, res) => {
-  const { email, password, full_name } = req.body;
-  const result = await authService.registerUser(email, password, full_name);
+  const { email, password, full_name, tipo_cuenta } = req.body;
+  const result = await authService.registerUser(email, password, full_name, tipo_cuenta);
   return res.status(201).json(result);
 });
 

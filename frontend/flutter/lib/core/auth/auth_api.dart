@@ -93,11 +93,13 @@ class AuthApi {
     required String email,
     required String password,
     required String fullName,
+    String accountType = 'PERSONAL',
   }) async {
     final json = await _post('/api/auth/register', {
       'email': email,
       'password': password,
       'full_name': fullName,
+        'tipo_cuenta': accountType,
     });
     return RegisterResult(
       userId: json['user_id'] as String? ?? '',

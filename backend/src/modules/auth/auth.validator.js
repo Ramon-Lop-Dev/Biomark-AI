@@ -13,7 +13,8 @@ const passwordSchema = z
 const registerSchema = z.object({
   email: z.string().trim().toLowerCase().email('Correo inválido'),
   password: passwordSchema,
-  full_name: z.string().trim().min(1, 'El nombre completo es obligatorio')
+  full_name: z.string().trim().min(1, 'El nombre completo es obligatorio'),
+  tipo_cuenta: z.enum(['PERSONAL', 'PROMOTOR']).default('PERSONAL')
 });
 
 const loginSchema = z.object({
