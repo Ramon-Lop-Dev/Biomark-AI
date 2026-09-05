@@ -41,6 +41,10 @@ _REGLAS: List[Tuple[List[str], List[str]]] = [
     ([r"\b(diabetes|azucar alta|glucosa|tiroides|hormona)"], ["Endocrinología", "Diabetes"]),
     ([r"\b(cancer|tumor|quimioterapia|oncolog)"], ["Oncología", "Quimioterapia", "Radioterapia"]),
     ([r"\b(respirar|pulmon|tos|asma|neumonia)"], ["Medicina interna", "Multiespecialidad"]),
+    ([r"\b(fiebre|garganta|faringitis|resfriado|gripe|influenza)"], ["Medicina general", "Medicina interna", "Atención general"]),
+    ([r"\b(cabeza|migraña|migrana|mareo|desmayo|convulsion)"], ["Neurología", "Medicina interna", "Atención general"]),
+    ([r"\b(orinar|orina|urinaria|riñon|rinon|ardor al orinar)"], ["Urología", "Medicina interna", "Atención general"]),
+    ([r"\b(dolor abdominal|abdomen|vientre|estreñimiento|estrenimiento)"], ["Gastroenterología", "Medicina interna", "Atención general"]),
     (
         [r"\b(fractura|hueso roto|cirugia|herida profunda|cortada|machete|hemorragia|sangra.*mucho)"],
         ["Cirugía", "Multiespecialidad"],

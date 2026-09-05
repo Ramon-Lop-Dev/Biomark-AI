@@ -81,3 +81,19 @@ class ClinicalService:
         if any(term in texto for term in ("estoy tomando", "me recetaron", "medicamento", "pastilla", "medicina")):
             return "REGISTER_MEDICATION"
         return None
+
+    def debe_recomendar_centro(self, mensaje_usuario: str, risk_level: str) -> bool:
+        """Indica cuándo la respuesta debe ofrecer búsqueda por ubicación."""
+        texto = mensaje_usuario.lower()
+        sintomas = (
+            "dolor", "fiebre", "tos", "garganta", "respirar", "respiración",
+            "sangrado", "vomito", "vómito", "diarrea", "mareo", "desmayo",
+            "embarazo", "convulsión", "convulsion", "herida", "erupción", "sarpullido",
+        )
+        solicita_centro = any(
+            termino in texto
+            for termino in ("centro de salud", "hospital", "clínica", "clinica", "donde atenderme", "dónde atenderme")
+        )
+        return risk_level in ("CRITICAL", "HIGH", "MODERATE") or solicita_centro or any(
+            sintoma in texto for sintoma in sintomas
+        )

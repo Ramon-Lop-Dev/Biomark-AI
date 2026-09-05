@@ -66,7 +66,10 @@ class TextGenerator:
     ) -> str:
         if self.model is None or self.tokenizer is None:
             contexto_preview = contexto_rag[:200] if contexto_rag else "ninguno"
-            return f"Modo de respaldo (modelo no disponible en memoria). Contexto encontrado: {contexto_preview}"
+            return (
+                "No puedo generar una orientación clínica fiable en este momento. "
+                "Describe tus síntomas a un profesional de salud o acude a un centro cercano."
+            )
 
         prompt = self._construir_prompt(
             mensaje_usuario,
@@ -79,9 +82,10 @@ class TextGenerator:
 
         outputs = self.model.generate(
             **inputs,
-            max_new_tokens=256,
-            temperature=0.7,
-            do_sample=True,
+            max_new_tokens=180,
+            do_sample=False,
+            repetition_penalty=1.12,
+            no_repeat_ngram_size=3,
             pad_token_id=self.tokenizer.eos_token_id,
         )
 
@@ -93,6 +97,8 @@ class TextGenerator:
         respuesta = self.tokenizer.decode(tokens_generados, skip_special_tokens=True).strip()
 
         respuesta = self._cortar_en_siguiente_turno(respuesta)
+        respuesta = re.sub(r"^(Asistente(?: preventivo)?\s*:\s*)", "", respuesta, flags=re.IGNORECASE)
+        respuesta = re.sub(r"\n{3,}", "\n\n", respuesta).strip()
 
         if not respuesta:
             return "No logré generar una respuesta clara para eso. ¿Puedes reformular tu pregunta o dar más detalle?"

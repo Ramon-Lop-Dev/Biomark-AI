@@ -55,6 +55,7 @@ class ChatReply {
   final List<String> sources;
   final String? suggestedAction;
   final HealthCenterRecommendation? recommendedCenter;
+  final bool locationRequired;
 
   const ChatReply({
     required this.sessionId,
@@ -63,6 +64,7 @@ class ChatReply {
     required this.sources,
     this.suggestedAction,
     this.recommendedCenter,
+    this.locationRequired = false,
   });
 
   factory ChatReply.fromJson(Map<String, dynamic> json) {
@@ -74,6 +76,7 @@ class ChatReply {
           .whereType<String>()
           .toList(),
       suggestedAction: json['suggested_action'] as String?,
+      locationRequired: json['ubicacion_requerida'] as bool? ?? false,
         recommendedCenter: json['centro_sugerido'] is Map<String, dynamic>
           ? HealthCenterRecommendation.fromJson(json['centro_sugerido'] as Map<String, dynamic>)
           : null,
