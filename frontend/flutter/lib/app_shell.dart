@@ -2,12 +2,16 @@
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
+import 'core/auth/auth_session.dart';
+import 'core/config/app_config.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
 import 'survey_service.dart';
 import 'features/gis/presentation/gis_map_screen.dart';
 import 'features/progress/presentation/progress_screen.dart';
+import 'features/progress/data/progress_api.dart';
 import 'features/reminders/presentation/reminders_screen.dart';
+import 'features/reminders/data/reminders_service.dart';
 
 /// Transición personalizada para navegación entre pantallas
 class _FadeSlidePageRoute<T> extends MaterialPageRoute<T> {
@@ -37,6 +41,8 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _navIndex = 0;
+  final ValueNotifier<int> _remindersRefresh = ValueNotifier(0);
+  final ValueNotifier<int> _progressRefresh = ValueNotifier(0);
 
   final _navLabels = const ['Inicio', 'Mejoría', 'Mapa', 'Recordatorio', 'Perfil'];
   final _navIcons = const [
@@ -46,6 +52,13 @@ class _AppShellState extends State<AppShell> {
     Icons.notifications_rounded,
     Icons.person_outline_rounded,
   ];
+
+  @override
+  void dispose() {
+    _remindersRefresh.dispose();
+    _progressRefresh.dispose();
+    super.dispose();
+  }
 
   void _handleNavTap(int index) {
     if (index == 4) {
@@ -66,19 +79,13 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final pages = [
       const HomeScreen(),
-      const ProgressScreen(),
+      ProgressScreen(refreshSignal: _progressRefresh),
       const GisMapScreen(),
-      const RemindersScreen(),
+      RemindersScreen(refreshSignal: _remindersRefresh),
       const _PlaceholderBody(
         title: 'Perfil',
         icon: Icons.person_outline_rounded,
@@ -90,7 +97,11 @@ class _AppShellState extends State<AppShell> {
       appBar: _buildAppBar(),
       body: SafeArea(child: pages[_navIndex]),
       bottomNavigationBar: _buildBottomNav(),
-      floatingActionButton: _navIndex == 3 ? _buildAddReminderFAB() : null,
+        floatingActionButton: _navIndex == 3
+          ? _buildAddReminderFAB()
+          : _navIndex == 1
+            ? _buildAddGoalFAB()
+            : null,
     );
   }
 
@@ -138,13 +149,34 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  void _showAddReminderModal(BuildContext context) {
-    showModalBottomSheet(
+  Widget _buildAddGoalFAB() {
+    return FloatingActionButton(
+      backgroundColor: BiomarkColors.green,
+      elevation: 6,
+      tooltip: 'Agregar objetivo',
+      onPressed: () => _showAddGoalModal(context),
+      child: const Icon(Icons.flag_rounded, color: Colors.white),
+    );
+  }
+
+  Future<void> _showAddReminderModal(BuildContext context) async {
+    final created = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => const _AddReminderModal(),
     );
+    if (created == true) _remindersRefresh.value++;
+  }
+
+  Future<void> _showAddGoalModal(BuildContext context) async {
+    final created = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _AddGoalModal(),
+    );
+    if (created == true) _progressRefresh.value++;
   }
 
   Widget _buildBottomNav() {
@@ -251,6 +283,154 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
+class _AddGoalModal extends StatefulWidget {
+  const _AddGoalModal();
+
+  @override
+  State<_AddGoalModal> createState() => _AddGoalModalState();
+}
+
+class _AddGoalModalState extends State<_AddGoalModal> {
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _api = ProgressApi();
+  String _periodicity = 'SEMANAL';
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now().add(const Duration(days: 30));
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate(bool start) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: start ? _startDate : _endDate,
+      firstDate: start ? DateTime.now() : _startDate,
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      if (start) {
+        _startDate = picked;
+        if (_endDate.isBefore(picked)) _endDate = picked;
+      } else {
+        _endDate = picked;
+      }
+    });
+  }
+
+  Future<void> _save() async {
+    if (_titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Escribe un objetivo')));
+      return;
+    }
+    try {
+      await _api.createGoal(
+        titulo: _titleController.text,
+        descripcion: _descriptionController.text,
+        periodicidad: _periodicity,
+        fechaInicio: _startDate,
+        fechaFin: _endDate,
+      );
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          icon: const Icon(Icons.flag_circle, color: BiomarkColors.green, size: 44),
+          title: const Text('Objetivo creado'),
+          content: const Text('Tus hitos fueron programados y aparecerán en Mejoría.'),
+          actions: [
+            FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Entendido')),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error'), backgroundColor: Colors.red));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.72,
+      minChildSize: 0.55,
+      maxChildSize: 0.92,
+      builder: (context, scrollController) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: ListView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(24),
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Nuevo objetivo', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(labelText: '¿Qué quieres mejorar? *', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _descriptionController,
+              maxLines: 2,
+              decoration: InputDecoration(labelText: 'Descripción (opcional)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _periodicity,
+              decoration: InputDecoration(labelText: 'Frecuencia de hitos', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              items: const [
+                DropdownMenuItem(value: 'SEMANAL', child: Text('Semanal')),
+                DropdownMenuItem(value: 'QUINCENAL', child: Text('Quincenal')),
+                DropdownMenuItem(value: 'MENSUAL', child: Text('Mensual')),
+                DropdownMenuItem(value: 'TRIMESTRAL', child: Text('Trimestral')),
+                DropdownMenuItem(value: 'SEMESTRAL', child: Text('Semestral')),
+                DropdownMenuItem(value: 'ANUAL', child: Text('Anual')),
+              ],
+              onChanged: (value) => setState(() => _periodicity = value ?? _periodicity),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(child: _dateButton('Desde', _startDate, () => _pickDate(true))),
+                const SizedBox(width: 10),
+                Expanded(child: _dateButton('Hasta', _endDate, () => _pickDate(false))),
+              ],
+            ),
+            const SizedBox(height: 22),
+            SizedBox(
+              height: 50,
+              child: FilledButton.icon(onPressed: _save, icon: const Icon(Icons.flag_rounded), label: const Text('Crear objetivo')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dateButton(String label, DateTime date, VoidCallback onTap) {
+    return OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+      child: Text('$label\n${date.day}/${date.month}/${date.year}', textAlign: TextAlign.center),
+    );
+  }
+}
+
 class _AddReminderModal extends StatefulWidget {
   const _AddReminderModal();
 
@@ -303,7 +483,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
     }
   }
 
-  void _createReminder() {
+  Future<void> _createReminder() async {
     if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor ingresa un título'), backgroundColor: Colors.red),
@@ -311,28 +491,42 @@ class _AddReminderModalState extends State<_AddReminderModal> {
       return;
     }
 
-    // TODO: Descomentar para conectar al backend
-    // final reminder = Reminder(
-    //   id: DateTime.now().millisecondsSinceEpoch.toString(),
-    //   usuarioId: 'user123',
-    //   tipo: _selectedType,
-    //   titulo: _titleController.text,
-    //   descripcion: _descriptionController.text,
-    //   fechaRecordatorio: _selectedDate,
-    //   hora: _hourController.text,
-    //   estado: 'PENDIENTE',
-    //   fechaCreacion: DateTime.now(),
-    // );
-    // await _remindersService.createReminder(reminder);
-
-    // Visualización solo - Confirma la creación
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Recordatorio "${_titleController.text}" creado (visualización)'),
-        backgroundColor: BiomarkColors.green,
-      ),
-    );
-    Navigator.pop(context);
+    try {
+      await RemindersService(
+        baseUrl: AppConfig.apiUrl,
+        accessToken: AuthSession.instance.accessToken ?? '',
+      ).createReminder(
+        tipo: _selectedType,
+        titulo: _titleController.text.trim(),
+        descripcion: _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
+        fechaRecordatorio: _selectedDate,
+        hora: _hourController.text,
+      );
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          icon: const Icon(Icons.check_circle, color: BiomarkColors.green, size: 44),
+          title: const Text('Recordatorio agregado'),
+          content: const Text('El recordatorio quedó guardado y aparecerá en tu calendario.'),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendido'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } on ReminderException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
@@ -382,7 +576,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                     children: [
                       _buildTypeButton('MEDICAMENTO', Icons.medication_rounded),
                       const SizedBox(width: 10),
-                      _buildTypeButton('CITA_MEDICA', Icons.medical_services_outlined),
+                      _buildTypeButton('CITA', Icons.medical_services_outlined),
                       const SizedBox(width: 10),
                       _buildTypeButton('VACUNA', Icons.vaccines_rounded),
                     ],

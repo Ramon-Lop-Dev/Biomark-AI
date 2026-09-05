@@ -1,131 +1,83 @@
 import 'package:flutter/material.dart';
 
 import '../../../biomark_brand.dart';
+import '../../../core/auth/auth_session.dart';
+import '../../../core/config/app_config.dart';
 import '../data/reminders_service.dart';
 
 class RemindersScreen extends StatefulWidget {
-  const RemindersScreen({super.key});
+  const RemindersScreen({super.key, this.refreshSignal});
+
+  final ValueNotifier<int>? refreshSignal;
 
   @override
   State<RemindersScreen> createState() => _RemindersScreenState();
 }
 
 class _RemindersScreenState extends State<RemindersScreen> {
-  // late RemindersService _remindersService; // COMENTADO
+  late final RemindersService _remindersService;
   late Future<List<Reminder>> _remindersFuture;
   DateTime _selectedDate = DateTime.now();
+
+  void _handleRefreshSignal() {
+    if (!mounted) return;
+    setState(() => _remindersFuture = _remindersService.getReminders());
+  }
 
   @override
   void initState() {
     super.initState();
-    // TODO: Get baseUrl and accessToken from your app config/provider
-    // _remindersService = RemindersService(
-    //   baseUrl: 'http://localhost:3001', // Replace with actual baseUrl
-    //   accessToken: '', // Replace with actual token from auth
-    // );
-    // _remindersFuture = _remindersService.getReminders();
-
-    // Datos de prueba comentados - Descomenta líneas anteriores para conectar backend
-    _remindersFuture = Future.value(_getTestReminders());
+    _remindersService = RemindersService(
+      baseUrl: AppConfig.apiUrl,
+      accessToken: AuthSession.instance.accessToken ?? '',
+    );
+    _remindersFuture = _remindersService.getReminders();
+    widget.refreshSignal?.addListener(_handleRefreshSignal);
   }
 
-  // Datos de prueba para visualización
-  List<Reminder> _getTestReminders() {
-    return [
-      Reminder(
-        id: '1',
-        usuarioId: 'user123',
-        tipo: 'MEDICAMENTO',
-        titulo: 'Losartán 50mg',
-        descripcion: 'Tomar con alimentos',
-        fechaRecordatorio: DateTime.now(),
-        hora: '08:00',
-        estado: 'PENDIENTE',
-        fechaCreacion: DateTime.now(),
-      ),
-      Reminder(
-        id: '2',
-        usuarioId: 'user123',
-        tipo: 'CITA_MEDICA',
-        titulo: 'Control cardiología',
-        descripcion: 'Dr. Roberto Sánchez',
-        fechaRecordatorio: DateTime.now(),
-        hora: '10:30',
-        estado: 'PENDIENTE',
-        fechaCreacion: DateTime.now(),
-      ),
-      Reminder(
-        id: '3',
-        usuarioId: 'user123',
-        tipo: 'VACUNA',
-        titulo: 'Vacuna anual',
-        descripcion: 'Influenza 2024',
-        fechaRecordatorio: DateTime.now().add(const Duration(days: 3)),
-        hora: '15:00',
-        estado: 'PENDIENTE',
-        fechaCreacion: DateTime.now(),
-      ),
-    ];
+  @override
+  void dispose() {
+    widget.refreshSignal?.removeListener(_handleRefreshSignal);
+    super.dispose();
   }
 
-  // COMENTADO - Descomenta para conectar al backend
-  // Future<void> _completeReminder(String reminderId) async {
-  //   try {
-  //     await _remindersService.updateReminderStatus(
-  //       reminderId: reminderId,
-  //       estado: 'COMPLETADO',
-  //     );
-  //     setState(() {
-  //       _remindersFuture = _remindersService.getReminders();
-  //     });
-  //     if (!mounted) return;
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text('Recordatorio completado')),
-  //     );
-  //   } on ReminderException catch (e) {
-  //     if (!mounted) return;
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-  //     );
-  //   }
-  // }
-
-  // Visualización solo - Muestra confirmación sin guardar
   Future<void> _completeReminder(String reminderId) async {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Recordatorio completado (visualización)')),
-    );
+    if (!await _confirmStatusChange('¿Completar recordatorio?', 'Ya no aparecerá como pendiente.')) return;
+    await _updateReminder(reminderId, 'COMPLETADO', 'Recordatorio completado');
   }
 
-  // COMENTADO - Descomenta para conectar al backend
-  // Future<void> _archiveReminder(String reminderId) async {
-  //   try {
-  //     await _remindersService.updateReminderStatus(
-  //       reminderId: reminderId,
-  //       estado: 'ARCHIVADO',
-  //     );
-  //     setState(() {
-  //       _remindersFuture = _remindersService.getReminders();
-  //     });
-  //     if (!mounted) return;
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text('Recordatorio archivado')),
-  //     );
-  //   } on ReminderException catch (e) {
-  //     if (!mounted) return;
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-  //     );
-  //   }
-  // }
-
-  // Visualización solo - Muestra confirmación sin guardar
   Future<void> _archiveReminder(String reminderId) async {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Recordatorio archivado (visualización)')),
+    if (!await _confirmStatusChange('¿Cancelar recordatorio?', 'Dejará de aparecer entre tus recordatorios pendientes.')) return;
+    await _updateReminder(reminderId, 'CANCELADO', 'Recordatorio cancelado');
+  }
+
+  Future<bool> _confirmStatusChange(String title, String message) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Volver')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirmar')),
+        ],
+      ),
     );
+    return result ?? false;
+  }
+
+  Future<void> _updateReminder(String reminderId, String estado, String message) async {
+    try {
+      await _remindersService.updateReminderStatus(reminderId: reminderId, estado: estado);
+      if (!mounted) return;
+      setState(() => _remindersFuture = _remindersService.getReminders());
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } on ReminderException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   void _previousMonth() {
@@ -178,7 +130,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
         final reminders = snapshot.data ?? [];
         final todayReminders = reminders
-            .where((r) => _sameDay(r.fechaRecordatorio, DateTime.now()) && r.estado == 'PENDIENTE')
+          .where((r) => _sameDay(r.fechaRecordatorio, _selectedDate) && r.estado == 'PENDIENTE')
             .toList();
 
         return ListView(
@@ -271,7 +223,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
     }
     for (int i = 1; i <= daysInMonth; i++) {
       final date = DateTime(_selectedDate.year, _selectedDate.month, i);
-      final isSelected = _sameDay(date, DateTime.now());
+            final isSelected = _sameDay(date, _selectedDate);
       days.add(_buildCalendarDay(i, isSelected));
     }
 
@@ -320,14 +272,19 @@ class _RemindersScreenState extends State<RemindersScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          _formatDate(DateTime.now()),
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: BiomarkColors.black,
+        Expanded(
+          child: Text(
+            _formatDate(_selectedDate),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: BiomarkColors.black,
+            ),
           ),
         ),
+        const SizedBox(width: 12),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
@@ -508,7 +465,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
     switch (tipo) {
       case 'VACUNA':
         return BiomarkColors.green;
-      case 'CITA_MEDICA':
+      case 'CITA':
         return BiomarkColors.blue;
       case 'MEDICAMENTO':
       default:
