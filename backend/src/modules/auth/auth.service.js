@@ -170,8 +170,8 @@ const refreshToken = async (refreshToken) => {
 // una app de salud (revela quién es o no paciente/usuario de salud).
 const MENSAJE_FORGOT_PASSWORD = 'Si existe una cuenta con ese correo, se enviaron instrucciones para restablecer la contraseña.';
 
-const forgotPassword = async (email) => {
-  const { error } = await authRepo.resetPasswordForEmail(email);
+const forgotPassword = async (email, redirectTo) => {
+  const { error } = await authRepo.resetPasswordForEmail(email, redirectTo);
 
   if (error) {
     // Se loguea para diagnóstico interno, pero NUNCA se refleja al
