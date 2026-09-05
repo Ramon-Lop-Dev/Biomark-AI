@@ -181,7 +181,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     try {
       await _progressApi.updateMilestone(goalId: goal.id, milestoneId: milestoneId, completed: completed);
       if (!mounted) return;
-      setState(() => _goalsFuture = _progressApi.fetchGoals());
+      final refreshedGoals = _progressApi.fetchGoals();
+      setState(() {
+        _goalsFuture = refreshedGoals;
+      });
     } catch (error) {
       if (!mounted) return;
       setState(() => _milestoneOverrides[milestoneId] = previous);
