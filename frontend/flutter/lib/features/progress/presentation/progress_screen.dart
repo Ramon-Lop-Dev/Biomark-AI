@@ -4,14 +4,37 @@ import '../data/progress_api.dart';
 import '../domain/progress_snapshot.dart';
 
 class ProgressScreen extends StatefulWidget {
-  const ProgressScreen({super.key});
+  const ProgressScreen({super.key, this.refreshSignal});
+
+  final ValueNotifier<int>? refreshSignal;
 
   @override
   State<ProgressScreen> createState() => _ProgressScreenState();
 }
 
 class _ProgressScreenState extends State<ProgressScreen> {
-  late final Future<ProgressSnapshot> _progressFuture = ProgressApi().fetch();
+  final _progressApi = ProgressApi();
+  late Future<ProgressSnapshot> _progressFuture;
+  late Future<List<ProgressGoal>> _goalsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+    widget.refreshSignal?.addListener(_reload);
+  }
+
+  void _reload() {
+    _progressFuture = _progressApi.fetch();
+    _goalsFuture = _progressApi.fetchGoals();
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.refreshSignal?.removeListener(_reload);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,21 +49,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
             children: [
               _buildSummary(data),
               const SizedBox(height: 20),
-              const Text(
-                'Hitos Recientes',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1B1F1C),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ...data.milestones.map(
-                (milestone) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _MilestoneRow(milestone: milestone),
-                ),
-              ),
+              _buildGoalsSection(),
+              const SizedBox(height: 20),
+              _buildRecentMilestones(),
               _buildNextMedication(data.nextMedication),
             ],
           ),
@@ -48,6 +59,128 @@ class _ProgressScreenState extends State<ProgressScreen> {
       },
     );
   }
+
+  Widget _buildRecentMilestones() {
+    return FutureBuilder<List<ProgressGoal>>(
+      future: _goalsFuture,
+      builder: (context, snapshot) {
+        final recent = <ProgressMilestone>[];
+        for (final goal in snapshot.data ?? const <ProgressGoal>[]) {
+          for (final milestone in goal.milestones) {
+            recent.add(ProgressMilestone(
+              id: milestone.id,
+              title: '${goal.titulo}: ${milestone.title}',
+              value: milestone.value,
+              subtitle: milestone.subtitle,
+              color: milestone.color,
+              icon: milestone.icon,
+              completed: milestone.completed,
+            ));
+          }
+        }
+        recent.sort((a, b) => a.value.compareTo(b.value));
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Hitos recientes', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1B1F1C))),
+            const SizedBox(height: 12),
+            if (recent.isEmpty)
+              _buildNoGoals()
+            else
+              ...recent.take(5).map((milestone) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _MilestoneRow(milestone: milestone),
+                  )),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildGoalsSection() {
+    return FutureBuilder<List<ProgressGoal>>(
+      future: _goalsFuture,
+      builder: (context, snapshot) {
+        final goals = snapshot.data ?? const <ProgressGoal>[];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Mis objetivos',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1B1F1C)),
+            ),
+            const SizedBox(height: 12),
+            if (snapshot.connectionState == ConnectionState.waiting)
+              const LinearProgressIndicator(color: Color(0xFF1B8E44))
+            else if (goals.isEmpty)
+              _buildNoGoals()
+            else
+              ...goals.map(_buildGoalCard),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildNoGoals() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: const Text('Crea un objetivo para comenzar a medir tu mejoría.'),
+    );
+  }
+
+  Widget _buildGoalCard(ProgressGoal goal) {
+    final completed = goal.milestones.where((milestone) => milestone.completed).length;
+    final total = goal.milestones.length;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text(goal.titulo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
+              Text('$completed/$total', style: const TextStyle(color: Color(0xFF1B8E44), fontWeight: FontWeight.w700)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text('${goal.periodicidad.toLowerCase()} · ${_formatDate(goal.fechaInicio)} - ${_formatDate(goal.fechaFin)}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF5F6D63))),
+          if (goal.descripcion != null) ...[
+            const SizedBox(height: 4),
+            Text(goal.descripcion!, style: const TextStyle(fontSize: 12, color: Color(0xFF5F6D63))),
+          ],
+          const SizedBox(height: 8),
+          ...goal.milestones.map((milestone) => CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: milestone.completed,
+                title: Text(milestone.title),
+                subtitle: Text(milestone.value),
+                activeColor: const Color(0xFF1B8E44),
+                onChanged: milestone.id == null ? null : (value) => _toggleMilestone(goal, milestone, value ?? false),
+              )),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _toggleMilestone(ProgressGoal goal, ProgressMilestone milestone, bool completed) async {
+    try {
+      await _progressApi.updateMilestone(goalId: goal.id, milestoneId: milestone.id!, completed: completed);
+      if (mounted) setState(() => _goalsFuture = _progressApi.fetchGoals());
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error'), backgroundColor: Colors.red));
+    }
+  }
+
+  String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
   Widget _buildSummary(ProgressSnapshot data) {
     return Container(

@@ -17,7 +17,7 @@ class HealthSurveyScreen extends StatefulWidget {
 enum _PasoEncuesta { datosPersonales, cronicas, hereditarias, alergias, medicamentos, resumen }
 
 class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
-  _PasoEncuesta _paso = _PasoEncuesta.cronicas;
+  _PasoEncuesta _paso = _PasoEncuesta.datosPersonales;
 
   // ---- Opciones ----
   final List<String> _opcionesCronicas = const [
@@ -114,15 +114,19 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   }
 
   Future<void> _finalizar() async {
+    final edad = int.tryParse(_edadController.text.trim());
+    final sexo = _sexoSeleccionado;
+    if (edad == null || sexo == null) return;
+
     await SurveyService.guardarRespuestas(
-      edad: int.parse(_edadController.text.trim()),
-      sexo: _sexoSeleccionado!,
+      edad: edad,
+      sexo: sexo,
       enfermedadesCronicas: _cronicasSeleccionadas.toList(),
       antecedentesHereditarios: _hereditariasSeleccionadas.toList(),
       alergias: _alergiasSeleccionadas.toList(),
       medicamentosActuales: _medicamentosController.text.trim(),
       consentimientoMedico: _consentimientoMedico,
-    );
+    ).timeout(const Duration(seconds: 20), onTimeout: () {});
 
     if (!mounted) return;
     Navigator.pushReplacement(

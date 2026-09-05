@@ -11,6 +11,76 @@ class ProgressApi {
   static const _apiUrl = AppConfig.apiUrl;
   static String get _accessToken => AuthSession.instance.accessToken ?? '';
 
+  Map<String, String> get _headers => {
+        'Content-Type': 'application/json',
+        if (_accessToken.isNotEmpty) 'Authorization': 'Bearer $_accessToken',
+      };
+
+  String get _baseUrl => _apiUrl.replaceFirst(RegExp(r'/$'), '');
+
+  Future<List<ProgressGoal>> fetchGoals() async {
+    final response = await http.get(Uri.parse('$_baseUrl/api/progress/goals'), headers: _headers);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_backendError(response, 'No se pudieron cargar los objetivos.'));
+    }
+    final decoded = jsonDecode(response.body);
+    final items = decoded is List ? decoded : const [];
+    return items.whereType<Map<String, dynamic>>().map(ProgressGoal.fromJson).toList();
+  }
+
+  Future<ProgressGoal> createGoal({
+    required String titulo,
+    String? descripcion,
+    required String periodicidad,
+    required DateTime fechaInicio,
+    required DateTime fechaFin,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/progress/goals'),
+      headers: _headers,
+      body: jsonEncode({
+        'titulo': titulo.trim(),
+        if (descripcion != null && descripcion.trim().isNotEmpty) 'descripcion': descripcion.trim(),
+        'periodicidad': periodicidad,
+        'fecha_inicio': _dateOnly(fechaInicio),
+        'fecha_fin': _dateOnly(fechaFin),
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_backendError(response, 'No se pudo crear el objetivo.'));
+    }
+    return ProgressGoal.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<void> updateMilestone({
+    required String goalId,
+    required String milestoneId,
+    required bool completed,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('$_baseUrl/api/progress/goals/$goalId/hitos/$milestoneId'),
+      headers: _headers,
+      body: jsonEncode({'completado': completed}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_backendError(response, 'No se pudo actualizar el hito.'));
+    }
+  }
+
+  static String _dateOnly(DateTime date) => date.toIso8601String().substring(0, 10);
+
+  static String _backendError(http.Response response, String fallback) {
+    try {
+      final body = jsonDecode(response.body);
+      if (body is Map<String, dynamic> && body['error'] is String) {
+        return body['error'] as String;
+      }
+    } catch (_) {
+      // Conserva un mensaje utilizable aunque el servidor no devuelva JSON.
+    }
+    return '$fallback (HTTP ${response.statusCode})';
+  }
+
   static ProgressSnapshot defaultSnapshot() {
     return const ProgressSnapshot(
       progressPercent: 85,

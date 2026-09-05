@@ -15,12 +15,12 @@ class ReminderException implements Exception {
 class Reminder {
   final String id;
   final String usuarioId;
-  final String tipo; // VACUNA, MEDICAMENTO, CITA_MEDICA
+  final String tipo; // VACUNA, MEDICAMENTO, CITA, CONTROL
   final String titulo;
   final String? descripcion;
   final DateTime fechaRecordatorio;
   final String? hora;
-  final String estado; // PENDIENTE, COMPLETADO, ARCHIVADO
+  final String estado; // PENDIENTE, ENVIADO, COMPLETADO, CANCELADO
   final DateTime fechaCreacion;
   final DateTime? fechaActualizacion;
 
@@ -44,11 +44,21 @@ class Reminder {
       tipo: json['tipo'] as String? ?? 'MEDICAMENTO',
       titulo: json['titulo'] as String? ?? '',
       descripcion: json['descripcion'] as String?,
-      fechaRecordatorio: DateTime.tryParse(json['fecha_recordatorio'] as String? ?? '') ?? DateTime.now(),
-      hora: json['hora'] as String?,
+      fechaRecordatorio: DateTime.tryParse(
+            json['fecha_programada'] as String? ?? json['fecha_recordatorio'] as String? ?? '',
+          ) ??
+          DateTime.now(),
+      hora: json['hora'] as String? ?? RemindersService.formatHour(json['fecha_programada'] as String?),
       estado: json['estado'] as String? ?? 'PENDIENTE',
-      fechaCreacion: DateTime.tryParse(json['created_at'] as String? ?? '') ?? DateTime.now(),
-      fechaActualizacion: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'] as String) : null,
+      fechaCreacion: DateTime.tryParse(
+            json['fecha_creacion'] as String? ?? json['created_at'] as String? ?? '',
+          ) ??
+          DateTime.now(),
+      fechaActualizacion: json['fecha_actualizacion'] != null
+          ? DateTime.tryParse(json['fecha_actualizacion'] as String)
+          : json['updated_at'] != null
+              ? DateTime.tryParse(json['updated_at'] as String)
+              : null,
     );
   }
 
@@ -59,7 +69,7 @@ class Reminder {
       'tipo': tipo,
       'titulo': titulo,
       'descripcion': descripcion,
-      'fecha_recordatorio': fechaRecordatorio.toIso8601String(),
+      'fecha_programada': fechaRecordatorio.toIso8601String(),
       'hora': hora,
       'estado': estado,
       'created_at': fechaCreacion.toIso8601String(),
@@ -93,16 +103,11 @@ class RemindersService {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final body = _parseJson(response.body);
-      final error = body['error'] ?? body['message'] ?? body['detail'] ?? 'Error al obtener recordatorios';
-      throw ReminderException(error as String, statusCode: response.statusCode);
+      throw ReminderException(_errorMessage(body, 'Error al obtener recordatorios'), statusCode: response.statusCode);
     }
 
     final body = _parseJson(response.body);
-    if (body is! Map<String, dynamic>) {
-      throw ReminderException('Invalid response format from backend');
-    }
-
-    final data = body['data'];
+    final data = body is List<dynamic> ? body : body is Map<String, dynamic> ? body['data'] : null;
     if (data is! List<dynamic>) {
       throw ReminderException('Expected data array from backend');
     }
@@ -122,8 +127,7 @@ class RemindersService {
       'tipo': tipo,
       'titulo': titulo,
       'descripcion': descripcion,
-      'fecha_recordatorio': fechaRecordatorio.toIso8601String(),
-      'hora': hora,
+      'fecha_programada': _combineDateAndTime(fechaRecordatorio, hora).toUtc().toIso8601String(),
     };
 
     final response = await _client
@@ -139,16 +143,11 @@ class RemindersService {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final body = _parseJson(response.body);
-      final error = body['error'] ?? body['message'] ?? body['detail'] ?? 'Error al crear recordatorio';
-      throw ReminderException(error as String, statusCode: response.statusCode);
+      throw ReminderException(_errorMessage(body, 'Error al crear recordatorio'), statusCode: response.statusCode);
     }
 
     final body = _parseJson(response.body);
-    if (body is! Map<String, dynamic>) {
-      throw ReminderException('Invalid response format from backend');
-    }
-
-    final data = body['data'];
+    final data = body is Map<String, dynamic> && body['data'] is Map<String, dynamic> ? body['data'] : body;
     if (data is! Map<String, dynamic>) {
       throw ReminderException('Expected reminder object in response');
     }
@@ -178,16 +177,11 @@ class RemindersService {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final body = _parseJson(response.body);
-      final error = body['error'] ?? body['message'] ?? body['detail'] ?? 'Error al actualizar recordatorio';
-      throw ReminderException(error as String, statusCode: response.statusCode);
+      throw ReminderException(_errorMessage(body, 'Error al actualizar recordatorio'), statusCode: response.statusCode);
     }
 
     final body = _parseJson(response.body);
-    if (body is! Map<String, dynamic>) {
-      throw ReminderException('Invalid response format from backend');
-    }
-
-    final data = body['data'];
+    final data = body is Map<String, dynamic> && body['data'] is Map<String, dynamic> ? body['data'] : body;
     if (data is! Map<String, dynamic>) {
       throw ReminderException('Expected reminder object in response');
     }
@@ -203,5 +197,23 @@ class RemindersService {
     } catch (_) {
       return <String, dynamic>{};
     }
+  }
+
+  static String _errorMessage(dynamic body, String fallback) {
+    if (body is! Map<String, dynamic>) return fallback;
+    final error = body['error'] ?? body['message'] ?? body['detail'];
+    return error is String && error.isNotEmpty ? error : fallback;
+  }
+
+  static String? formatHour(String? value) {
+    final date = value == null ? null : DateTime.tryParse(value);
+    if (date == null) return null;
+    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  static DateTime _combineDateAndTime(DateTime date, String? hour) {
+    if (hour == null || !RegExp(r'^\d{2}:\d{2}$').hasMatch(hour)) return date;
+    final parts = hour.split(':');
+    return DateTime(date.year, date.month, date.day, int.parse(parts[0]), int.parse(parts[1]));
   }
 }
