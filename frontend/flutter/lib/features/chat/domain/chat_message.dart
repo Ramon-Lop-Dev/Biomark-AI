@@ -8,6 +8,7 @@ class ChatMessage {
   final List<String> sources;
   final String? actionType;
   final String? imagePath;
+  final String? audioPath;
   final HealthCenterRecommendation? recommendedCenter;
 
   const ChatMessage(
@@ -17,6 +18,7 @@ class ChatMessage {
     this.sources = const [],
     this.actionType,
     this.imagePath,
+    this.audioPath,
     this.recommendedCenter,
   });
 }
