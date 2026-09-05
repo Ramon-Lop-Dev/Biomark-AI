@@ -3,10 +3,10 @@ from typing import Optional
 
 from config import DEVICE, PERSONA_BIOMARK
 
-_MARCADORES_NUEVO_TURNO = [
-    r"\n\s*Paciente\s*:",
-    r"\n\s*USUARIO\s*:",
-    r"\n\s*Asistente[^:]*:",
+__MARCADORES_NUEVO_TURNO = [
+    r"\n?\s*Paciente\s*:",
+    r"\n?\s*USUARIO\s*:",
+    r"\n?\s*Asistente[^:]*:",
 ]
 
 
