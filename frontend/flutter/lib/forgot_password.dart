@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'core/auth/auth_api.dart';
 import 'core/auth/reset_password_link_listener.dart';
@@ -70,7 +71,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final message = await _authApi.forgotPassword(email: _emailController.text.trim());
+      final message = await _authApi.forgotPassword(
+        email: _emailController.text.trim(),
+        redirectTo: kIsWeb
+        ? 'https://biomark-api.duckdns.org/reset-password'
+        : 'biomarkai://reset-password',
+      );
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -88,7 +94,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _reenviarCodigo() async {
     try {
-      await _authApi.forgotPassword(email: _emailController.text.trim());
+      await _authApi.forgotPassword(
+        email: _emailController.text.trim(),
+        redirectTo: kIsWeb
+        ? 'https://biomark-api.duckdns.org/reset-password'
+        : 'biomarkai://reset-password',
+      );
     } on AuthApiException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
       return;

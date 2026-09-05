@@ -42,7 +42,8 @@ const refreshSchema = z.object({
 });
 
 const forgotPasswordSchema = z.object({
-  email: z.string().trim().toLowerCase().email('Correo inválido')
+  email: z.string().trim().toLowerCase().email('Correo inválido'),
+  redirect_to: z.enum(['biomarkai://reset-password', 'https://biomark-api.duckdns.org/reset-password'])
 });
 
 // POST /auth/reset-password — el cliente llega aquí con el access_token

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ResetPasswordLinkListener {
   ResetPasswordLinkListener._();
@@ -17,6 +18,10 @@ class ResetPasswordLinkListener {
   Future<void> init() async {
     if (_started) return;
     _started = true;
+    if (kIsWeb) {
+      _handleUri(Uri.base);
+      return;
+    }
     _sub = _appLinks.uriLinkStream.listen(_handleUri);
     final initialUri = await _appLinks.getInitialLink();
     if (initialUri != null) _handleUri(initialUri);
@@ -44,7 +49,7 @@ class ResetPasswordLinkListener {
   }
 
   String? _extractAccessToken(Uri uri) {
-    if (uri.scheme != 'biomarkai') return null;
+    if (!kIsWeb && uri.scheme != 'biomarkai') return null;
     final fromQuery = uri.queryParameters['access_token'];
     if (fromQuery != null) return fromQuery;
     if (uri.fragment.isNotEmpty) {

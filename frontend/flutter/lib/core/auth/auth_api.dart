@@ -151,8 +151,11 @@ class AuthApi {
     );
   }
 
-  Future<String> forgotPassword({required String email}) async {
-    final json = await _post('/api/auth/forgot-password', {'email': email});
+  Future<String> forgotPassword({required String email, required String redirectTo}) async {
+    final json = await _post('/api/auth/forgot-password', {
+      'email': email,
+      'redirect_to': redirectTo,
+    });
     return json['message'] as String? ??
         'Si existe una cuenta con ese correo, se enviaron instrucciones para restablecer la contraseña.';
   }

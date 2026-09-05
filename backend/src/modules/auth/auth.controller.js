@@ -44,8 +44,8 @@ const refresh = asyncHandler(async (req, res) => {
 
 // POST /api/auth/forgot-password
 const forgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  const result = await authService.forgotPassword(email);
+  const { email, redirect_to } = req.body;
+  const result = await authService.forgotPassword(email, redirect_to);
   return res.status(200).json(result);
 });
 
