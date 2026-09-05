@@ -59,11 +59,15 @@ class _GisMapScreenState extends State<GisMapScreen> {
       if (!mounted) return;
       setState(() {
         _userLocation = location;
-        _centers = data.centers;
+        _centers = widget.initialCenter == null
+            ? data.centers
+            : [widget.initialCenter!, ...data.centers.where((center) => center.id != widget.initialCenter!.id)];
         _riskZones = data.riskZones;
         _loading = false;
       });
-      _mapController.move(location, 13.2);
+      if (widget.initialCenter == null) {
+        _mapController.move(location, 13.2);
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {

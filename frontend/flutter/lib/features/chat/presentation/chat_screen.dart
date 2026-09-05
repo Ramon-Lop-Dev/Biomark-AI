@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -37,6 +38,7 @@ class _ChatScreenState extends State<ChatScreen>
   late final VisionApi _visionApi;
   late final ProgressApi _progressApi;
   final _recorder = AudioRecorder();
+  late final AudioPlayer _audioPlayer;
   final List<ChatMessage> _messages = [
     const ChatMessage(
       '¡Hola! Soy Biomark AI. ¿En qué puedo ayudarte hoy con tu salud?',
@@ -90,6 +92,9 @@ class _ChatScreenState extends State<ChatScreen>
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          _showMessage('Activa el permiso de ubicación para recomendarte centros cercanos.');
+        }
         return null;
       }
       return await Geolocator.getCurrentPosition();
@@ -218,14 +223,45 @@ class _ChatScreenState extends State<ChatScreen>
   @override
   void initState() {
     super.initState();
+    _audioPlayer = AudioPlayer();
     _chatApi = ChatApi(baseUrl: _apiUrl, accessToken: _accessToken);
     _voiceApi = VoiceApi(baseUrl: _apiUrl, accessToken: _accessToken);
     _visionApi = VisionApi(baseUrl: _apiUrl, accessToken: _accessToken);
     _progressApi = ProgressApi();
     _entryController.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _showHealthDisclaimer();
+      if (mounted) {
+        _showHealthDisclaimer();
+        _loadChatHistory();
+        _getChatLocation();
+      }
     });
+  }
+
+  Future<void> _loadChatHistory() async {
+    try {
+      final history = await _chatApi.loadHistory();
+      if (!mounted) return;
+      setState(() {
+        if (history.sessionId != null) _sessionId = history.sessionId;
+        _messages
+          ..clear()
+          ..addAll(history.messages.map((message) => ChatMessage(
+                message.text,
+                message.isUser,
+                riskLevel: message.riskLevel,
+              )));
+        if (_messages.isEmpty) {
+          _messages.add(const ChatMessage(
+            '¡Hola! Soy Biomark AI. ¿En qué puedo ayudarte hoy con tu salud?',
+            false,
+          ));
+        }
+      });
+      _scrollToBottom();
+    } catch (_) {
+      // El chat sigue disponible aunque todavía no exista historial.
+    }
   }
 
   Future<void> _showHealthDisclaimer() async {
@@ -545,6 +581,20 @@ class _ChatScreenState extends State<ChatScreen>
     _scrollToBottom();
   }
 
+  Future<void> _playResponseAudio(String text) async {
+    if (text.trim().isEmpty) return;
+    try {
+      final bytes = await _voiceApi.synthesize(text);
+      final directory = await getTemporaryDirectory();
+      final path = '${directory.path}/biomark-response.wav';
+      await File(path).writeAsBytes(bytes, flush: true);
+      await _audioPlayer.stop();
+      await _audioPlayer.play(DeviceFileSource(path));
+    } catch (_) {
+      if (mounted) _showMessage('No se pudo reproducir la respuesta de voz.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
@@ -585,7 +635,12 @@ class _ChatScreenState extends State<ChatScreen>
                   itemCount: _messages.length + (_isSending ? 1 : 0),
                   itemBuilder: (context, index) {
                     if (index == _messages.length) return const _TypingBubble();
-                    return _MessageBubble(message: _messages[index]);
+                    return _MessageBubble(
+                      message: _messages[index],
+                      onPlayAudio: _messages[index].isUser
+                          ? null
+                          : () => _playResponseAudio(_messages[index].text),
+                    );
                   },
                 ),
               ),
@@ -622,6 +677,7 @@ class _ChatScreenState extends State<ChatScreen>
     _amplitudeSub?.cancel();
     _chatApi.dispose();
     _voiceApi.dispose();
+    _audioPlayer.dispose();
     _visionApi.dispose();
     _recorder.dispose();
     _entryController.dispose();
@@ -631,8 +687,9 @@ class _ChatScreenState extends State<ChatScreen>
 
 class _MessageBubble extends StatelessWidget {
   final ChatMessage message;
+  final VoidCallback? onPlayAudio;
 
-  const _MessageBubble({required this.message});
+  const _MessageBubble({required this.message, this.onPlayAudio});
 
   @override
   Widget build(BuildContext context) {
@@ -706,6 +763,15 @@ class _MessageBubble extends StatelessWidget {
                             ? BiomarkColors.white
                             : BiomarkColors.black,
                       ),
+                    ),
+                  ),
+                if (!message.isUser && onPlayAudio != null)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      tooltip: 'Escuchar respuesta',
+                      onPressed: onPlayAudio,
+                      icon: const Icon(Icons.volume_up_rounded),
                     ),
                   ),
                 if (!message.isUser && message.riskLevel != null)

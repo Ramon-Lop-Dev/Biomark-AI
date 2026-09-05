@@ -14,7 +14,7 @@ class HealthSurveyScreen extends StatefulWidget {
   State<HealthSurveyScreen> createState() => _HealthSurveyScreenState();
 }
 
-enum _PasoEncuesta { cronicas, hereditarias, alergias, medicamentos, resumen }
+enum _PasoEncuesta { datosPersonales, cronicas, hereditarias, alergias, medicamentos, resumen }
 
 class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   _PasoEncuesta _paso = _PasoEncuesta.cronicas;
@@ -61,11 +61,14 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   final Set<String> _hereditariasSeleccionadas = {};
   final Set<String> _alergiasSeleccionadas = {};
   final TextEditingController _medicamentosController = TextEditingController();
+  final TextEditingController _edadController = TextEditingController();
+  String? _sexoSeleccionado;
   bool _consentimientoMedico = true;
 
   @override
   void dispose() {
     _medicamentosController.dispose();
+    _edadController.dispose();
     super.dispose();
   }
 
@@ -73,6 +76,9 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
 
   bool get _puedeAvanzar {
     switch (_paso) {
+      case _PasoEncuesta.datosPersonales:
+        final edad = int.tryParse(_edadController.text.trim());
+        return edad != null && edad > 0 && edad <= 120 && _sexoSeleccionado != null;
       case _PasoEncuesta.cronicas:
         return _cronicasSeleccionadas.isNotEmpty;
       case _PasoEncuesta.hereditarias:
@@ -109,6 +115,8 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
 
   Future<void> _finalizar() async {
     await SurveyService.guardarRespuestas(
+      edad: int.parse(_edadController.text.trim()),
+      sexo: _sexoSeleccionado!,
       enfermedadesCronicas: _cronicasSeleccionadas.toList(),
       antecedentesHereditarios: _hereditariasSeleccionadas.toList(),
       alergias: _alergiasSeleccionadas.toList(),
@@ -220,6 +228,8 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   // ------------------------------------------------------------
   Widget _buildContenidoPaso() {
     switch (_paso) {
+      case _PasoEncuesta.datosPersonales:
+        return _buildPasoDatosPersonales();
       case _PasoEncuesta.cronicas:
         return _buildPasoSeleccionMultiple(
           key: const ValueKey('cronicas'),
@@ -407,6 +417,51 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     );
   }
 
+  Widget _buildPasoDatosPersonales() {
+    return Column(
+      key: const ValueKey('datosPersonales'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildIconoCabecera(Icons.person_outline_rounded),
+        const SizedBox(height: 18),
+        const Text(
+          'Cuéntanos un poco sobre ti',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Estos datos ayudan a interpretar mejor tus síntomas.',
+          style: TextStyle(fontSize: 13, color: Color(0xFF7A7A85)),
+        ),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _edadController,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Edad',
+            suffixText: 'años',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 14),
+        DropdownButtonFormField<String>(
+          initialValue: _sexoSeleccionado,
+          decoration: const InputDecoration(
+            labelText: 'Género / sexo biológico',
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'MASCULINO', child: Text('Masculino')),
+            DropdownMenuItem(value: 'FEMENINO', child: Text('Femenino')),
+            DropdownMenuItem(value: 'OTRO', child: Text('Otro')),
+            DropdownMenuItem(value: 'NO_ESPECIFICA', child: Text('Prefiero no especificarlo')),
+          ],
+          onChanged: (value) => setState(() => _sexoSeleccionado = value),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPasoResumen() {
     return Column(
       key: const ValueKey('resumen'),
@@ -425,6 +480,11 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
         ),
         const SizedBox(height: 20),
         _buildResumenTarjeta('Enfermedades crónicas', _cronicasSeleccionadas, Icons.medical_information_outlined),
+        const SizedBox(height: 12),
+        _buildResumenTarjeta('Datos personales', {
+          '${_edadController.text.trim()} años',
+          _sexoSeleccionado ?? 'Sin especificar',
+        }, Icons.person_outline_rounded),
         const SizedBox(height: 12),
         _buildResumenTarjeta('Antecedentes hereditarios', _hereditariasSeleccionadas, Icons.family_restroom_rounded),
         const SizedBox(height: 12),

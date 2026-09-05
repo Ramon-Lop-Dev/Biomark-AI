@@ -34,6 +34,24 @@ const crearSesion = (usuarioId) =>
     .select('id')
     .single();
 
+const listarUltimaSesion = (usuarioId) =>
+  supabase
+    .from('sesiones_chat')
+    .select('id, fecha_creacion')
+    .eq('usuario_id', usuarioId)
+    .order('fecha_creacion', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+const listarMensajesSesion = (usuarioId, sesionId, limite = 50) =>
+  supabase
+    .from('mensajes_chat')
+    .select('id, emisor, mensaje, nivel_riesgo, fecha_creacion, sesiones_chat!inner(usuario_id)')
+    .eq('sesion_chat_id', sesionId)
+    .eq('sesiones_chat.usuario_id', usuarioId)
+    .order('fecha_creacion', { ascending: true })
+    .limit(limite);
+
 // Filtra por usuario_id (no solo por id) 
 
 const buscarSesionActiva = (usuarioId, sesionId) =>
@@ -59,4 +77,12 @@ const crearMensaje = ({ sesionChatId, emisor, mensaje, nivelRiesgo }) =>
     .select()
     .single();
 
-module.exports = { postChat, listarHistorialReciente, crearSesion, buscarSesionActiva, crearMensaje };
+module.exports = {
+  postChat,
+  listarHistorialReciente,
+  crearSesion,
+  listarUltimaSesion,
+  listarMensajesSesion,
+  buscarSesionActiva,
+  crearMensaje
+};

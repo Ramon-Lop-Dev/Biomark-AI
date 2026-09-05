@@ -36,6 +36,16 @@ class ClinicalService:
         if riesgo_detectado == "CRITICAL":
             return MENSAJE_URGENCIA, "CRITICAL", ["Clinical Safety Policy"]
 
+        texto = mensaje_usuario.strip().lower()
+        saludos = {"hola", "buenas", "buenos días", "buenos dias", "buenas tardes", "buenas noches"}
+        if texto in saludos:
+            return (
+                "Hola, soy Biomark AI. Puedo orientarte sobre tus síntomas, "
+                "señales de alarma y el siguiente paso. ¿Qué estás sintiendo y desde cuándo?",
+                "LOW",
+                ["Biomark AI"],
+            )
+
         contexto, fuentes = self.retriever.buscar_contexto_relevante(mensaje_usuario)
         respuesta = self.generator.generate_response(
             mensaje_usuario,

@@ -8,4 +8,9 @@ const enviarMensajeChat = asyncHandler(async (req, res) => {
     return res.status(200).json(resultado);
 });
 
-module.exports = { enviarMensajeChat };
+const obtenerHistorialChat = asyncHandler(async (req, res) => {
+    const resultado = await chatService.obtenerHistorial(req.usuarioId, req.query.session_id);
+    return res.status(200).json(resultado);
+});
+
+module.exports = { enviarMensajeChat, obtenerHistorialChat };
