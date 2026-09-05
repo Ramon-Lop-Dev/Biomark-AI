@@ -27,10 +27,10 @@ class _GisMapScreenState extends State<GisMapScreen> {
   List<CommunityEvent> _events = const [];
   List<CommunityReportPoint> _reports = const [];
   LatLng _userLocation = _defaultLocation;
-  String _selectedFilter = 'Todos';
   bool _showRiskZones = false;
   bool _showEvents = true;
   bool _showReports = true;
+  bool _showPlacesPanel = true;
   bool _loading = true;
   String? _errorMessage;
 
@@ -54,8 +54,14 @@ class _GisMapScreenState extends State<GisMapScreen> {
       _errorMessage = null;
     });
     try {
-      final position = await _findUserLocation();
-      final location = LatLng(position.latitude, position.longitude);
+      LatLng location;
+      try {
+        final position = await _findUserLocation();
+        location = LatLng(position.latitude, position.longitude);
+      } catch (_) {
+        if (widget.initialCenter == null) rethrow;
+        location = LatLng(widget.initialCenter!.latitude, widget.initialCenter!.longitude);
+      }
       final data = await _gisApi.fetchNearby(
         latitude: location.latitude,
         longitude: location.longitude,
@@ -106,6 +112,42 @@ class _GisMapScreenState extends State<GisMapScreen> {
     return Geolocator.getCurrentPosition();
   }
 
+  Future<void> _refreshUserLocation() async {
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+    try {
+      final position = await _findUserLocation();
+      final location = LatLng(position.latitude, position.longitude);
+      final data = await _gisApi.fetchNearby(
+        latitude: location.latitude,
+        longitude: location.longitude,
+      );
+      List<CommunityReportPoint> reports = const [];
+      try {
+        reports = await _gisApi.fetchValidatedReports();
+      } catch (_) {}
+      if (!mounted) return;
+      setState(() {
+        _userLocation = location;
+        _centers = data.centers;
+        _riskZones = data.riskZones;
+        _events = data.events;
+        _reports = reports;
+        _loading = false;
+      });
+      _mapController.move(location, 14.5);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _errorMessage = 'No se pudo actualizar tu ubicación. Revisa el GPS y los permisos.';
+        });
+      }
+    }
+  }
+
   Future<void> _showReportDialog() async {
     if (_userLocation == _defaultLocation) {
       _showStatus('Activa tu ubicación para registrar un reporte comunitario.');
@@ -118,10 +160,15 @@ class _GisMapScreenState extends State<GisMapScreen> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Reportar situación en mi sector'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('El reporte será revisado antes de aparecer en el mapa comunitario.'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ayúdanos a identificar zonas con posibles casos. Tu reporte será revisado antes de aparecer en el mapa.',
+                  style: TextStyle(height: 1.35),
+                ),
               const SizedBox(height: 12),
               TextField(
                 controller: descriptionController,
@@ -135,11 +182,16 @@ class _GisMapScreenState extends State<GisMapScreen> {
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 initialValue: caseCount,
-                decoration: const InputDecoration(labelText: 'Cantidad aproximada de casos'),
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Cantidad de casos',
+                  helperText: 'Indica cuántos casos aproximados observaste.',
+                ),
                 items: List.generate(10, (index) => DropdownMenuItem(value: index + 1, child: Text('${index + 1}'))),
                 onChanged: (value) => setDialogState(() => caseCount = value ?? 1),
               ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
@@ -174,6 +226,33 @@ class _GisMapScreenState extends State<GisMapScreen> {
 
   void _showStatus(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showReportDetails(CommunityReportPoint report) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Zona con reportes', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Text(
+              '${report.caseCount} ${report.caseCount == 1 ? 'caso reportado' : 'casos reportados'} en esta zona.',
+              style: const TextStyle(fontSize: 15),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'La ubicación está aproximada para proteger la privacidad de la comunidad.',
+              style: TextStyle(color: Colors.black54),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List<HealthCenter> get _fallbackCenters => const [
@@ -216,14 +295,7 @@ class _GisMapScreenState extends State<GisMapScreen> {
           query.isEmpty ||
           center.name.toLowerCase().contains(query) ||
           center.address.toLowerCase().contains(query);
-      final matchesFilter =
-          _selectedFilter == 'Todos' ||
-          center.type.toLowerCase().contains(_selectedFilter.toLowerCase()) ||
-          (_selectedFilter == 'Hospitales' &&
-              center.type.toLowerCase().contains('hospital')) ||
-          (_selectedFilter == 'Clínicas' &&
-              center.type.toLowerCase().contains('clinica'));
-      return matchesSearch && matchesFilter;
+        return matchesSearch;
     }).toList();
   }
 
@@ -316,6 +388,16 @@ class _GisMapScreenState extends State<GisMapScreen> {
                 child: const _EventMarker(),
               ),
             )),
+      if (_showReports)
+        ..._reports.map((report) => Marker(
+              point: LatLng(report.latitude, report.longitude),
+              width: 52,
+              height: 52,
+              child: GestureDetector(
+                onTap: () => _showReportDetails(report),
+                child: _ReportMarker(caseCount: report.caseCount),
+              ),
+            )),
     ];
 
     return Scaffold(
@@ -373,43 +455,37 @@ class _GisMapScreenState extends State<GisMapScreen> {
               loading: _loading,
             ),
           ),
-          Positioned(
-            top: 76,
-            left: 0,
-            right: 0,
-            child: _FilterRow(
-              selected: _selectedFilter,
-              onSelected: (filter) => setState(() => _selectedFilter = filter),
-            ),
-          ),
           if (_errorMessage != null)
             Positioned(
-              top: 122,
+              top: 66,
               left: 16,
               right: 16,
               child: _StatusBanner(message: _errorMessage!),
             ),
           Positioned(
-            right: 16,
-            bottom: 220,
+            left: 16,
+            bottom: _showPlacesPanel ? 178 : 86,
             child: Column(
               children: [
                 _MapControl(
                   icon: Icons.my_location_rounded,
                   tooltip: 'Mi ubicación',
-                  onTap: () => _mapController.move(_userLocation, 14.5),
+                  label: 'Ubicación',
+                  onTap: _refreshUserLocation,
                 ),
                 const SizedBox(height: 12),
                 _MapControl(
-                  icon: Icons.campaign_rounded,
+                  icon: Icons.event_available_rounded,
                   tooltip: 'Jornadas comunitarias',
+                  label: 'Jornadas',
                   active: _showEvents,
                   onTap: () => setState(() => _showEvents = !_showEvents),
                 ),
                 const SizedBox(height: 12),
                 _MapControl(
-                  icon: Icons.groups_rounded,
+                  icon: Icons.report_problem_outlined,
                   tooltip: 'Reportes comunitarios',
+                  label: 'Reportes',
                   active: _showReports,
                   onTap: () => setState(() => _showReports = !_showReports),
                 ),
@@ -417,31 +493,43 @@ class _GisMapScreenState extends State<GisMapScreen> {
                 _MapControl(
                   icon: Icons.warning_amber_rounded,
                   tooltip: 'Capas de riesgo',
+                  label: 'Riesgo',
                   active: _showRiskZones,
                   onTap: () => setState(() => _showRiskZones = !_showRiskZones),
+                ),
+                const SizedBox(height: 12),
+                _MapControl(
+                  icon: _showPlacesPanel ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
+                  tooltip: _showPlacesPanel ? 'Ocultar centros cercanos' : 'Mostrar centros cercanos',
+                  label: 'Centros',
+                  active: _showPlacesPanel,
+                  onTap: () => setState(() => _showPlacesPanel = !_showPlacesPanel),
                 ),
               ],
             ),
           ),
           Positioned(
-            right: 16,
-            bottom: 395,
+            left: 16,
+            bottom: _showPlacesPanel ? 352 : 150,
             child: _MapControl(
               icon: Icons.add_location_alt_rounded,
               tooltip: 'Reportar situación',
+              label: 'Reportar',
               onTap: _showReportDialog,
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _CenterCarousel(
-              centers: centers,
-              onTap: _showCenterDetails,
-              onFocus: _focusCenter,
+          if (_showPlacesPanel)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _CenterCarousel(
+                centers: centers,
+                onTap: _showCenterDetails,
+                onFocus: _focusCenter,
+                onClose: () => setState(() => _showPlacesPanel = false),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -475,10 +563,12 @@ class _SearchHeader extends StatelessWidget {
         Expanded(
           child: Material(
             borderRadius: BorderRadius.circular(16),
-            child: Container(
+            child: SizedBox(
+              height: 44,
+              child: Container(
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: .88),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 boxShadow: const [
                   BoxShadow(color: Colors.black12, blurRadius: 12),
                 ],
@@ -487,51 +577,24 @@ class _SearchHeader extends StatelessWidget {
                 controller: controller,
                 onChanged: onChanged,
                 decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search_rounded),
-                  hintText: 'Buscar centros de salud...',
+                  prefixIcon: Icon(Icons.search_rounded, size: 20),
+                  hintText: 'Buscar centro de salud',
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 16),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 12),
                 ),
+              ),
               ),
             ),
           ),
         ),
         const SizedBox(width: 10),
         _MapControl(
-          icon: loading ? Icons.sync_rounded : Icons.tune_rounded,
-          tooltip: 'Actualizar mapa',
+          icon: loading ? Icons.sync_rounded : Icons.refresh_rounded,
+          tooltip: 'Actualizar capas del mapa',
           onTap: onRefresh,
         ),
       ],
-    );
-  }
-}
-
-class _FilterRow extends StatelessWidget {
-  final String selected;
-  final ValueChanged<String> onSelected;
-  const _FilterRow({required this.selected, required this.onSelected});
-
-  @override
-  Widget build(BuildContext context) {
-    const filters = ['Todos', 'Hospitales', 'Clínicas', 'Vacunación'];
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: filters
-            .map(
-              (filter) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(filter),
-                  selected: selected == filter,
-                  onSelected: (_) => onSelected(filter),
-                ),
-              ),
-            )
-            .toList(),
-      ),
     );
   }
 }
@@ -540,17 +603,40 @@ class _CenterCarousel extends StatelessWidget {
   final List<HealthCenter> centers;
   final ValueChanged<HealthCenter> onTap;
   final ValueChanged<HealthCenter> onFocus;
+  final VoidCallback onClose;
   const _CenterCarousel({
     required this.centers,
     required this.onTap,
     required this.onFocus,
+    required this.onClose,
   });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 190,
-      child: ListView.separated(
+      height: 148,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Text(
+                  'Centros cercanos (${centers.length})',
+                  style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Ocultar centros cercanos',
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         scrollDirection: Axis.horizontal,
         itemCount: centers.length,
@@ -558,11 +644,11 @@ class _CenterCarousel extends StatelessWidget {
         itemBuilder: (context, index) {
           final center = centers[index];
           return GestureDetector(
-            onTap: () => onFocus(center),
+            onTap: () => onTap(center),
             child: SizedBox(
-              width: MediaQuery.sizeOf(context).width * .82,
+              width: MediaQuery.sizeOf(context).width * .72,
               child: Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: .88),
                   borderRadius: BorderRadius.circular(20),
@@ -586,7 +672,7 @@ class _CenterCarousel extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 14,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -600,26 +686,17 @@ class _CenterCarousel extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 3),
                     Text(
                       '${_labelForType(center.type)} · Abierto 24h',
                       style: const TextStyle(color: Colors.black54),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 4),
                     Text(
                       center.address,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    const Spacer(),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () => onTap(center),
-                        icon: const Icon(Icons.directions_rounded, size: 18),
-                        label: const Text('Ver detalles'),
-                      ),
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ],
                 ),
@@ -627,6 +704,9 @@ class _CenterCarousel extends StatelessWidget {
             ),
           );
         },
+      ),
+          ),
+        ],
       ),
     );
   }
@@ -646,25 +726,50 @@ class _CenterCarousel extends StatelessWidget {
 class _MapControl extends StatelessWidget {
   final IconData icon;
   final String tooltip;
+  final String? label;
   final bool active;
   final VoidCallback onTap;
   const _MapControl({
     required this.icon,
     required this.tooltip,
     required this.onTap,
+    this.label,
     this.active = false,
   });
+
   @override
-  Widget build(BuildContext context) => Material(
-    color: active ? BiomarkColors.green : Colors.white.withValues(alpha: .9),
-    shape: const CircleBorder(),
-    elevation: 4,
-    child: IconButton(
-      tooltip: tooltip,
-      onPressed: onTap,
-      icon: Icon(icon, color: active ? Colors.white : BiomarkColors.black),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final foreground = active ? Colors.white : BiomarkColors.black;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: active ? BiomarkColors.green : Colors.white.withValues(alpha: .92),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(label == null ? 40 : 14)),
+        elevation: 4,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(label == null ? 40 : 14),
+          child: SizedBox(
+            width: label == null ? 48 : 68,
+            height: label == null ? 48 : 52,
+            child: label == null
+                ? Icon(icon, color: foreground)
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon, color: foreground, size: 20),
+                      const SizedBox(height: 2),
+                      Text(
+                        label!,
+                        style: TextStyle(color: foreground, fontSize: 9, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _UserMarker extends StatelessWidget {
@@ -718,6 +823,27 @@ class _EventMarker extends StatelessWidget {
           boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
         ),
         child: const Icon(Icons.campaign_rounded, color: BiomarkColors.blue, size: 24),
+      );
+}
+
+class _ReportMarker extends StatelessWidget {
+  final int caseCount;
+
+  const _ReportMarker({required this.caseCount});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.redAccent,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+        ),
+        child: Text(
+          '$caseCount',
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+        ),
       );
 }
 
