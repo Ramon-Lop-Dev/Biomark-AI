@@ -9,7 +9,7 @@ La arquitectura oficial de producción es distribuida. Para el procedimiento com
 - DNS apuntando al VPS.
 - Firewall con 80/443 abiertos y puertos 3000/8000/5678 cerrados.
 - Supabase configurado con schema, RLS, Storage y proveedores Auth.
-- VPS con memoria suficiente para los modelos AI; 8 GB es un mínimo práctico para comenzar y debe validarse con carga real.
+- RunPod con GPU y almacenamiento persistente para los modelos; Contabo ejecuta solo backend, nginx y n8n.
 
 ## 1. Preparar Contabo
 
@@ -124,7 +124,26 @@ Probar healthchecks después de cada actualización. Fijar versiones de imágene
 
 ## 9. RunPod
 
-RunPod ejecuta únicamente `ai-service`. En el Pod sin Docker, activa `/workspace/biomark-venv`, carga `/workspace/ai-service.env` y arranca Uvicorn dentro de una sesión persistente `tmux`. El detalle está en [DEPLOYMENT_CONTABO_RUNPOD.md](DEPLOYMENT_CONTABO_RUNPOD.md).
+RunPod ejecuta únicamente `ai-service` directamente con Python, no mediante el Compose de Contabo. En el Pod activa `/workspace/biomark-venv`, carga `/workspace/ai-service.env`, actualiza `main` y reinicia Uvicorn dentro de `tmux`. El detalle está en [DEPLOYMENT_CONTABO_RUNPOD.md](DEPLOYMENT_CONTABO_RUNPOD.md).
+
+Actualización del AI Service:
+
+```bash
+cd /workspace/biomark-ai
+git pull --ff-only origin main
+source /workspace/biomark-venv/bin/activate
+python3 -m py_compile ai-service/main.py ai-service/inference/service.py ai-service/safety/checker.py
+tmux attach -t biomark-ai
+```
+
+Dentro de `tmux`, detén Uvicorn con `Ctrl+C` y vuelve a iniciar:
+
+```bash
+source /workspace/biomark-venv/bin/activate
+set -a; source /workspace/ai-service.env; set +a
+export PYTHONPATH=/workspace/biomark-ai/ai-service
+uvicorn main:app --app-dir /workspace/biomark-ai/ai-service --host 0.0.0.0 --port 8000
+```
 
 ## 10. Backups y recuperación
 
@@ -139,7 +158,15 @@ Respaldar Supabase según su plan y realizar copia cifrada del volumen `n8n_data
 - [ ] Puertos internos cerrados.
 - [ ] `/ready` devuelve 200.
 - [ ] Login y refresh funcionan.
+- [ ] Chat de texto responde sin inventar turnos ni diagnósticos.
+- [ ] Historial de chat reaparece al volver a entrar.
+- [ ] Ubicación solicita permiso y `centro_sugerido` llega con coordenadas.
+- [ ] Si no hay ubicación, aparece `ubicacion_requerida`.
+- [ ] Voz devuelve y reproduce `audio_base64`; texto e imagen no generan audio automático.
+- [ ] Visión devuelve recomendación preventiva escrita.
 - [ ] Chat, voz y visión funcionan.
+- [ ] Objetivos e hitos se actualizan y persisten.
+- [ ] Inicio muestra nombre, objetivo activo y recordatorios de hoy/mañana.
 - [ ] Mapa y navegación funcionan.
 - [ ] Consentimiento médico se respeta.
 - [ ] Recordatorio llega por FCM.

@@ -27,13 +27,17 @@ flowchart LR
 
 ## Funcionalidades principales
 
-- Chat multimodal con texto, voz e imágenes.
-- Capa de seguridad clínica y validación de riesgo en el AI Service.
+- Chat multimodal con texto, voz e imágenes. Las respuestas de texto e imagen son texto; una entrada de voz recibe también una respuesta de audio WAV reproducible en Flutter.
+- Historial de chat persistido por usuario en `sesiones_chat` y `mensajes_chat`.
+- Encuesta clínica con edad, sexo, enfermedades crónicas, antecedentes familiares, alergias, medicamentos y consentimiento explícito.
+- Capa de seguridad clínica determinista, clasificación de riesgo, respuestas no diagnósticas y generación controlada para reducir alucinaciones.
 - RAG sobre documentos institucionales y contenido contextual.
 - Seguimiento de evolución con estados `MEJORO`, `IGUAL`, `EMPEORO` y `NO_SEGURO`.
 - Mapa GIS con centros de salud, eventos comunitarios y zonas de riesgo.
-- Recomendación de centros de salud por padecimiento, especialidad y cercanía, con ubicación opcional.
+- Recomendación de centros de salud por síntomas/especialidad y cercanía. La app solicita ubicación; si no está disponible, la respuesta devuelve `ubicacion_requerida` y explica cómo activar el permiso.
 - Medicamentos, vacunas, notificaciones y recordatorios.
+- Objetivos de mejoría con hitos actualizables y confirmación inmediata en la interfaz.
+- Inicio personalizado con nombre del perfil, objetivo activo y recordatorios pendientes de hoy y mañana.
 - Integración con Supabase Auth, almacenamiento y base de datos relacional.
 - Automatización de recordatorios vía n8n y FCM.
 
@@ -107,6 +111,15 @@ flutter pub get
 flutter run
 ```
 
+Para ejecutar en Chrome:
+
+```bash
+flutter config --enable-web
+flutter run -d chrome
+```
+
+La ubicación, cámara y micrófono en web requieren HTTPS y permisos del navegador. La URL base se configura con `BIOMARK_API_URL`; por defecto es `https://biomark-api.duckdns.org`.
+
 ## Documentación disponible
 
 - [docs/TECHNICAL_DOCUMENTATION.md](docs/TECHNICAL_DOCUMENTATION.md): arquitectura, módulos, seguridad, base de datos y operación.
@@ -115,6 +128,7 @@ flutter run
 - [docs/postman/Biomark-AI.postman_collection.json](docs/postman/Biomark-AI.postman_collection.json): colección para pruebas de API.
 - [backend/README.md](backend/README.md): notas operativas del backend.
 - [ai-service/README.md](ai-service/README.md): contrato interno y arquitectura del motor de IA.
+- [frontend/flutter/README.md](frontend/flutter/README.md): flujos móviles/web y permisos del dispositivo.
 
 ## Buenas prácticas
 

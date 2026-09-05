@@ -40,13 +40,15 @@ valor de `AI_SERVICE_INTERNAL_KEY`.
 |--------|----------------------|-----------------------------------------------------------|
 | GET    | `/health`            | Estado del servicio y qué modelos cargaron                |
 | POST   | `/chat`               | `{"message": "..."}` → respuesta de texto                 |
-| POST   | `/voice`              | Sube un audio (`archivo`) → transcribe y responde          |
+| POST   | `/voice`              | Sube un audio (`archivo`) → transcribe, responde y devuelve audio WAV en `audio_base64` |
 | POST   | `/audio/synthesize`   | `{"text": "..."}` → devuelve audio WAV                     |
 | POST   | `/vision`             | Sube una imagen (`archivo`) + `?tipo=piel\|garganta`        |
 
 Los tres canales de entrada (`/chat`, `/voice`, `/vision`) pasan por el
 mismo `ClinicalService` (Safety Layer + RAG + generación), así que se
-comportan igual sin importar cómo llegó la consulta.
+comportan igual sin importar cómo llegó la consulta. El saludo se resuelve
+sin generación; la generación de texto usa decodificación determinista,
+límite de salida, penalización de repetición y corte de turnos inventados.
 
 ### Modelo de garganta
 
@@ -111,7 +113,7 @@ de tu backend de Node.
    lista en `deploy/ai-service.service`, ajusta `User`/`WorkingDirectory` a tu
    instalación) y pon Nginx o Caddy delante con HTTPS, en vez de exponer el
    puerto 8000 directo a internet.
-5. Configura en el backend `AI_SERVICE_URL=http://ai-service:8000` cuando ambos servicios estén en el mismo `docker-compose`; no uses un dominio público para esta comunicación interna.
+5. En la topología actual Contabo + RunPod, el backend usa `AI_SERVICE_URL=https://POD_ID-8000.proxy.runpod.net`. Solo el Compose monolítico local usa `http://ai-service:8000`.
 
 ## Contrato interno de chat
 
@@ -127,7 +129,11 @@ El backend es el único cliente de este servicio. Cada petición requiere el hea
 }
 ```
 
-`POST /chat` devuelve `reply`, `risk_level`, `sources`, `suggested_action` y, si se enviaron coordenadas, `centro_sugerido`. La recomendación usa el padecimiento detectado por reglas deterministas, prioriza la especialidad coincidente y después la menor distancia. `suggested_action` puede ser `REGISTER_PROGRESS`, `REGISTER_MEDICATION`, `REGISTER_REMINDER` o `SHOW_NEAREST_CENTER`.
+`POST /chat` devuelve `reply`, `risk_level`, `sources`, `suggested_action`, `ubicacion_requerida` y, si se enviaron coordenadas, `centro_sugerido`. La recomendación usa el padecimiento detectado por reglas deterministas, prioriza la especialidad coincidente y después la menor distancia. `suggested_action` puede ser `REGISTER_PROGRESS`, `REGISTER_MEDICATION`, `REGISTER_REMINDER` o `SHOW_NEAREST_CENTER`.
+
+Si el mensaje describe síntomas y no trae coordenadas, `ubicacion_requerida` es `true` y la respuesta solicita activar la ubicación. Esto no reemplaza el permiso del dispositivo: Flutter debe pedirlo y reenviar ambas coordenadas.
+
+`POST /voice` recibe también `medical_context` y `conversation_history` como campos multipart opcionales. Devuelve `transcription`, `reply`, `risk_level`, `sources`, `session_id`, `audio_base64` y `audio_content_type`. `/audio/synthesize` se reserva para integraciones internas y no se invoca automáticamente para mensajes de texto.
 
 La acción sugerida es una intención de UX, no una orden de escritura. El cliente debe pedir confirmación y el backend debe validar y persistir la operación. La IA no diagnostica, prescribe ni confirma por sí sola que un paciente mejoró.
 

@@ -143,12 +143,22 @@ paths:
       summary: Envía una consulta clínica preventiva
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ChatRequest' } } } }
       responses: { '200': { description: Respuesta de Biomark AI, content: { application/json: { schema: { $ref: '#/components/schemas/ChatResponse' } } } } }
+  /api/chat/history:
+    get:
+      tags: [Chat]
+      summary: Recupera la última sesión y mensajes del usuario
+      parameters:
+        - name: session_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses: { '200': { description: Historial persistido del chat } }
   /api/voice:
     post:
       tags: [Chat]
       summary: Envía audio y recibe transcripción/respuesta
       requestBody: { required: true, content: { multipart/form-data: { schema: { type: object, required: [archivo], properties: { archivo: { type: string, format: binary }, session_id: { type: string, format: uuid } } } } } }
-      responses: { '200': { description: Respuesta de voz } }
+      responses: { '200': { description: Transcripción, respuesta escrita y audio WAV codificado en base64, content: { application/json: { schema: { $ref: '#/components/schemas/VoiceResponse' } } } } }
   /api/voice/synthesize:
     post:
       tags: [Chat]
@@ -267,6 +277,41 @@ paths:
       parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [estado], properties: { estado: { type: string, enum: [PENDIENTE, ENVIADO, COMPLETADO, CANCELADO] } } } } } }
       responses: { '200': { description: Recordatorio actualizado } }
+  /api/progress:
+    get:
+      tags: [Salud]
+      summary: Obtiene evolución y progreso del usuario
+      responses: { '200': { description: Resumen de progreso } }
+    post:
+      tags: [Salud]
+      summary: Registra evolución de un síntoma
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [sintoma, estado], properties: { sintoma: { type: string }, estado: { type: string, enum: [MEJORO, IGUAL, EMPEORO, NO_SEGURO] }, intensidad: { type: integer }, notas: { type: string } } } } } }
+      responses: { '201': { description: Evolución registrada } }
+  /api/progress/goals:
+    get:
+      tags: [Salud]
+      summary: Lista objetivos y hitos de mejoría
+      responses: { '200': { description: Objetivos del usuario } }
+    post:
+      tags: [Salud]
+      summary: Crea un objetivo de mejoría
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GoalRequest' } } } }
+      responses: { '201': { description: Objetivo creado } }
+  /api/progress/goals/{objetivoId}/hitos/{hitoId}:
+    patch:
+      tags: [Salud]
+      summary: Marca o desmarca un hito
+      parameters:
+        - name: objetivoId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: hitoId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [completado], properties: { completado: { type: boolean } } } } } }
+      responses: { '200': { description: Hito actualizado } }
   /api/community/statistics:
     get:
       tags: [Comunidad]
@@ -345,7 +390,9 @@ components:
     ConsentRequest: { type: object, required: [tipo_consentimiento, otorgado], properties: { tipo_consentimiento: { type: string, enum: [CONTEXTO_MEDICO_IA, UBICACION, NOTIFICACIONES_PUSH] }, otorgado: { type: boolean } } }
     PushTokenRequest: { type: object, required: [fcm_token, plataforma], properties: { fcm_token: { type: string }, plataforma: { type: string, enum: [ANDROID, IOS, WEB] } } }
     ChatRequest: { type: object, required: [message], properties: { message: { type: string }, session_id: { type: string, format: uuid }, latitude: { type: number, minimum: -90, maximum: 90 }, longitude: { type: number, minimum: -180, maximum: 180 } } }
-    ChatResponse: { type: object, properties: { session_id: { type: string, format: uuid }, reply: { type: string }, risk_level: { type: string }, sources: { type: array, items: { type: string } }, suggested_action: { type: string, nullable: true }, centro_sugerido: { $ref: '#/components/schemas/HealthCenterRecommendation' } } }
+    ChatResponse: { type: object, properties: { session_id: { type: string, format: uuid }, reply: { type: string }, risk_level: { type: string }, sources: { type: array, items: { type: string } }, suggested_action: { type: string, nullable: true }, ubicacion_requerida: { type: boolean }, centro_sugerido: { $ref: '#/components/schemas/HealthCenterRecommendation' } } }
+    VoiceResponse: { type: object, properties: { session_id: { type: string, format: uuid }, transcription: { type: string }, reply: { type: string }, risk_level: { type: string }, sources: { type: array, items: { type: string } }, audio_base64: { type: string, format: byte }, audio_content_type: { type: string, example: audio/wav } } }
+    GoalRequest: { type: object, required: [titulo, periodicidad, fecha_inicio, fecha_fin], properties: { titulo: { type: string }, descripcion: { type: string }, periodicidad: { type: string, enum: [SEMANAL, QUINCENAL, MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL] }, fecha_inicio: { type: string, format: date }, fecha_fin: { type: string, format: date } } }
     HealthCenterRecommendation: { type: object, nullable: true, properties: { id: { type: string, format: uuid }, nombre: { type: string }, direccion: { type: string, nullable: true }, distancia_km: { type: number }, especialidad_coincidente: { type: string, nullable: true }, tipo_unidad: { type: string, nullable: true } } }
   responses:
     BadRequest: { description: Datos inválidos }
