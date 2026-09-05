@@ -1,19 +1,39 @@
 // Pantalla de perfil de usuario — Biomark AI
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
+import 'datos_personales.dart';
+import 'editar_perfil.dart';
 import 'main.dart'; // para poder cerrar sesión y volver a LoginScreen
 import 'core/auth/auth_api.dart';
 import 'core/auth/auth_session.dart';
 import 'core/config/app_config.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
-  // Placeholder — luego se llenará con los datos reales del usuario
-  // (mismo patrón que _nombreUsuario en home_screen.dart)
-  static const String _nombreUsuario = 'Familia';
-  static const String _correoUsuario = 'usuario@correo.com';
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  String _nombreUsuario = 'Familia';
+  String _correoUsuario = 'usuario@correo.com';
+  int? _edadUsuario; // viene de la encuesta hecha en el chat
+  String? _fotoPath; // ruta local de la foto de perfil, si se cambió
+  String? _generoUsuario;
+
+  @override
+  void initState() {
+    super.initState();
+    // TODO: cargar los datos reales del usuario aquí, por ejemplo:
+    // _nombreUsuario = AuthSession.instance.nombre ?? 'Familia';
+    // _correoUsuario = AuthSession.instance.correo ?? 'usuario@correo.com';
+    // _edadUsuario = AuthSession.instance.edad;
+    // _fotoPath = AuthSession.instance.fotoPath;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,10 +70,25 @@ class ProfileScreen extends StatelessWidget {
               _ItemPerfil(
                 icon: Icons.person_outline_rounded,
                 label: 'Mis datos personales',
-              ),
-              _ItemPerfil(
-                icon: Icons.family_restroom_rounded,
-                label: 'Miembros de la familia',
+                onTap: () async {
+                  final resultado = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DatosPersonalesScreen(
+                        nombreActual: _nombreUsuario,
+                        generoActual: _generoUsuario,
+                      ),
+                    ),
+                  );
+
+                  if (resultado != null && mounted) {
+                    setState(() {
+                      _nombreUsuario = resultado['nombre'] ?? _nombreUsuario;
+                      _generoUsuario = resultado['genero'] ?? _generoUsuario;
+                    });
+                    // TODO: persistir también aquí si aplica.
+                  }
+                },
               ),
               _ItemPerfil(
                 icon: Icons.lock_outline_rounded,
@@ -92,65 +127,99 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildEncabezado() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: .06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-          const BoxShadow(
-            color: Colors.white,
-            blurRadius: 10,
-            offset: Offset(-4, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: BiomarkColors.blue.withValues(alpha: .12),
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: BiomarkColors.blue,
-              size: 32,
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: () async {
+        final resultado = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditarPerfilScreen(
+              nombreActual: _nombreUsuario,
+              correo: _correoUsuario,
+              edad: _edadUsuario,
+              fotoPath: _fotoPath,
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  _nombreUsuario,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: BiomarkColors.black,
+        );
+
+        if (resultado != null && mounted) {
+          setState(() {
+            _nombreUsuario = resultado['nombre'] ?? _nombreUsuario;
+            _fotoPath = resultado['fotoPath'] ?? _fotoPath;
+          });
+          // TODO: persistir el cambio, por ejemplo:
+          // await AuthSession.instance.actualizarNombre(_nombreUsuario);
+          // await AuthSession.instance.actualizarFoto(_fotoPath);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: .06),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              blurRadius: 10,
+              offset: Offset(-4, -4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: BiomarkColors.blue.withValues(alpha: .12),
+                image: _fotoPath != null
+                    ? DecorationImage(
+                        image: FileImage(File(_fotoPath!)),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: _fotoPath == null
+                  ? const Icon(
+                      Icons.person_rounded,
+                      color: BiomarkColors.blue,
+                      size: 32,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _nombreUsuario,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: BiomarkColors.black,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  _correoUsuario,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: Color(0xFF7A7A85),
+                  const SizedBox(height: 3),
+                  Text(
+                    _correoUsuario,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: Color(0xFF7A7A85),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: Color(0xFF7A7A85)),
-        ],
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFF7A7A85)),
+          ],
+        ),
       ),
     );
   }
@@ -289,5 +358,5 @@ class _ItemPerfil {
   final String label;
   final VoidCallback? onTap;
 
-  _ItemPerfil({required this.icon, required this.label}) : onTap = null;
+  _ItemPerfil({required this.icon, required this.label, this.onTap});
 }
