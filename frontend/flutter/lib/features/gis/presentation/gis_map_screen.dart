@@ -24,9 +24,13 @@ class _GisMapScreenState extends State<GisMapScreen> {
 
   List<HealthCenter> _centers = const [];
   List<RiskZone> _riskZones = const [];
+  List<CommunityEvent> _events = const [];
+  List<CommunityReportPoint> _reports = const [];
   LatLng _userLocation = _defaultLocation;
   String _selectedFilter = 'Todos';
   bool _showRiskZones = false;
+  bool _showEvents = true;
+  bool _showReports = true;
   bool _loading = true;
   String? _errorMessage;
 
@@ -56,6 +60,12 @@ class _GisMapScreenState extends State<GisMapScreen> {
         latitude: location.latitude,
         longitude: location.longitude,
       );
+      List<CommunityReportPoint> reports = const [];
+      try {
+        reports = await _gisApi.fetchValidatedReports();
+      } catch (_) {
+        // Un fallo del heatmap no debe ocultar centros ni jornadas.
+      }
       if (!mounted) return;
       setState(() {
         _userLocation = location;
@@ -63,6 +73,8 @@ class _GisMapScreenState extends State<GisMapScreen> {
             ? data.centers
             : [widget.initialCenter!, ...data.centers.where((center) => center.id != widget.initialCenter!.id)];
         _riskZones = data.riskZones;
+        _events = data.events;
+        _reports = reports;
         _loading = false;
       });
       if (widget.initialCenter == null) {
@@ -92,6 +104,76 @@ class _GisMapScreenState extends State<GisMapScreen> {
       throw const PermissionDeniedException('Permiso de ubicación denegado.');
     }
     return Geolocator.getCurrentPosition();
+  }
+
+  Future<void> _showReportDialog() async {
+    if (_userLocation == _defaultLocation) {
+      _showStatus('Activa tu ubicación para registrar un reporte comunitario.');
+      return;
+    }
+    final descriptionController = TextEditingController();
+    var caseCount = 1;
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Reportar situación en mi sector'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('El reporte será revisado antes de aparecer en el mapa comunitario.'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descriptionController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: '¿Qué está ocurriendo?',
+                  hintText: 'Ej. posibles casos de dengue',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                initialValue: caseCount,
+                decoration: const InputDecoration(labelText: 'Cantidad aproximada de casos'),
+                items: List.generate(10, (index) => DropdownMenuItem(value: index + 1, child: Text('${index + 1}'))),
+                onChanged: (value) => setDialogState(() => caseCount = value ?? 1),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Enviar reporte')),
+          ],
+        ),
+      ),
+    );
+    if (submitted != true || !mounted) {
+      descriptionController.dispose();
+      return;
+    }
+    if (descriptionController.text.trim().isEmpty) {
+      descriptionController.dispose();
+      _showStatus('Describe brevemente la situación antes de enviar.');
+      return;
+    }
+    try {
+      await _gisApi.createCommunityReport(
+        latitude: _userLocation.latitude,
+        longitude: _userLocation.longitude,
+        description: descriptionController.text.trim(),
+        caseCount: caseCount,
+      );
+      if (mounted) _showStatus('Reporte enviado. Quedará pendiente de validación.');
+    } catch (_) {
+      if (mounted) _showStatus('No se pudo enviar el reporte comunitario.');
+    } finally {
+      descriptionController.dispose();
+    }
+  }
+
+  void _showStatus(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   List<HealthCenter> get _fallbackCenters => const [
@@ -224,6 +306,16 @@ class _GisMapScreenState extends State<GisMapScreen> {
           ),
         ),
       ),
+      if (_showEvents)
+        ..._events.map((event) => Marker(
+              point: LatLng(event.latitude, event.longitude),
+              width: 46,
+              height: 46,
+              child: GestureDetector(
+                onTap: () => _showStatus('${event.title} · ${event.location}'),
+                child: const _EventMarker(),
+              ),
+            )),
     ];
 
     return Scaffold(
@@ -255,6 +347,17 @@ class _GisMapScreenState extends State<GisMapScreen> {
                         ),
                       )
                       .toList(),
+                ),
+              if (_showReports)
+                CircleLayer(
+                  circles: _reports.map((report) => CircleMarker(
+                    point: LatLng(report.latitude, report.longitude),
+                    radius: 180 + report.caseCount * 35,
+                    useRadiusInMeter: true,
+                    color: Colors.red.withValues(alpha: .24),
+                    borderColor: Colors.red.withValues(alpha: .75),
+                    borderStrokeWidth: 2,
+                  )).toList(),
                 ),
               MarkerLayer(markers: markers),
             ],
@@ -298,12 +401,35 @@ class _GisMapScreenState extends State<GisMapScreen> {
                 ),
                 const SizedBox(height: 12),
                 _MapControl(
+                  icon: Icons.campaign_rounded,
+                  tooltip: 'Jornadas comunitarias',
+                  active: _showEvents,
+                  onTap: () => setState(() => _showEvents = !_showEvents),
+                ),
+                const SizedBox(height: 12),
+                _MapControl(
+                  icon: Icons.groups_rounded,
+                  tooltip: 'Reportes comunitarios',
+                  active: _showReports,
+                  onTap: () => setState(() => _showReports = !_showReports),
+                ),
+                const SizedBox(height: 12),
+                _MapControl(
                   icon: Icons.warning_amber_rounded,
                   tooltip: 'Capas de riesgo',
                   active: _showRiskZones,
                   onTap: () => setState(() => _showRiskZones = !_showRiskZones),
                 ),
               ],
+            ),
+          ),
+          Positioned(
+            right: 16,
+            bottom: 395,
+            child: _MapControl(
+              icon: Icons.add_location_alt_rounded,
+              tooltip: 'Reportar situación',
+              onTap: _showReportDialog,
             ),
           ),
           Positioned(
@@ -578,6 +704,21 @@ class _CenterMarker extends StatelessWidget {
       size: 24,
     ),
   );
+}
+
+class _EventMarker extends StatelessWidget {
+  const _EventMarker();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: BiomarkColors.blue, width: 2),
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+        ),
+        child: const Icon(Icons.campaign_rounded, color: BiomarkColors.blue, size: 24),
+      );
 }
 
 class _StatusBanner extends StatelessWidget {

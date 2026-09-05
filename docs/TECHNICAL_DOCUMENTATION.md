@@ -96,6 +96,19 @@ El inicio obtiene el nombre del perfil, el objetivo activo y recordatorios pendi
 
 Flutter Web comparte los contratos móviles. Ejecuta `flutter run -d chrome` para desarrollo o `flutter build web --release` para publicar `build/web`. Ubicación, cámara y micrófono requieren HTTPS y permisos del navegador; añade el origen web a `CORS_ORIGINS`.
 
+### 4.7 Mapa comunitario y jornadas
+
+El mapa combina cuatro capas independientes:
+
+- **Centros de salud:** datos de `centros_salud`, ordenados por cercanía.
+- **Jornadas comunitarias:** `eventos_comunitarios` futuros con título, fecha, ubicación y coordenadas; solo roles `LIDER_COMUNITARIO`, `PROMOTOR` y `ADMIN` pueden crearlas.
+- **Reportes comunitarios:** cualquier usuario autenticado puede registrar desde su ubicación una descripción y cantidad aproximada de casos mediante `POST /api/community/reports`. El estado inicial es `PENDIENTE_VALIDACION`.
+- **Zonas de riesgo:** zonas epidemiológicas administradas por el backend.
+
+Flutter activa o desactiva cada capa con controles pequeños. Los reportes no aparecen individualmente ni muestran coordenadas exactas: un rol autorizado debe validarlos y el endpoint `/api/community/heatmap` devuelve puntos redondeados agregados. Esta decisión reduce exposición de ubicaciones sensibles y evita amplificar falsos positivos.
+
+La propuesta operativa para jornadas es que un promotor o líder comunitario cree el evento con fecha, descripción, ubicación textual y coordenadas; n8n puede notificar a usuarios cercanos, mientras el evento futuro aparece como marcador azul en el mapa. Los reportes validados aparecen como círculos cuya intensidad/tamaño representa la cantidad agregada de casos.
+
 ## 5. Estructura modular
 
 ```text

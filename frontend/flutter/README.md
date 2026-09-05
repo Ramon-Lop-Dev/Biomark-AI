@@ -16,3 +16,10 @@ El token push se registra en `POST /api/users/push-token` después de solicitar 
 - El endpoint separado `/api/voice/synthesize` existe para integraciones autorizadas, pero no se usa automáticamente para respuestas de texto.
 
 En Android se declaran cámara, micrófono y ubicación en `android/app/src/main/AndroidManifest.xml`; en iOS se declaran mensajes de uso en `Info.plist`. En web el navegador exige HTTPS y permisos equivalentes.
+
+## Mapa comunitario
+
+El mapa ofrece controles independientes para centros de salud, jornadas,
+reportes comunitarios y zonas de riesgo. El botón de reporte usa la ubicación
+actual y registra una descripción/cantidad aproximada; el backend lo deja
+pendiente de validación. Solo reportes validados aparecen como heatmap agregado.

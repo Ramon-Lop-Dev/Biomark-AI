@@ -7,10 +7,10 @@ const listarEventos = () =>
     .select('*')
     .order('fecha_evento', { ascending: true });
 
-const crearEvento = (organizadorId, { titulo, descripcion, fecha_evento, ubicacion }) =>
+const crearEvento = (organizadorId, { titulo, descripcion, fecha_evento, ubicacion, latitud, longitud }) =>
   supabase
     .from('eventos_comunitarios')
-    .insert([{ organizador_id: organizadorId, titulo, descripcion, fecha_evento, ubicacion }])
+    .insert([{ organizador_id: organizadorId, titulo, descripcion, fecha_evento, ubicacion, latitud, longitud }])
     .select();
 
 // El reporte SIEMPRE se crea como PENDIENTE_VALIDACION (default de la
