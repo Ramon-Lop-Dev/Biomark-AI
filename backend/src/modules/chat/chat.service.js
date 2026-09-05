@@ -45,9 +45,8 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
   });
 
   if (errorMsgUsuario) {
-    // No relanza: perder la copia persistida del mensaje no debe
-    // impedir que el usuario reciba su respuesta clínica.
     console.error('[Chat] No se pudo persistir el mensaje del usuario:', errorMsgUsuario.message);
+    throw new AppError('No se pudo guardar tu mensaje de chat', 500);
   }
 
   try {
@@ -81,6 +80,7 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
 
     if (errorMsgAsistente) {
       console.error('[Chat] No se pudo persistir la respuesta del asistente:', errorMsgAsistente.message);
+      throw new AppError('La respuesta se generó, pero no se pudo guardar el historial', 500);
     }
 
     await auditService.registrar({
@@ -144,7 +144,7 @@ const obtenerHistorial = async (usuarioId, sessionId) => {
   }
 
   if (!sesion) return { session_id: null, messages: [] };
-  const { data, error } = await chatRepo.listarMensajesSesion(usuarioId, sesion);
+  const { data, error } = await chatRepo.listarMensajesSesion(sesion);
   if (error) throw new AppError('No se pudo cargar el historial del chat', 500);
   return {
     session_id: sesion,
