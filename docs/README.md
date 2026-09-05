@@ -10,6 +10,7 @@ Esta carpeta centraliza la documentación operativa, técnica y de integración 
 - [DuckDNS en Contabo](DUCKDNS_CONTABO.md): dominio, hostname de n8n, HTTPS, firewall y verificación DNS.
 - [Especificación OpenAPI](openapi.yaml): contrato de la API pública y sus rutas protegidas.
 - [Colección Postman](postman/Biomark-AI.postman_collection.json): pruebas de auth, salud, chat, GIS, epidemiología, recordatorios y notificaciones.
+- [Contrato de funcionalidades](TECHNICAL_DOCUMENTATION.md#4-flujos-funcionales): encuesta, consentimiento, chat, ubicación, audio, visión, progreso y recordatorios.
 - [Datos GIS](../database/README.md): migración y seed de centros usados por la recomendación clínica.
 - [README general del repositorio](../README.md): visión general, estructura y arranque rápido.
 
@@ -20,11 +21,11 @@ Esta carpeta centraliza la documentación operativa, técnica y de integración 
 3. Seguir [DEPLOYMENT_CONTABO_RUNPOD.md](DEPLOYMENT_CONTABO_RUNPOD.md) para desplegar ambos servidores.
 4. Consultar [INSTALLATION_VPS.md](INSTALLATION_VPS.md) para operación común y checklist.
 5. Importar [openapi.yaml](openapi.yaml) en Swagger Editor o Swagger UI para validar contratos.
-6. Probar endpoints con la colección de Postman, priorizando login, health y chat.
+6. Probar endpoints con la colección de Postman, priorizando login, health, perfil/consentimiento, chat, voz, visión y GIS.
 
 ## Alcance de la API
 
-Los endpoints públicos del backend se consumen con JWT desde Flutter o clientes autorizados. Los endpoints AI (`/chat`, `/voice`, `/vision`) y los rutas `/internal` no forman parte de la API pública y solo deben exponerse dentro del entorno privado de Docker.
+Los endpoints públicos del backend se consumen con JWT desde Flutter o clientes autorizados. Los endpoints internos del AI Service (`/chat`, `/voice`, `/vision`, `/audio/synthesize`) requieren `X-Internal-Key` y no deben exponerse directamente a usuarios. La ruta `/internal/reminders/:id/sent` requiere `X-Webhook-Secret`.
 
 ## Recomendaciones de seguridad
 

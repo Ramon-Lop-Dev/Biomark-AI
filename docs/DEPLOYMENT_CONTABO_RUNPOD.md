@@ -14,7 +14,7 @@ Contabo ejecuta `backend`, `nginx` y `n8n`. RunPod ejecuta únicamente `ai-servi
 ## Requisitos
 
 - Docker Engine y Docker Compose v2 en Contabo.
-- Un Pod con GPU y almacenamiento persistente en RunPod.
+- Un Pod con GPU y almacenamiento persistente en RunPod. El AI Service se ejecuta directamente con Python/Uvicorn; no se usa Docker en RunPod en el flujo operativo actual.
 - Repositorio accesible desde ambos servidores.
 - Dominio HTTPS para nginx en Contabo.
 - Proyecto Supabase configurado con RLS, Storage y migraciones.
@@ -256,7 +256,7 @@ curl -fsS http://127.0.0.1/health
 curl -fsS http://127.0.0.1/ready
 ```
 
-Finalmente prueba `POST /api/chat` con un JWT real. Con ubicación autorizada, la respuesta debe contener `centro_sugerido`. Prueba estos casos:
+Finalmente prueba `POST /api/chat` con un JWT real. Sin coordenadas, una consulta sintomática debe contener `ubicacion_requerida: true`; con ubicación autorizada debe contener `centro_sugerido`. Prueba estos casos:
 
 ```text
 emergencia pediátrica
@@ -278,12 +278,21 @@ RunPod:
 
 ```bash
 cd /workspace/biomark-ai
-git pull origin main
+git pull --ff-only origin main
 find ai-service -type d -name __pycache__ -prune -exec rm -rf {} +
+source /workspace/biomark-venv/bin/activate
+python3 -m py_compile ai-service/main.py ai-service/inference/service.py ai-service/safety/checker.py
+set -a; source /workspace/ai-service.env; set +a
+export PYTHONPATH=/workspace/biomark-ai/ai-service
+tmux attach -t biomark-ai
+```
+
+Dentro de la sesión, detén Uvicorn con `Ctrl+C` y ejecuta:
+
+```bash
 source /workspace/biomark-venv/bin/activate
 set -a; source /workspace/ai-service.env; set +a
 export PYTHONPATH=/workspace/biomark-ai/ai-service
-tmux new -s biomark-ai
 uvicorn main:app --app-dir /workspace/biomark-ai/ai-service --host 0.0.0.0 --port 8000
 ```
 

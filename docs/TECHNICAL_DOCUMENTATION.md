@@ -63,7 +63,40 @@ El backend nunca debe llamar `http://ai-service:8000` en esta topología. La URL
 10. Backend persiste usuario y asistente en `sesiones_chat`/`mensajes_chat`, devuelve `centro_sugerido` y registra auditoría.
 11. Riesgo `ALTO`/`CRITICO` crea una notificación en Supabase.
 
-## 4. Estructura modular
+## 4. Flujos funcionales
+
+### 4.1 Encuesta, perfil y consentimiento
+
+Antes del primer chat, Flutter solicita edad, sexo biológico, enfermedades crónicas, antecedentes familiares, alergias y medicamentos actuales. Al finalizar actualiza `perfiles`, registra `CONTEXTO_MEDICO_IA` y guarda los registros clínicos correspondientes. El AI Service solo recibe ese contexto cuando el consentimiento está otorgado.
+
+### 4.2 Chat de texto e historial
+
+`POST /api/chat` resuelve o crea una sesión propiedad del usuario, persiste el mensaje, recupera los últimos turnos, consulta el contexto autorizado, llama al AI Service y persiste la respuesta. `GET /api/chat/history` carga la última sesión del usuario para restaurarla en Flutter.
+
+La IA responde como orientación preventiva: no confirma diagnósticos, no prescribe dosis y solicita datos faltantes. Los saludos se resuelven de forma determinista. Las respuestas generativas usan decodificación no muestreada, límite de tokens, penalización de repetición y corte de marcadores de turnos inventados.
+
+### 4.3 Ubicación y recomendación clínica
+
+Flutter solicita ubicación en uso al enviar un mensaje. Si el servicio está desactivado o el permiso fue bloqueado, muestra un aviso y abre ajustes. Con coordenadas válidas, el mapper determina especialidades por síntomas y el localizador consulta `centros_salud`, calcula distancia Haversine y devuelve el centro real más cercano. En riesgo `HIGH` o `CRITICAL` se excluyen puestos no aptos cuando existe alternativa.
+
+Si la consulta es sintomática y no llegan coordenadas, `/api/chat` devuelve `ubicacion_requerida: true`. Con coordenadas devuelve `centro_sugerido`; Flutter muestra la tarjeta y abre el mapa centrado en el centro recomendado.
+
+### 4.4 Voz e imagen
+
+- Voz de entrada: Flutter graba con `record` y envía multipart a `POST /api/voice`.
+- Voz de salida: solo una entrada de voz genera TTS automáticamente. La respuesta contiene `audio_base64` WAV; Flutter guarda el archivo temporal, lo reproduce y muestra un control para repetirlo.
+- Texto e imagen no generan audio automático.
+- `POST /api/vision?tipo=piel|garganta` devuelve hallazgo, confianza, nivel de riesgo y recomendación preventiva escrita.
+
+### 4.5 Inicio, objetivos y recordatorios
+
+El inicio obtiene el nombre del perfil, el objetivo activo y recordatorios pendientes de hoy y mañana. Los hitos se actualizan de forma optimista en Flutter; `PATCH /api/progress/goals/:objetivoId/hitos/:hitoId` persiste el valor y, si falla, la interfaz revierte el check. Recordatorios se consultan en `/api/reminders` y se pueden completar o cancelar.
+
+### 4.6 Web
+
+Flutter Web comparte los contratos móviles. Ejecuta `flutter run -d chrome` para desarrollo o `flutter build web --release` para publicar `build/web`. Ubicación, cámara y micrófono requieren HTTPS y permisos del navegador; añade el origen web a `CORS_ORIGINS`.
+
+## 5. Estructura modular
 
 ```text
 backend/src/
@@ -105,7 +138,7 @@ database/seeds/                   Datasets iniciales controlados
 
 Cada archivo de código incluye un encabezado breve con su responsabilidad.
 
-## 5. Dependencias
+## 6. Dependencias
 
 ### Backend
 
@@ -117,7 +150,7 @@ Las dependencias se definen en `ai-service/requirements.txt`: FastAPI/Uvicorn, S
 
 El AI Service puede requerir varios GB de RAM. El Compose usa un worker para evitar duplicar modelos en memoria.
 
-## 6. Seguridad
+## 7. Seguridad
 
 - Todo endpoint de dominio usa JWT y resuelve propiedad mediante `req.usuarioId`.
 - RBAC limita escritura epidemiológica y organización comunitaria.
@@ -132,7 +165,7 @@ El AI Service puede requerir varios GB de RAM. El Compose usa un worker para evi
 
 Antes de VPS, rotar las claves que hayan estado en archivos locales o conversaciones.
 
-## 7. Base de datos
+## 8. Base de datos
 
 Las tablas principales son `usuarios`, `perfiles`, `historial_medico`, `alergias`, `medicamentos`, `antecedentes_familiares`, `vacunas`, `sintomas`, `registros_sintomas`, `eventos_medicos`, `imagenes_medicas`, `recordatorios`, `notificaciones`, `sesiones_chat`, `mensajes_chat`, `centros_salud`, `eventos_comunitarios`, `zonas_riesgo`, `reportes_epidemiologicos`, `alertas_epidemiologicas`, `reportes_comunitarios`, `registros_auditoria`, `consentimientos` y `dispositivos_push`.
 
@@ -142,7 +175,7 @@ Las migraciones `002_auditoria_operativa.sql`, `003_dispositivos_push.sql`, `004
 
 El backend espera que los enums de Supabase tengan exactamente los valores usados por los validadores: `USUARIO`, `TRABAJADOR_SALUD`, `LIDER_COMUNITARIO`, `PROMOTOR`, `ADMIN`, `BAJO`, `MODERADO`, `ALTO`, `CRITICO`, entre otros tipos definidos por el esquema.
 
-## 8. Automatizaciones n8n
+## 9. Automatizaciones n8n
 
 Al crear un recordatorio, el backend publica `recordatorio.creado` en `N8N_WEBHOOK_URL`. El workflow debe:
 
@@ -155,7 +188,7 @@ Al crear un recordatorio, el backend publica `recordatorio.creado` en `N8N_WEBHO
 
 n8n conserva su configuración en el volumen `n8n_data`. Fijar una versión de imagen en producción y respaldar ese volumen.
 
-## 9. Pruebas
+## 10. Pruebas
 
 ```bash
 npm --prefix backend test
@@ -166,7 +199,7 @@ python3 -m compileall -q ai-service
 
 Las pruebas unitarias no sustituyen pruebas de integración con Supabase staging, FCM, n8n y un dispositivo Flutter real.
 
-## 10. Observabilidad y operación
+## 11. Observabilidad y operación
 
 ```bash
 docker compose --env-file deploy/.env ps
