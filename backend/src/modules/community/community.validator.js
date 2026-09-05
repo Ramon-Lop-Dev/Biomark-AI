@@ -5,8 +5,13 @@ const createEventSchema = z.object({
   titulo: z.string().trim().min(1, 'El título es obligatorio'),
   descripcion: z.string().trim().max(2000).optional(),
   fecha_evento: z.string().datetime({ offset: true, message: 'fecha_evento debe ser una fecha/hora ISO 8601 válida' }),
-  ubicacion: z.string().trim().max(500).optional()
-});
+  ubicacion: z.string().trim().max(500).optional(),
+  latitud: z.number().min(-90).max(90).optional(),
+  longitud: z.number().min(-180).max(180).optional()
+}).refine(
+  ({ latitud, longitud }) => (latitud === undefined) === (longitud === undefined),
+  { message: 'latitud y longitud deben enviarse juntas', path: ['latitud'] }
+);
 
 const createReportSchema = z.object({
   case_count: z.number().int().positive().default(1).optional(),
