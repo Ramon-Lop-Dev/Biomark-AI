@@ -70,6 +70,8 @@ const transcribirYResponder = async (usuarioId, file, sessionId) => {
       console.error('[Voice] No se pudo persistir la respuesta del asistente:', errorMsgAsistente.message);
     }
 
+    const audioResponse = await sintetizarVoz(reply);
+
     await auditService.registrar({
       usuarioId,
       tipoEntidad: 'mensajes_chat',
@@ -91,7 +93,9 @@ const transcribirYResponder = async (usuarioId, file, sessionId) => {
       transcription,
       reply,
       risk_level,
-      sources
+      sources,
+      audio_base64: Buffer.from(audioResponse).toString('base64'),
+      audio_content_type: 'audio/wav'
     };
   } catch (error) {
     if (error instanceof AppError) throw error;

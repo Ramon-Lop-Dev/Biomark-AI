@@ -11,6 +11,7 @@ class VoiceReply {
   final String reply;
   final String riskLevel;
   final List<String> sources;
+  final List<int> audioBytes;
 
   const VoiceReply({
     required this.sessionId,
@@ -18,6 +19,7 @@ class VoiceReply {
     required this.reply,
     required this.riskLevel,
     required this.sources,
+    required this.audioBytes,
   });
 
   factory VoiceReply.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,9 @@ class VoiceReply {
       sources: (json['sources'] as List<dynamic>? ?? const [])
           .whereType<String>()
           .toList(),
+        audioBytes: json['audio_base64'] is String
+          ? base64Decode(json['audio_base64'] as String)
+          : const [],
     );
   }
 }
@@ -77,21 +82,6 @@ class VoiceApi {
     }
 
     return VoiceReply.fromJson(body);
-  }
-
-  Future<List<int>> synthesize(String text) async {
-    final response = await _client.post(
-      Uri.parse('${baseUrl.replaceFirst(RegExp(r'/$'), '')}/api/voice/synthesize'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $accessToken',
-      },
-      body: jsonEncode({'text': text}),
-    ).timeout(const Duration(seconds: 60));
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ChatApiException('No se pudo generar el audio de la respuesta.', statusCode: response.statusCode);
-    }
-    return response.bodyBytes;
   }
 
   void dispose() => _client.close();

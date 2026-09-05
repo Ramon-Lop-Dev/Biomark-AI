@@ -556,6 +556,13 @@ class _ChatScreenState extends State<ChatScreen>
         sessionId: _sessionId,
       );
       if (!mounted) return;
+      final directory = await getTemporaryDirectory();
+      final audioPath = response.audioBytes.isEmpty
+          ? null
+          : '${directory.path}/biomark-response-${DateTime.now().millisecondsSinceEpoch}.wav';
+      if (audioPath != null) {
+        await File(audioPath).writeAsBytes(response.audioBytes, flush: true);
+      }
       setState(() {
         _sessionId = response.sessionId;
         _messages.add(ChatMessage(response.transcription, true));
@@ -567,10 +574,12 @@ class _ChatScreenState extends State<ChatScreen>
             riskLevel: response.riskLevel,
             sources: response.sources,
             actionType: actionType,
+            audioPath: audioPath,
           ),
         );
         _isSending = false;
       });
+      if (audioPath != null) await _playAudioFile(audioPath);
     } on ChatApiException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -581,13 +590,8 @@ class _ChatScreenState extends State<ChatScreen>
     _scrollToBottom();
   }
 
-  Future<void> _playResponseAudio(String text) async {
-    if (text.trim().isEmpty) return;
+  Future<void> _playAudioFile(String path) async {
     try {
-      final bytes = await _voiceApi.synthesize(text);
-      final directory = await getTemporaryDirectory();
-      final path = '${directory.path}/biomark-response.wav';
-      await File(path).writeAsBytes(bytes, flush: true);
       await _audioPlayer.stop();
       await _audioPlayer.play(DeviceFileSource(path));
     } catch (_) {
@@ -637,9 +641,9 @@ class _ChatScreenState extends State<ChatScreen>
                     if (index == _messages.length) return const _TypingBubble();
                     return _MessageBubble(
                       message: _messages[index],
-                      onPlayAudio: _messages[index].isUser
+                      onPlayAudio: _messages[index].audioPath == null
                           ? null
-                          : () => _playResponseAudio(_messages[index].text),
+                          : () => _playAudioFile(_messages[index].audioPath!),
                     );
                   },
                 ),
@@ -750,6 +754,18 @@ class _MessageBubble extends StatelessWidget {
                       height: 220,
                       fit: BoxFit.cover,
                     ),
+                  ),
+                if (message.audioPath != null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Reproducir audio',
+                        onPressed: onPlayAudio,
+                        icon: const Icon(Icons.play_circle_fill_rounded),
+                      ),
+                      const Text('Respuesta de voz'),
+                    ],
                   ),
                 if (message.text.isNotEmpty)
                   Padding(
