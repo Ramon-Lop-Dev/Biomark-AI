@@ -43,12 +43,11 @@ const listarUltimaSesion = (usuarioId) =>
     .limit(1)
     .maybeSingle();
 
-const listarMensajesSesion = (usuarioId, sesionId, limite = 50) =>
+const listarMensajesSesion = (sesionId, limite = 50) =>
   supabase
     .from('mensajes_chat')
-    .select('id, emisor, mensaje, nivel_riesgo, fecha_creacion, sesiones_chat!inner(usuario_id)')
+    .select('id, emisor, mensaje, nivel_riesgo, fecha_creacion')
     .eq('sesion_chat_id', sesionId)
-    .eq('sesiones_chat.usuario_id', usuarioId)
     .order('fecha_creacion', { ascending: true })
     .limit(limite);
 
