@@ -709,8 +709,14 @@ class _MessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
+    // Nota: 'nearest_center' queda excluido a propósito de esta condición.
+    // Si se dejara aquí, el bubble ocultaría el texto real de la respuesta
+    // (que ya incluye el pedido de ubicación o el centro recomendado en
+    // texto plano) y en su lugar mostraría solo la tarjeta genérica de
+    // _FollowUpActionCard con datos de ejemplo/hardcodeados.
     if (!message.isUser &&
         message.actionType != null &&
+        message.actionType != 'nearest_center' &&
         message.recommendedCenter == null) {
       return Align(
         alignment: Alignment.centerLeft,
@@ -903,7 +909,6 @@ class _FollowUpActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isRegisterProgress = actionType == 'register_progress';
-    final isNearestCenter = actionType == 'nearest_center';
 
     return Container(
       width: MediaQuery.sizeOf(context).width * 0.78,
@@ -949,47 +954,6 @@ class _FollowUpActionCard extends StatelessWidget {
                   ),
                 ),
                 child: const Text('Registrar evolución'),
-              ),
-            ),
-          ] else if (isNearestCenter) ...[
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: BiomarkColors.green.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(
-                Icons.local_hospital_rounded,
-                color: BiomarkColors.green,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Recomendación de Biomark AI',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Hospital Alemán Nicaragüense\n1.2 km',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.black87),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => context
-                    .findAncestorStateOfType<_ChatScreenState>()
-                    ?._showClosestCenterDialog(),
-                style: FilledButton.styleFrom(
-                  backgroundColor: BiomarkColors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text('Ver en mapa'),
               ),
             ),
           ] else ...[

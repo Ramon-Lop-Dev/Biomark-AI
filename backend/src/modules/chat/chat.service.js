@@ -67,7 +67,7 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
       contextoClinico,
       conversationHistory
     );
-    const { reply, risk_level, sources, suggested_action, centro_sugerido, ubicacion_requerida } = data;
+     const { reply, risk_level, sources, suggested_action, centro_sugerido, ubicacion_requerida } = data;
 
     const nivelRiesgo = mapearNivelRiesgo(risk_level);
 
@@ -116,7 +116,7 @@ const enviarMensaje = async (usuarioId, message, sessionId, latitude, longitude)
       });
     }
 
-    return {
+     return {
       session_id: sesionId,
       reply,
       risk_level,
