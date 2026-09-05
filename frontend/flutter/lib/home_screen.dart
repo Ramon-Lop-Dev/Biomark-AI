@@ -1,5 +1,8 @@
 // Pantalla de inicio (Home) de Biomark AI.
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import 'biomark_brand.dart';
 import 'survey_service.dart';
@@ -7,6 +10,11 @@ import 'health_history.dart';
 import 'features/gis/presentation/gis_map_screen.dart';
 import 'features/progress/presentation/progress_screen.dart';
 import 'features/reminders/presentation/reminders_screen.dart';
+import 'core/auth/auth_session.dart';
+import 'core/config/app_config.dart';
+import 'features/progress/data/progress_api.dart';
+import 'features/progress/domain/progress_snapshot.dart';
+import 'features/reminders/data/reminders_service.dart';
 
 /// Transición personalizada (duplicada para evitar circular imports)
 class _FadeSlidePageRoute<T> extends MaterialPageRoute<T> {
@@ -40,34 +48,57 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _dosisTomadas = 3;
-  static const _dosisTotal = 5;
-
-  // Placeholder mientras se conecta la base de datos.
-  // Cuando tengas tu backend listo, _cargarNombreUsuario() lo reemplaza
-  // con el nombre real (ver initState más abajo).
-  final String _nombreUsuario = 'Familia';
+  String _nombreUsuario = 'usuario';
+  ProgressGoal? _objetivo;
+  List<Reminder> _recordatorios = const [];
 
   @override
   void initState() {
     super.initState();
     _cargarNombreUsuario();
+    _cargarInicio();
   }
 
   Future<void> _cargarNombreUsuario() async {
-    // TODO: aquí va tu lógica real de base de datos (Firebase, API REST, etc.)
-    // Ejemplo:
-    // final usuario = await MiServicio.obtenerUsuarioActual();
-    // if (mounted) setState(() => _nombreUsuario = usuario.nombre);
+    final token = AuthSession.instance.accessToken;
+    if (token == null || token.isEmpty) return;
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConfig.apiUrl}/api/users/profile'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) return;
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final profile = body['perfiles'] as Map<String, dynamic>?;
+      final name = (profile?['nombre_completo'] as String?)?.trim();
+      final email = body['correo'] as String?;
+      if (!mounted) return;
+      setState(() => _nombreUsuario = name?.isNotEmpty == true
+          ? name!.split(' ').first
+          : (email?.split('@').first ?? 'usuario'));
+    } catch (_) {}
   }
 
-  void _addDose() {
-    if (_dosisTomadas < _dosisTotal) setState(() => _dosisTomadas++);
-    _showMessage(
-      _dosisTomadas == _dosisTotal
-          ? 'Meta completada.'
-          : 'Dosis registrada: $_dosisTomadas/$_dosisTotal',
-    );
+  Future<void> _cargarInicio() async {
+    try {
+      final goals = await ProgressApi().fetchGoals();
+      final reminders = await RemindersService(
+        baseUrl: AppConfig.apiUrl,
+        accessToken: AuthSession.instance.accessToken ?? '',
+      ).getReminders();
+      if (!mounted) return;
+      setState(() {
+        _objetivo = goals.where((goal) => goal.estado == 'ACTIVO').firstOrNull;
+        _recordatorios = reminders.where((reminder) {
+          final today = DateTime.now();
+          final date = reminder.fechaRecordatorio.toLocal();
+          final difference = DateTime(date.year, date.month, date.day)
+              .difference(DateTime(today.year, today.month, today.day))
+              .inDays;
+          return reminder.estado == 'PENDIENTE' && difference >= 0 && difference <= 1;
+        }).toList();
+      });
+    } catch (_) {}
   }
 
   void _showMessage(String message) {
@@ -90,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        _buildMedicationGoal(),
+        _buildHealthGoal(),
         const SizedBox(height: 20),
         Row(
           children: [
@@ -164,36 +195,39 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        _buildReminder(
-          'Jornada de Vacunación',
-          'Centro de Salud Villa Libertad',
-          'Hoy',
-          '9:00 AM',
-          Icons.vaccines_rounded,
-          BiomarkColors.green,
-          () => Navigator.push(
-            context,
-            _FadeSlidePageRoute(builder: (_) => const RemindersScreen()),
-          ),
-        ),
-        const SizedBox(height: 12),
-        _buildReminder(
-          'Cita Médica',
-          'Control mensual',
-          'Mañana',
-          '2:30 PM',
-          Icons.medical_services_outlined,
-          BiomarkColors.blue,
-          () => Navigator.push(
-            context,
-            _FadeSlidePageRoute(builder: (_) => const RemindersScreen()),
-          ),
-        ),
+        if (_recordatorios.isEmpty)
+          Text('No tienes recordatorios para hoy o mañana.')
+        else
+          ..._recordatorios.map((reminder) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildReminder(
+                  reminder.titulo,
+                  reminder.descripcion ?? reminder.tipo,
+                  _dayLabel(reminder.fechaRecordatorio),
+                  reminder.hora ?? '--:--',
+                  Icons.notifications_active_outlined,
+                  BiomarkColors.blue,
+                  () => Navigator.push(context, _FadeSlidePageRoute(builder: (_) => const RemindersScreen())),
+                ),
+              )),
       ],
     );
   }
 
-  Widget _buildMedicationGoal() {
+  String _dayLabel(DateTime date) {
+    final today = DateTime.now();
+    final local = date.toLocal();
+    final days = DateTime(local.year, local.month, local.day)
+        .difference(DateTime(today.year, today.month, today.day))
+        .inDays;
+    return days == 0 ? 'Hoy' : 'Mañana';
+  }
+
+  Widget _buildHealthGoal() {
+    final title = _objetivo?.titulo ?? 'Define un objetivo de salud';
+    final milestones = _objetivo?.milestones ?? const <ProgressMilestone>[];
+    final completed = milestones.where((milestone) => milestone.completed).length;
+    final total = milestones.length;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -219,15 +253,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontSize: 15,
                 ),
               ),
-              IconButton.filledTonal(
-                onPressed: _addDose,
-                icon: const Icon(Icons.add_rounded),
-                tooltip: 'Registrar dosis',
-              ),
+              if (_objetivo != null) Text('$completed/$total', style: const TextStyle(fontWeight: FontWeight.w700)),
             ],
           ),
-          const Text(
-            'Toma de medicinas',
+          Text(
+            title,
             style: TextStyle(color: BiomarkColors.black, fontSize: 13),
           ),
           const SizedBox(height: 16),
@@ -239,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
               ),
               Text(
-                '$_dosisTomadas/$_dosisTotal Dosis',
+                _objetivo == null ? 'Crea uno desde Mi progreso' : '$completed/$total hitos',
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
@@ -251,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
-              value: _dosisTomadas / _dosisTotal,
+              value: total == 0 ? 0 : completed / total,
               minHeight: 8,
               valueColor: const AlwaysStoppedAnimation(BiomarkColors.blue),
             ),

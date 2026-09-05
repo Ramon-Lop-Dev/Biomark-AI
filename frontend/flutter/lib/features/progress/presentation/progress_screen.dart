@@ -16,6 +16,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   final _progressApi = ProgressApi();
   late Future<ProgressSnapshot> _progressFuture;
   late Future<List<ProgressGoal>> _goalsFuture;
+  final Map<String, bool> _milestoneOverrides = {};
 
   @override
   void initState() {
@@ -52,7 +53,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
               _buildGoalsSection(),
               const SizedBox(height: 20),
               _buildRecentMilestones(),
-              _buildNextMedication(data.nextMedication),
             ],
           ),
         );
@@ -74,7 +74,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               subtitle: milestone.subtitle,
               color: milestone.color,
               icon: milestone.icon,
-              completed: milestone.completed,
+              completed: _completedValue(milestone),
             ));
           }
         }
@@ -132,7 +132,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 
   Widget _buildGoalCard(ProgressGoal goal) {
-    final completed = goal.milestones.where((milestone) => milestone.completed).length;
+    final completed = goal.milestones.where(_completedValue).length;
     final total = goal.milestones.length;
     return Container(
       width: double.infinity,
@@ -159,7 +159,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ...goal.milestones.map((milestone) => CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
-                value: milestone.completed,
+                value: _completedValue(milestone),
                 title: Text(milestone.title),
                 subtitle: Text(milestone.value),
                 activeColor: const Color(0xFF1B8E44),
@@ -171,14 +171,25 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 
   Future<void> _toggleMilestone(ProgressGoal goal, ProgressMilestone milestone, bool completed) async {
+    final milestoneId = milestone.id;
+    if (milestoneId == null) return;
+    final previous = _completedValue(milestone);
+    setState(() => _milestoneOverrides[milestoneId] = completed);
     try {
-      await _progressApi.updateMilestone(goalId: goal.id, milestoneId: milestone.id!, completed: completed);
-      if (mounted) setState(() => _goalsFuture = _progressApi.fetchGoals());
+      await _progressApi.updateMilestone(goalId: goal.id, milestoneId: milestoneId, completed: completed);
+      if (!mounted) return;
+      setState(() => _goalsFuture = _progressApi.fetchGoals());
     } catch (error) {
       if (!mounted) return;
+      setState(() => _milestoneOverrides[milestoneId] = previous);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error'), backgroundColor: Colors.red));
     }
   }
+
+  bool _completedValue(ProgressMilestone milestone) =>
+      milestone.id != null && _milestoneOverrides.containsKey(milestone.id)
+          ? _milestoneOverrides[milestone.id]!
+          : milestone.completed;
 
   String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
@@ -325,62 +336,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
   }
 
-  Widget _buildNextMedication(String medication) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEAF6FF),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.local_pharmacy_rounded,
-              color: Color(0xFF1E88E5),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Próxima toma',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1B1F1C),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  medication,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF5F6D63),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _MilestoneRow extends StatelessWidget {
