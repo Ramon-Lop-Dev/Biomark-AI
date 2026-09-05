@@ -8,7 +8,12 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 
 // 1. Middlewares de Seguridad Globales
-app.use(helmet()); // Cabeceras HTTP seguras
+app.use(helmet({
+    // Google Sign-In usa una ventana popup y necesita poder consultar
+    // window.closed mientras termina OAuth. same-origin bloquea esa
+    // comprobación en Chrome; el resto de cabeceras de Helmet permanece activo.
+    crossOriginOpenerPolicy: { policy: 'unsafe-none' }
+})); // Cabeceras HTTP seguras
 const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map((origin) => origin.trim()).filter(Boolean);
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : false }));
 
