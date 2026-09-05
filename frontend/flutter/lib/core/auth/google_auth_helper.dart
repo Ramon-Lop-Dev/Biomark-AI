@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 
 class GoogleAuthException implements Exception {
@@ -28,8 +29,15 @@ class GoogleAuthHelper {
     defaultValue:
         '780734083560-ab3t99hnitsm0l98mbhgpi23orqu8d1j.apps.googleusercontent.com',
   );
+
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: _webClientId.isNotEmpty ? _webClientId : null,
+    // Web necesita `clientId`. Android/iOS necesitan `serverClientId`
+    // (para que el id_token resultante tenga como "audience" este mismo
+    // Client ID web, que es el que Supabase valida del lado del servidor).
+    // Pasar el que no corresponde en cada plataforma es justo lo que
+    // causaba el "Null check operator used on a null value" en web.
+    clientId: kIsWeb && _webClientId.isNotEmpty ? _webClientId : null,
+    serverClientId: !kIsWeb && _webClientId.isNotEmpty ? _webClientId : null,
     scopes: const ['email', 'profile'],
   );
 
