@@ -808,6 +808,7 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _RecommendedCenter extends StatelessWidget {
   final HealthCenterRecommendation center;
 
