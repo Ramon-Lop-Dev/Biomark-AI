@@ -94,6 +94,7 @@ def chat_inference(data: dict, x_internal_key: str = Header(None)):
     # texto de la respuesta como en un campo estructurado aparte, para que
     # Flutter pueda mostrarlo en un mapa sin tener que parsear el texto.
     centro_sugerido = None
+    ubicacion_requerida = False
     latitude = data.get("latitude")
     longitude = data.get("longitude")
     if latitude is not None and longitude is not None:
@@ -118,6 +119,12 @@ def chat_inference(data: dict, x_internal_key: str = Header(None)):
                 f"{centro_sugerido['nombre']} (a {centro_sugerido['distancia_km']} km)"
                 + (f", en {centro_sugerido['direccion']}." if centro_sugerido.get("direccion") else ".")
             )
+    elif clinical_service.debe_recomendar_centro(mensaje_usuario, risk_level):
+        ubicacion_requerida = True
+        respuesta += (
+            "\n\nPara recomendarte el centro de salud u hospital más cercano, "
+            "necesito tu ubicación. Activa el permiso de ubicación en la app."
+        )
 
     return {
         "reply": respuesta,
@@ -125,6 +132,7 @@ def chat_inference(data: dict, x_internal_key: str = Header(None)):
         "sources": fuentes,
         "suggested_action": clinical_service.sugerir_accion(mensaje_usuario),
         "centro_sugerido": centro_sugerido,
+        "ubicacion_requerida": ubicacion_requerida,
     }
 
 

@@ -85,7 +85,11 @@ class _ChatScreenState extends State<ChatScreen>
 
   Future<Position?> _getChatLocation() async {
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) return null;
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (mounted) _showMessage('Activa la ubicación del teléfono para buscar el centro más cercano.');
+        await Geolocator.openLocationSettings();
+        return null;
+      }
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -94,6 +98,9 @@ class _ChatScreenState extends State<ChatScreen>
           permission == LocationPermission.deniedForever) {
         if (mounted) {
           _showMessage('Activa el permiso de ubicación para recomendarte centros cercanos.');
+        }
+        if (permission == LocationPermission.deniedForever) {
+          await Geolocator.openAppSettings();
         }
         return null;
       }
@@ -457,6 +464,9 @@ class _ChatScreenState extends State<ChatScreen>
             recommendedCenter: response.recommendedCenter,
           ),
         );
+        if (response.locationRequired && response.recommendedCenter == null) {
+          _showMessage('Activa la ubicación para ver el centro u hospital más cercano a tu caso.');
+        }
         _isSending = false;
       });
     } on ChatApiException catch (error) {
