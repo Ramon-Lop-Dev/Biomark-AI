@@ -1,4 +1,13 @@
 // Pantalla de inicio (Home) de Biomark AI.
+//
+// Diseño: las tarjetas (Meta de Salud, cuadros de acciones rápidas y
+// recordatorios) se quedan con fondo claro FIJO y texto oscuro fijo,
+// sin importar el tema — son "tarjetas flotantes" pensadas para resaltar
+// sobre el fondo. Solo el fondo de la pantalla y los títulos sueltos
+// ("¡Hola, Familia!", "Recordatorios Inteligentes") se adaptan con
+// Theme.of(context) para modo claro/oscuro. La barra de navegación
+// inferior vive en otro archivo (app_shell.dart / similar) y necesita
+// el mismo tratamiento por separado.
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
@@ -78,15 +87,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
         Text(
           '¡Hola, $_nombreUsuario!',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
-            color: BiomarkColors.black,
+            color: tema.colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 16),
@@ -145,20 +156,20 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         const SizedBox(height: 24),
-        const Row(
+        Row(
           children: [
-            Icon(
+            const Icon(
               Icons.notifications_active_outlined,
               color: BiomarkColors.blue,
               size: 20,
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Text(
               'Recordatorios Inteligentes',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: BiomarkColors.black,
+                color: tema.colorScheme.onSurface,
               ),
             ),
           ],
@@ -193,6 +204,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Tarjeta con fondo celeste fijo — el texto de adentro también se
+  // queda fijo en oscuro para mantener contraste en cualquier tema.
   Widget _buildMedicationGoal() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -219,10 +232,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontSize: 15,
                 ),
               ),
-              IconButton.filledTonal(
+              IconButton(
                 onPressed: _addDose,
                 icon: const Icon(Icons.add_rounded),
                 tooltip: 'Registrar dosis',
+                style: IconButton.styleFrom(
+                  backgroundColor: BiomarkColors.blue.withValues(alpha: .15),
+                  foregroundColor: BiomarkColors.blue,
+                ),
               ),
             ],
           ),
@@ -236,13 +253,18 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               const Text(
                 'Progreso',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: BiomarkColors.black,
+                ),
               ),
               Text(
                 '$_dosisTomadas/$_dosisTotal Dosis',
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
+                  color: BiomarkColors.black,
                 ),
               ),
             ],
@@ -253,6 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: LinearProgressIndicator(
               value: _dosisTomadas / _dosisTotal,
               minHeight: 8,
+              backgroundColor: BiomarkColors.blue.withValues(alpha: .12),
               valueColor: const AlwaysStoppedAnimation(BiomarkColors.blue),
             ),
           ),
@@ -261,6 +284,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Cuadro de acción rápida — fondo blanco fijo y texto oscuro fijo,
+  // para que siempre resalte igual sobre el fondo, sea claro u oscuro.
   Widget _buildFeatureButton(
     String title,
     IconData icon,
@@ -319,6 +344,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Tarjeta de recordatorio — mismo criterio: blanco fijo y texto
+  // oscuro fijo, sin depender del tema.
   Widget _buildReminder(
     String title,
     String subtitle,
@@ -330,6 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     return Material(
       color: Colors.white,
+      elevation: 0,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -357,10 +385,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13.5,
+                        color: BiomarkColors.black,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: const TextStyle(fontSize: 12)),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF7A7A85)),
+                    ),
                   ],
                 ),
               ),
@@ -375,7 +407,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontSize: 12.5,
                     ),
                   ),
-                  Text(time, style: const TextStyle(fontSize: 11.5)),
+                  const SizedBox(height: 2),
+                  Text(
+                    time,
+                    style: const TextStyle(fontSize: 11.5, color: Color(0xFF7A7A85)),
+                  ),
                 ],
               ),
             ],

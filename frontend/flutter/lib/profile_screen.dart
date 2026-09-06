@@ -1,4 +1,8 @@
 // Pantalla de perfil de usuario — Biomark AI
+//
+// Migrada a Theme.of(context) (mismo patrón que notifications_screen.dart,
+// privacidad_screen.dart y apariencia_screen.dart) para funcionar en modo
+// claro y oscuro.
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -43,23 +47,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
+      backgroundColor: tema.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF9F9FC),
+        backgroundColor: tema.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: BiomarkColors.black,
+            color: tema.colorScheme.onSurface,
             size: 20,
           ),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
+        title: Text(
           'Mi Perfil',
           style: TextStyle(
-            color: BiomarkColors.black,
+            color: tema.colorScheme.onSurface,
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
@@ -70,9 +76,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            _buildEncabezado(),
+            _buildEncabezado(tema),
             const SizedBox(height: 24),
-            _buildSeccion('Cuenta', [
+            _buildSeccion(tema, 'Cuenta', [
               _ItemPerfil(
                 icon: Icons.person_outline_rounded,
                 label: 'Mis datos personales',
@@ -111,7 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ]),
             const SizedBox(height: 18),
-            _buildSeccion('Preferencias', [
+            _buildSeccion(tema, 'Preferencias', [
               _ItemPerfil(
                 icon: Icons.notifications_none_rounded,
                 label: 'Notificaciones',
@@ -150,7 +156,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ]),
             const SizedBox(height: 18),
-            _buildSeccion('Soporte', [
+            _buildSeccion(tema, 'Soporte', [
               _ItemPerfil(
                 icon: Icons.help_outline_rounded,
                 label: 'Centro de ayuda',
@@ -168,7 +174,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildEncabezado() {
+  Widget _buildEncabezado(ThemeData tema) {
+    final esOscuro = tema.brightness == Brightness.dark;
     return InkWell(
       borderRadius: BorderRadius.circular(24),
       onTap: () async {
@@ -197,19 +204,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: tema.cardColor,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: .06),
+              color: Colors.black.withValues(alpha: esOscuro ? .3 : .06),
               blurRadius: 16,
               offset: const Offset(0, 6),
             ),
-            const BoxShadow(
-              color: Colors.white,
-              blurRadius: 10,
-              offset: Offset(-4, -4),
-            ),
+            if (!esOscuro)
+              const BoxShadow(
+                color: Colors.white,
+                blurRadius: 10,
+                offset: Offset(-4, -4),
+              ),
           ],
         ),
         child: Row(
@@ -242,31 +250,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Text(
                     _nombreUsuario,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
-                      color: BiomarkColors.black,
+                      color: tema.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     _correoUsuario,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
-                      color: Color(0xFF7A7A85),
+                      color: tema.colorScheme.onSurface.withValues(alpha: .6),
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF7A7A85)),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: tema.colorScheme.onSurface.withValues(alpha: .6),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSeccion(String titulo, List<_ItemPerfil> items) {
+  Widget _buildSeccion(ThemeData tema, String titulo, List<_ItemPerfil> items) {
+    final esOscuro = tema.brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -274,20 +286,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             titulo,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF7A7A85),
+              color: tema.colorScheme.onSurface.withValues(alpha: .6),
             ),
           ),
         ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: tema.cardColor,
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: .05),
+                color: Colors.black.withValues(alpha: esOscuro ? .25 : .05),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -298,13 +310,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final esUltimo = i == items.length - 1;
               return Column(
                 children: [
-                  _buildFila(items[i]),
+                  _buildFila(tema, items[i]),
                   if (!esUltimo)
-                    const Divider(
+                    Divider(
                       height: 1,
                       indent: 56,
                       endIndent: 16,
-                      color: Color(0xFFEFEFF3),
+                      color: tema.colorScheme.onSurface.withValues(alpha: .08),
                     ),
                 ],
               );
@@ -315,7 +327,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildFila(_ItemPerfil item) {
+  Widget _buildFila(ThemeData tema, _ItemPerfil item) {
     return InkWell(
       onTap: item.onTap,
       child: Padding(
@@ -327,17 +339,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: Text(
                 item.label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
-                  color: BiomarkColors.black,
+                  color: tema.colorScheme.onSurface,
                 ),
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 20,
-              color: Color(0xFFBFBFC9),
+              color: tema.colorScheme.onSurface.withValues(alpha: .35),
             ),
           ],
         ),

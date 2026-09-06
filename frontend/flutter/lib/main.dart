@@ -74,12 +74,23 @@ class _LoginScreenState extends State<LoginScreen>
       ? _contentSlide
       : const AlwaysStoppedAnimation<Offset>(Offset.zero);
 
-  static const Color bgTop = BiomarkColors.white;
-  static const Color bgMid = BiomarkColors.white;
-  static const Color bgBottom = BiomarkColors.white;
-  static const Color primaryGreen = BiomarkColors.blue;
-  static const Color textDark = BiomarkColors.black;
-  static const Color textGray = BiomarkColors.black;
+  // ---- Colores claro/oscuro según Theme.of(context).brightness ----
+  // Igual que forgot_password_screen.dart: esta pantalla tiene su
+  // propia paleta "clay", independiente de BiomarkColors, así que
+  // definimos variantes oscuras a mano aquí.
+  bool get _esOscuro => Theme.of(context).brightness == Brightness.dark;
+
+  Color get bgTop =>
+      _esOscuro ? const Color(0xFF1B1B20) : BiomarkColors.white;
+  Color get bgMid =>
+      _esOscuro ? const Color(0xFF19191E) : BiomarkColors.white;
+  Color get bgBottom =>
+      _esOscuro ? const Color(0xFF121214) : BiomarkColors.white;
+  Color get primaryGreen =>
+      _esOscuro ? const Color(0xFF6EA8DC) : BiomarkColors.blue;
+  Color get textDark => _esOscuro ? Colors.white : BiomarkColors.black;
+  Color get textGray =>
+      _esOscuro ? const Color(0xFFB0B0B8) : BiomarkColors.black;
 
   @override
   void initState() {
@@ -123,7 +134,6 @@ class _LoginScreenState extends State<LoginScreen>
       builder: (dialogContext) => AlertDialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        surfaceTintColor: Colors.white,
         icon: Icon(
           icon,
           size: 46,
@@ -233,12 +243,12 @@ class _LoginScreenState extends State<LoginScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [bgTop, bgMid, bgBottom],
-            stops: [0.0, 0.55, 1.0],
+            stops: const [0.0, 0.55, 1.0],
           ),
         ),
         child: SafeArea(
@@ -311,10 +321,10 @@ class _LoginScreenState extends State<LoginScreen>
         child: Container(
           padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.18),
+            color: Colors.white.withValues(alpha: _esOscuro ? 0.06 : 0.18),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.5),
+              color: Colors.white.withValues(alpha: _esOscuro ? 0.15 : 0.5),
               width: 1,
             ),
           ),
@@ -394,6 +404,9 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   // ---------------- LOGO ----------------
+  // El fondo circular blanco detrás del logo se deja fijo a propósito:
+  // es una "placa" de marca (como un badge), no una superficie temática,
+  // así que se ve igual en claro y oscuro.
   Widget _buildLogo() {
     return Container(
       width: 96,
@@ -447,23 +460,24 @@ class _LoginScreenState extends State<LoginScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: BiomarkColors.white,
+        color: bgMid,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           // sombra oscura abajo-derecha
           BoxShadow(
-            color: BiomarkColors.blue.withValues(alpha: 0.25),
+            color: primaryGreen.withValues(alpha: _esOscuro ? 0.35 : 0.25),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
-          // "luz" arriba-izquierda (lo que da el efecto clay)
-          const BoxShadow(
-            color: Colors.white,
-            blurRadius: 20,
-            offset: Offset(-6, -6),
-          ),
+          // "luz" arriba-izquierda (lo que da el efecto clay) — solo en claro
+          if (!_esOscuro)
+            const BoxShadow(
+              color: Colors.white,
+              blurRadius: 20,
+              offset: Offset(-6, -6),
+            ),
         ],
-        border: Border.all(color: Colors.white.withValues(alpha: 0.75)),
+        border: Border.all(color: Colors.white.withValues(alpha: _esOscuro ? 0.08 : 0.75)),
       ),
       child: Form(
         key: _formKey,
@@ -529,10 +543,10 @@ class _LoginScreenState extends State<LoginScreen>
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
+                child: Text(
                   '¿Olvidaste tu contraseña?',
                   style: TextStyle(
-                    color: BiomarkColors.blue,
+                    color: primaryGreen,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -554,7 +568,7 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w600,
         color: textDark,
@@ -575,28 +589,29 @@ class _LoginScreenState extends State<LoginScreen>
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: BiomarkColors.white,
+        color: _esOscuro ? const Color(0xFF232329) : const Color(0xFFF4F6FB),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.15),
+            color: Colors.grey.withValues(alpha: _esOscuro ? 0.0 : 0.15),
             blurRadius: 8,
             offset: const Offset(2, 2),
           ),
-          const BoxShadow(
-            color: Colors.white,
-            blurRadius: 8,
-            offset: Offset(-2, -2),
-          ),
+          if (!_esOscuro)
+            const BoxShadow(
+              color: Colors.white,
+              blurRadius: 8,
+              offset: Offset(-2, -2),
+            ),
         ],
-        border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
+        border: Border.all(color: Colors.white.withValues(alpha: _esOscuro ? 0.06 : 0.85)),
       ),
       child: TextFormField(
         controller: controller,
         obscureText: obscureText,
         keyboardType: keyboardType,
         validator: validator,
-        style: const TextStyle(color: textDark, fontSize: 14),
+        style: TextStyle(color: textDark, fontSize: 14),
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: textGray, size: 20),
           suffixIcon: suffixIcon,
@@ -697,7 +712,7 @@ class _LoginScreenState extends State<LoginScreen>
       icon: Icon(icon, size: 20, color: textDark),
       label: Text(
         label,
-        style: const TextStyle(color: textDark, fontWeight: FontWeight.w600),
+        style: TextStyle(color: textDark, fontWeight: FontWeight.w600),
       ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 14),

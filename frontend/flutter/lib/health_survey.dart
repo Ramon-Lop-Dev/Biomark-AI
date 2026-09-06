@@ -1,6 +1,8 @@
 // Encuesta de salud obligatoria — se muestra una sola vez, antes del
 // primer chat con Biomark AI, para que la IA pueda personalizar sus
 // consejos según enfermedades crónicas o hereditarias del usuario.
+//
+
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
@@ -114,17 +116,19 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
+      backgroundColor: tema.scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildTopBar(),
+              _buildTopBar(tema),
               const SizedBox(height: 18),
-              _buildProgreso(),
+              _buildProgreso(tema),
               const SizedBox(height: 22),
               Expanded(
                 child: SingleChildScrollView(
@@ -140,7 +144,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
                         child: child,
                       ),
                     ),
-                    child: _buildContenidoPaso(),
+                    child: _buildContenidoPaso(tema),
                   ),
                 ),
               ),
@@ -156,7 +160,8 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   // ------------------------------------------------------------
   // TOP BAR + PROGRESO
   // ------------------------------------------------------------
-  Widget _buildTopBar() {
+  Widget _buildTopBar(ThemeData tema) {
+    final esOscuro = tema.brightness == Brightness.dark;
     return Row(
       children: [
         GestureDetector(
@@ -166,26 +171,30 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white,
+              color: tema.cardColor,
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: .06), blurRadius: 8, offset: const Offset(3, 3)),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: esOscuro ? .3 : .06),
+                  blurRadius: 8,
+                  offset: const Offset(3, 3),
+                ),
               ],
             ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: BiomarkColors.black),
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: tema.colorScheme.onSurface),
           ),
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Text(
             'Antes de conversar con Biomark AI',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: tema.colorScheme.onSurface),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildProgreso() {
+  Widget _buildProgreso(ThemeData tema) {
     final total = _PasoEncuesta.values.length;
     return Row(
       children: List.generate(total, (i) {
@@ -195,7 +204,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
             margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
             height: 6,
             decoration: BoxDecoration(
-              color: activo ? BiomarkColors.green : const Color(0xFFE4E4EC),
+              color: activo ? BiomarkColors.green : tema.colorScheme.onSurface.withValues(alpha: .12),
               borderRadius: BorderRadius.circular(6),
             ),
           ),
@@ -207,10 +216,11 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   // ------------------------------------------------------------
   // CONTENIDO POR PASO
   // ------------------------------------------------------------
-  Widget _buildContenidoPaso() {
+  Widget _buildContenidoPaso(ThemeData tema) {
     switch (_paso) {
       case _PasoEncuesta.cronicas:
         return _buildPasoSeleccionMultiple(
+          tema: tema,
           key: const ValueKey('cronicas'),
           icono: Icons.medical_information_outlined,
           titulo: '¿Padeces alguna enfermedad crónica?',
@@ -220,6 +230,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
         );
       case _PasoEncuesta.hereditarias:
         return _buildPasoSeleccionMultiple(
+          tema: tema,
           key: const ValueKey('hereditarias'),
           icono: Icons.family_restroom_rounded,
           titulo: '¿Hay antecedentes en tu familia?',
@@ -229,6 +240,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
         );
       case _PasoEncuesta.alergias:
         return _buildPasoSeleccionMultiple(
+          tema: tema,
           key: const ValueKey('alergias'),
           icono: Icons.warning_amber_rounded,
           titulo: '¿Tienes alguna alergia conocida?',
@@ -237,13 +249,14 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
           seleccionadas: _alergiasSeleccionadas,
         );
       case _PasoEncuesta.medicamentos:
-        return _buildPasoMedicamentos();
+        return _buildPasoMedicamentos(tema);
       case _PasoEncuesta.resumen:
-        return _buildPasoResumen();
+        return _buildPasoResumen(tema);
     }
   }
 
   Widget _buildPasoSeleccionMultiple({
+    required ThemeData tema,
     required Key key,
     required IconData icono,
     required String titulo,
@@ -251,15 +264,16 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     required List<String> opciones,
     required Set<String> seleccionadas,
   }) {
+    final esOscuro = tema.brightness == Brightness.dark;
     return Column(
       key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildIconoCabecera(icono),
         const SizedBox(height: 18),
-        Text(titulo, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: BiomarkColors.black)),
+        Text(titulo, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: tema.colorScheme.onSurface)),
         const SizedBox(height: 6),
-        Text(subtitulo, style: const TextStyle(fontSize: 13, color: Color(0xFF7A7A85))),
+        Text(subtitulo, style: TextStyle(fontSize: 13, color: tema.colorScheme.onSurface.withValues(alpha: .6))),
         const SizedBox(height: 20),
         Wrap(
           spacing: 10,
@@ -288,7 +302,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: activo ? BiomarkColors.green.withValues(alpha: .12) : Colors.white,
+                  color: activo ? BiomarkColors.green.withValues(alpha: .12) : tema.cardColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: activo ? BiomarkColors.green : Colors.transparent,
@@ -297,7 +311,11 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
                   boxShadow: activo
                       ? []
                       : [
-                          BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 6, offset: const Offset(2, 2)),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: esOscuro ? .25 : .04),
+                            blurRadius: 6,
+                            offset: const Offset(2, 2),
+                          ),
                         ],
                 ),
                 child: Text(
@@ -305,7 +323,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
-                    color: activo ? BiomarkColors.green : BiomarkColors.black,
+                    color: activo ? BiomarkColors.green : tema.colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -316,39 +334,45 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     );
   }
 
-  Widget _buildPasoMedicamentos() {
+  Widget _buildPasoMedicamentos(ThemeData tema) {
+    final esOscuro = tema.brightness == Brightness.dark;
     return Column(
       key: const ValueKey('medicamentos'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildIconoCabecera(Icons.medication_liquid_rounded),
         const SizedBox(height: 18),
-        const Text(
+        Text(
           '¿Tomas algún medicamento actualmente?',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: tema.colorScheme.onSurface),
         ),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Opcional — nos ayuda a evitar recomendaciones que interactúen mal',
-          style: TextStyle(fontSize: 13, color: Color(0xFF7A7A85)),
+          style: TextStyle(fontSize: 13, color: tema.colorScheme.onSurface.withValues(alpha: .6)),
         ),
         const SizedBox(height: 20),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: tema.cardColor,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 8, offset: const Offset(2, 3)),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: esOscuro ? .25 : .05),
+                blurRadius: 8,
+                offset: const Offset(2, 3),
+              ),
             ],
           ),
           child: TextField(
             controller: _medicamentosController,
             maxLines: 4,
-            decoration: const InputDecoration(
+            style: TextStyle(color: tema.colorScheme.onSurface),
+            decoration: InputDecoration(
               hintText: 'Ej. Metformina 500mg, Losartán 50mg...',
-              hintStyle: TextStyle(color: Color(0xFF9C9CA6), fontSize: 13.5),
+              hintStyle: TextStyle(color: tema.colorScheme.onSurface.withValues(alpha: .45), fontSize: 13.5),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.all(16),
+              contentPadding: const EdgeInsets.all(16),
             ),
           ),
         ),
@@ -356,30 +380,31 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     );
   }
 
-  Widget _buildPasoResumen() {
+  Widget _buildPasoResumen(ThemeData tema) {
     return Column(
       key: const ValueKey('resumen'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildIconoCabecera(Icons.fact_check_rounded, color: BiomarkColors.green),
         const SizedBox(height: 18),
-        const Text(
+        Text(
           '¡Listo! Esto es lo que registramos',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: tema.colorScheme.onSurface),
         ),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Biomark AI usará esto para darte consejos más precisos a la hora de conversar',
-          style: TextStyle(fontSize: 13, color: Color(0xFF7A7A85)),
+          style: TextStyle(fontSize: 13, color: tema.colorScheme.onSurface.withValues(alpha: .6)),
         ),
         const SizedBox(height: 20),
-        _buildResumenTarjeta('Enfermedades crónicas', _cronicasSeleccionadas, Icons.medical_information_outlined),
+        _buildResumenTarjeta(tema, 'Enfermedades crónicas', _cronicasSeleccionadas, Icons.medical_information_outlined),
         const SizedBox(height: 12),
-        _buildResumenTarjeta('Antecedentes hereditarios', _hereditariasSeleccionadas, Icons.family_restroom_rounded),
+        _buildResumenTarjeta(tema, 'Antecedentes hereditarios', _hereditariasSeleccionadas, Icons.family_restroom_rounded),
         const SizedBox(height: 12),
-        _buildResumenTarjeta('Alergias', _alergiasSeleccionadas, Icons.warning_amber_rounded),
+        _buildResumenTarjeta(tema, 'Alergias', _alergiasSeleccionadas, Icons.warning_amber_rounded),
         const SizedBox(height: 12),
         _buildResumenTarjeta(
+          tema,
           'Medicamentos actuales',
           _medicamentosController.text.trim().isEmpty ? {'Ninguno indicado'} : {_medicamentosController.text.trim()},
           Icons.medication_liquid_rounded,
@@ -388,14 +413,19 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     );
   }
 
-  Widget _buildResumenTarjeta(String titulo, Set<String> valores, IconData icono) {
+  Widget _buildResumenTarjeta(ThemeData tema, String titulo, Set<String> valores, IconData icono) {
+    final esOscuro = tema.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: tema.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 8, offset: const Offset(2, 3)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: esOscuro ? .22 : .04),
+            blurRadius: 8,
+            offset: const Offset(2, 3),
+          ),
         ],
       ),
       child: Row(
@@ -407,11 +437,11 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(titulo, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: BiomarkColors.black)),
+                Text(titulo, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: tema.colorScheme.onSurface)),
                 const SizedBox(height: 3),
                 Text(
                   valores.isEmpty ? 'Sin información' : valores.join(', '),
-                  style: const TextStyle(fontSize: 12.5, color: Color(0xFF7A7A85)),
+                  style: TextStyle(fontSize: 12.5, color: tema.colorScheme.onSurface.withValues(alpha: .6)),
                 ),
               ],
             ),

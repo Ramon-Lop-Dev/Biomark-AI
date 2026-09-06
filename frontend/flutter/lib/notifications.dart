@@ -3,6 +3,9 @@
 // Interruptor maestro + categorías específicas. Las categorías se
 // desactivan visualmente (pero conservan su valor) cuando el maestro
 // está apagado, para que el usuario no pierda su configuración fina.
+//
+// Migrada a Theme.of(context) (mismo patrón que aparicencia_screen.dart
+// y antecedentes_screen.dart) para funcionar en modo claro y oscuro.
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
@@ -70,23 +73,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
+      backgroundColor: tema.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF9F9FC),
+        backgroundColor: tema.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: BiomarkColors.black,
+            color: tema.colorScheme.onSurface,
             size: 20,
           ),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
+        title: Text(
           'Notificaciones',
           style: TextStyle(
-            color: BiomarkColors.black,
+            color: tema.colorScheme.onSurface,
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
@@ -97,7 +102,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
             _buildTarjeta(
+              tema: tema,
               child: _buildFilaSwitch(
+                tema: tema,
                 icono: Icons.notifications_active_rounded,
                 titulo: 'Recibir todas las notificaciones',
                 subtitulo: 'Activa o desactiva todo de una vez',
@@ -107,12 +114,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            _buildSeccionTitulo('Tipos de notificación'),
+            _buildSeccionTitulo(tema, 'Tipos de notificación'),
             const SizedBox(height: 10),
             _buildTarjeta(
+              tema: tema,
               child: Column(
                 children: [
                   _buildFilaSwitch(
+                    tema: tema,
                     icono: Icons.event_available_rounded,
                     titulo: 'Jornadas y citas médicas',
                     subtitulo: 'Recordatorios antes de una jornada agendada',
@@ -122,8 +131,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       _jornadas,
                     ),
                   ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
+                  Divider(height: 24, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
                   _buildFilaSwitch(
+                    tema: tema,
                     icono: Icons.medication_liquid_rounded,
                     titulo: 'Recordatorio de medicamentos',
                     subtitulo: 'Aviso a la hora de tomar tus dosis',
@@ -133,8 +143,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       _medicamentos,
                     ),
                   ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
+                  Divider(height: 24, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
                   _buildFilaSwitch(
+                    tema: tema,
                     icono: Icons.psychology_alt_rounded,
                     titulo: 'Recomendaciones de Biomark AI',
                     subtitulo: 'Consejos de salud según tus antecedentes',
@@ -144,8 +155,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       _recomendacionesIA,
                     ),
                   ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
+                  Divider(height: 24, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
                   _buildFilaSwitch(
+                    tema: tema,
                     icono: Icons.folder_shared_outlined,
                     titulo: 'Actualizaciones de antecedentes',
                     subtitulo: 'Cuando tú o un familiar edita información médica',
@@ -155,8 +167,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       _actualizacionesAntecedentes,
                     ),
                   ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
+                  Divider(height: 24, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
                   _buildFilaSwitch(
+                    tema: tema,
                     icono: Icons.support_agent_rounded,
                     titulo: 'Mensajes de soporte',
                     subtitulo: 'Respuestas del centro de ayuda',
@@ -170,12 +183,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            _buildSeccionTitulo('Horario'),
+            _buildSeccionTitulo(tema, 'Horario'),
             const SizedBox(height: 10),
             _buildTarjeta(
+              tema: tema,
               child: Column(
                 children: [
                   _buildFilaSwitch(
+                    tema: tema,
                     icono: Icons.bedtime_outlined,
                     titulo: 'Modo silencioso',
                     subtitulo: 'No recibir notificaciones en un rango de horas',
@@ -187,11 +202,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     },
                   ),
                   if (_modoSilencioso) ...[
-                    const Divider(height: 24, color: Color(0xFFEFEFF3)),
+                    Divider(height: 24, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
                     Row(
                       children: [
                         Expanded(
                           child: _buildBotonHora(
+                            tema: tema,
                             etiqueta: 'Desde',
                             hora: _inicioSilencio,
                             onTap: () => _elegirHora(esInicio: true),
@@ -200,6 +216,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _buildBotonHora(
+                            tema: tema,
                             etiqueta: 'Hasta',
                             hora: _finSilencio,
                             onTap: () => _elegirHora(esInicio: false),
@@ -218,6 +235,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildFilaSwitch({
+    required ThemeData tema,
     required IconData icono,
     required String titulo,
     required String subtitulo,
@@ -226,6 +244,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     bool destacado = false,
   }) {
     final habilitado = destacado || _todasActivas;
+    final colorDeshabilitado = tema.colorScheme.onSurface.withValues(alpha: .35);
 
     return Row(
       children: [
@@ -234,13 +253,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           height: 34,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: (habilitado ? BiomarkColors.blue : const Color(0xFF9C9CA6))
+            color: (habilitado ? BiomarkColors.blue : colorDeshabilitado)
                 .withValues(alpha: .12),
           ),
           child: Icon(
             icono,
             size: 17,
-            color: habilitado ? BiomarkColors.blue : const Color(0xFF9C9CA6),
+            color: habilitado ? BiomarkColors.blue : colorDeshabilitado,
           ),
         ),
         const SizedBox(width: 10),
@@ -253,13 +272,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
-                  color: habilitado ? BiomarkColors.black : const Color(0xFF9C9CA6),
+                  color: habilitado ? tema.colorScheme.onSurface : colorDeshabilitado,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitulo,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF9C9CA6)),
+                style: TextStyle(fontSize: 12, color: tema.colorScheme.onSurface.withValues(alpha: .5)),
               ),
             ],
           ),
@@ -274,6 +293,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildBotonHora({
+    required ThemeData tema,
     required String etiqueta,
     required TimeOfDay hora,
     required VoidCallback onTap,
@@ -284,22 +304,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFF3F3F8),
+          color: tema.colorScheme.onSurface.withValues(alpha: .05),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           children: [
             Text(
               etiqueta,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF9C9CA6)),
+              style: TextStyle(fontSize: 11, color: tema.colorScheme.onSurface.withValues(alpha: .5)),
             ),
             const SizedBox(height: 2),
             Text(
               _formatearHora(hora),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: BiomarkColors.black,
+                color: tema.colorScheme.onSurface,
               ),
             ),
           ],
@@ -308,26 +328,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildSeccionTitulo(String texto) {
+  Widget _buildSeccionTitulo(ThemeData tema, String texto) {
     return Text(
       texto,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 12.5,
         fontWeight: FontWeight.w700,
-        color: Color(0xFF7A7A85),
+        color: tema.colorScheme.onSurface.withValues(alpha: .6),
       ),
     );
   }
 
-  Widget _buildTarjeta({required Widget child}) {
+  Widget _buildTarjeta({required ThemeData tema, required Widget child}) {
+    final esOscuro = tema.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: tema.cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: .05),
+            color: Colors.black.withValues(alpha: esOscuro ? .25 : .05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),

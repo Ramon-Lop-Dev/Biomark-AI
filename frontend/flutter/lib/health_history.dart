@@ -1,6 +1,7 @@
 // Mis Antecedentes — muestra lo que el usuario indicó en la encuesta de
 // salud (enfermedades crónicas, hereditarias, alergias, medicamentos) y
 // permite agregar nueva información sin repetir toda la encuesta.
+//
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
@@ -17,22 +18,24 @@ class AntecedentesScreen extends StatefulWidget {
 class _AntecedentesScreenState extends State<AntecedentesScreen> {
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
+      backgroundColor: tema.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF9F9FC),
+        backgroundColor: tema.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: BiomarkColors.black, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: tema.colorScheme.onSurface, size: 20),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
+        title: Text(
           'Mis Antecedentes',
-          style: TextStyle(color: BiomarkColors.black, fontWeight: FontWeight.w800, fontSize: 18),
+          style: TextStyle(color: tema.colorScheme.onSurface, fontWeight: FontWeight.w800, fontSize: 18),
         ),
       ),
       body: SafeArea(
-        child: SurveyService.completado ? _buildContenido() : _buildEstadoVacio(),
+        child: SurveyService.completado ? _buildContenido(tema) : _buildEstadoVacio(tema),
       ),
     );
   }
@@ -40,7 +43,7 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
   // ------------------------------------------------------------
   // ESTADO VACÍO — todavía no completó la encuesta
   // ------------------------------------------------------------
-  Widget _buildEstadoVacio() {
+  Widget _buildEstadoVacio(ThemeData tema) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -54,16 +57,16 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
               child: const Icon(Icons.folder_shared_outlined, color: BiomarkColors.blue, size: 38),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Aún no tienes antecedentes registrados',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: tema.colorScheme.onSurface),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Completa la breve encuesta de salud para que Biomark AI conozca tu historial y te dé mejores consejos.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Color(0xFF7A7A85)),
+              style: TextStyle(fontSize: 13, color: tema.colorScheme.onSurface.withValues(alpha: .6)),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -95,11 +98,12 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
   // ------------------------------------------------------------
   // CONTENIDO — muestra las respuestas guardadas
   // ------------------------------------------------------------
-  Widget _buildContenido() {
+  Widget _buildContenido(ThemeData tema) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
         _buildCategoria(
+          tema: tema,
           titulo: 'Enfermedades crónicas',
           icono: Icons.medical_information_outlined,
           color: BiomarkColors.blue,
@@ -107,6 +111,7 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
         ),
         const SizedBox(height: 14),
         _buildCategoria(
+          tema: tema,
           titulo: 'Antecedentes hereditarios',
           icono: Icons.family_restroom_rounded,
           color: BiomarkColors.green,
@@ -114,13 +119,14 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
         ),
         const SizedBox(height: 14),
         _buildCategoria(
+          tema: tema,
           titulo: 'Alergias',
           icono: Icons.warning_amber_rounded,
           color: Colors.orange,
           categoria: 'alergias',
         ),
         const SizedBox(height: 14),
-        _buildMedicamentos(),
+        _buildMedicamentos(tema),
         const SizedBox(height: 24),
         Center(
           child: TextButton.icon(
@@ -146,20 +152,26 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
   }
 
   Widget _buildCategoria({
+    required ThemeData tema,
     required String titulo,
     required IconData icono,
     required Color color,
     required String categoria,
   }) {
     final valores = _valoresDe(categoria);
+    final esOscuro = tema.brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: tema.cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: esOscuro ? .25 : .05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -177,7 +189,7 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
               Expanded(
                 child: Text(
                   titulo,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: tema.colorScheme.onSurface),
                 ),
               ),
               GestureDetector(
@@ -193,9 +205,9 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
           ),
           const SizedBox(height: 12),
           if (valores.isEmpty)
-            const Text(
+            Text(
               'Sin información registrada',
-              style: TextStyle(fontSize: 12.5, color: Color(0xFF9C9CA6)),
+              style: TextStyle(fontSize: 12.5, color: tema.colorScheme.onSurface.withValues(alpha: .45)),
             )
           else
             Wrap(
@@ -208,16 +220,21 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
     );
   }
 
-  Widget _buildMedicamentos() {
+  Widget _buildMedicamentos(ThemeData tema) {
     final texto = (SurveyService.respuestas['medicamentosActuales'] as String?)?.trim() ?? '';
+    final esOscuro = tema.brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: tema.cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: esOscuro ? .25 : .05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -232,10 +249,10 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
                 child: const Icon(Icons.medication_liquid_rounded, color: BiomarkColors.blue, size: 17),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Medicamentos actuales',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: tema.colorScheme.onSurface),
                 ),
               ),
               GestureDetector(
@@ -254,7 +271,9 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
             texto.isEmpty ? 'Sin información registrada' : texto,
             style: TextStyle(
               fontSize: 12.5,
-              color: texto.isEmpty ? const Color(0xFF9C9CA6) : BiomarkColors.black,
+              color: texto.isEmpty
+                  ? tema.colorScheme.onSurface.withValues(alpha: .45)
+                  : tema.colorScheme.onSurface,
             ),
           ),
         ],
@@ -289,6 +308,8 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
 
   // ------------------------------------------------------------
   // DIÁLOGOS: agregar / eliminar / editar
+  // (AlertDialog ya toma su color de fondo y texto de Theme
+  // automáticamente, así que no necesitan cambios aquí)
   // ------------------------------------------------------------
   void _mostrarDialogoAgregar(String categoria, String tituloCategoria) {
     final controller = TextEditingController();

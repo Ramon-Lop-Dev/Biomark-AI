@@ -1,4 +1,9 @@
 // Shell de navegación principal de Biomark AI.
+//
+// El fondo del Scaffold y el AppBar se adaptan con Theme.of(context)
+// para modo claro/oscuro. La píldora de la barra de navegación inferior
+// se queda blanca fija a propósito (igual que los cuadros de HomeScreen),
+// para que siempre resalte igual sobre el fondo, sea claro u oscuro.
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
@@ -86,6 +91,8 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
     final pages = [
       const HomeScreen(),
       const ProgressScreen(),
@@ -98,17 +105,17 @@ class _AppShellState extends State<AppShell> {
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
-      appBar: _buildAppBar(),
+      backgroundColor: tema.scaffoldBackgroundColor,
+      appBar: _buildAppBar(tema),
       body: SafeArea(child: pages[_navIndex]),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: _buildBottomNav(tema),
       floatingActionButton: _navIndex == 3 ? _buildAddReminderFAB() : null,
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(ThemeData tema) {
     return AppBar(
-      backgroundColor: const Color(0xFFF9F9FC),
+      backgroundColor: tema.scaffoldBackgroundColor,
       elevation: 0,
       titleSpacing: 16,
       title: Image.asset(
@@ -159,7 +166,8 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  Widget _buildBottomNav() {
+  Widget _buildBottomNav(ThemeData tema) {
+    final esOscuro = tema.brightness == Brightness.dark;
     return SafeArea(
       top: false,
       child: SizedBox(
@@ -174,11 +182,14 @@ class _AppShellState extends State<AppShell> {
               bottom: 8,
               child: Container(
                 decoration: BoxDecoration(
+                  // Fija en blanco a propósito, sin importar el tema.
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(32),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: .08),
+                      color: Colors.black.withValues(
+                        alpha: esOscuro ? .35 : .08,
+                      ),
                       blurRadius: 12,
                       offset: const Offset(4, 6),
                     ),
@@ -208,7 +219,9 @@ class _AppShellState extends State<AppShell> {
                       colors: [Color(0xFF46AB39), Color(0xFF006E03)],
                     ),
                     border: Border.all(
-                      color: const Color(0xFFF9F9FC),
+                      // Se funde con el fondo de la página (no con la
+                      // píldora blanca), por eso sigue al scaffold.
+                      color: tema.scaffoldBackgroundColor,
                       width: 4,
                     ),
                     boxShadow: [
@@ -233,6 +246,8 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
+  // Los colores de los ítems de navegación se quedan fijos (verde/gris
+  // oscuro) porque siempre viven sobre la píldora blanca fija.
   Widget _navItem(int index) {
     final selected = _navIndex == index;
     return GestureDetector(

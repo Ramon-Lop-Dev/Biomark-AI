@@ -3,6 +3,9 @@
 // Muestra cuándo se creó/modificó la contraseña, permite recuperarla
 // mediante el correo principal, deja el correo de respaldo como
 // funcionalidad futura, y da recomendaciones de seguridad.
+//
+// Migrada a Theme.of(context) (mismo patrón que notifications_screen.dart
+// y privacidad_screen.dart) para funcionar en modo claro y oscuro.
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
@@ -36,6 +39,7 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
   }
 
   Future<void> _cambiarContrasena() async {
+    final tema = Theme.of(context);
     final actualController = TextEditingController();
     final nuevaController = TextEditingController();
     final confirmarController = TextEditingController();
@@ -43,10 +47,15 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     await showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: tema.dialogTheme.backgroundColor ?? tema.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text(
+        title: Text(
           'Cambiar contraseña',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: tema.colorScheme.onSurface,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -54,6 +63,7 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
             TextField(
               controller: actualController,
               obscureText: true,
+              style: TextStyle(color: tema.colorScheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'Contraseña actual',
                 border: OutlineInputBorder(
@@ -65,6 +75,7 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
             TextField(
               controller: nuevaController,
               obscureText: true,
+              style: TextStyle(color: tema.colorScheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'Nueva contraseña',
                 border: OutlineInputBorder(
@@ -76,6 +87,7 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
             TextField(
               controller: confirmarController,
               obscureText: true,
+              style: TextStyle(color: tema.colorScheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'Confirmar nueva contraseña',
                 border: OutlineInputBorder(
@@ -149,23 +161,25 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
+      backgroundColor: tema.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF9F9FC),
+        backgroundColor: tema.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: BiomarkColors.black,
+            color: tema.colorScheme.onSurface,
             size: 20,
           ),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
+        title: Text(
           'Seguridad y contraseña',
           style: TextStyle(
-            color: BiomarkColors.black,
+            color: tema.colorScheme.onSurface,
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
@@ -175,9 +189,10 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            _buildSeccionTitulo('Contraseña'),
+            _buildSeccionTitulo(tema, 'Contraseña'),
             const SizedBox(height: 10),
             _buildTarjeta(
+              tema: tema,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -201,20 +216,20 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Última modificación',
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w700,
-                                color: BiomarkColors.black,
+                                color: tema.colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               _fechaFormateada,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12.5,
-                                color: Color(0xFF7A7A85),
+                                color: tema.colorScheme.onSurface.withValues(alpha: .6),
                               ),
                             ),
                           ],
@@ -243,13 +258,15 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            _buildSeccionTitulo('Recuperación de cuenta'),
+            _buildSeccionTitulo(tema, 'Recuperación de cuenta'),
             const SizedBox(height: 10),
             _buildTarjeta(
+              tema: tema,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildFilaCorreo(
+                    tema: tema,
                     icono: Icons.email_outlined,
                     titulo: 'Correo principal',
                     correo: widget.correoUsuario,
@@ -264,8 +281,9 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
                             child: const Text('Enviar enlace'),
                           ),
                   ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
+                  Divider(height: 24, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
                   _buildFilaCorreo(
+                    tema: tema,
                     icono: Icons.email_outlined,
                     titulo: 'Correo de respaldo',
                     correo: 'No configurado',
@@ -276,15 +294,15 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFEFF3),
+                        color: tema.colorScheme.onSurface.withValues(alpha: .08),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Próximamente',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF9C9CA6),
+                          color: tema.colorScheme.onSurface.withValues(alpha: .5),
                         ),
                       ),
                     ),
@@ -293,31 +311,32 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            _buildSeccionTitulo('Recomendaciones'),
+            _buildSeccionTitulo(tema, 'Recomendaciones'),
             const SizedBox(height: 10),
             _buildTarjeta(
+              tema: tema,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  _RecomendacionItem(
+                children: [
+                  const _RecomendacionItem(
                     icono: Icons.password_rounded,
                     texto:
                         'Usa una contraseña de al menos 12 caracteres, combinando letras, números y símbolos.',
                   ),
-                  Divider(height: 20, color: Color(0xFFEFEFF3)),
-                  _RecomendacionItem(
+                  Divider(height: 20, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
+                  const _RecomendacionItem(
                     icono: Icons.autorenew_rounded,
                     texto:
                         'No reutilices esta contraseña en otras cuentas ni apps.',
                   ),
-                  Divider(height: 20, color: Color(0xFFEFEFF3)),
-                  _RecomendacionItem(
+                  Divider(height: 20, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
+                  const _RecomendacionItem(
                     icono: Icons.mark_email_read_outlined,
                     texto:
                         'Agrega un correo de respaldo apenas esté disponible, para no perder el acceso a tu cuenta.',
                   ),
-                  Divider(height: 20, color: Color(0xFFEFEFF3)),
-                  _RecomendacionItem(
+                  Divider(height: 20, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
+                  const _RecomendacionItem(
                     icono: Icons.verified_user_outlined,
                     texto:
                         'Cambia tu contraseña periódicamente, sobre todo si la usaste en otro sitio.',
@@ -332,6 +351,7 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
   }
 
   Widget _buildFilaCorreo({
+    required ThemeData tema,
     required IconData icono,
     required String titulo,
     required String correo,
@@ -346,14 +366,14 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: correoDeshabilitado
-                ? const Color(0xFFEFEFF3)
+                ? tema.colorScheme.onSurface.withValues(alpha: .08)
                 : BiomarkColors.blue.withValues(alpha: .12),
           ),
           child: Icon(
             icono,
             size: 17,
             color: correoDeshabilitado
-                ? const Color(0xFF9C9CA6)
+                ? tema.colorScheme.onSurface.withValues(alpha: .5)
                 : BiomarkColors.blue,
           ),
         ),
@@ -364,10 +384,10 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
             children: [
               Text(
                 titulo,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: BiomarkColors.black,
+                  color: tema.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 2),
@@ -376,8 +396,8 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
                 style: TextStyle(
                   fontSize: 12.5,
                   color: correoDeshabilitado
-                      ? const Color(0xFF9C9CA6)
-                      : const Color(0xFF7A7A85),
+                      ? tema.colorScheme.onSurface.withValues(alpha: .5)
+                      : tema.colorScheme.onSurface.withValues(alpha: .6),
                 ),
               ),
             ],
@@ -388,26 +408,27 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     );
   }
 
-  Widget _buildSeccionTitulo(String texto) {
+  Widget _buildSeccionTitulo(ThemeData tema, String texto) {
     return Text(
       texto,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 12.5,
         fontWeight: FontWeight.w700,
-        color: Color(0xFF7A7A85),
+        color: tema.colorScheme.onSurface.withValues(alpha: .6),
       ),
     );
   }
 
-  Widget _buildTarjeta({required Widget child}) {
+  Widget _buildTarjeta({required ThemeData tema, required Widget child}) {
+    final esOscuro = tema.brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: tema.cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: .05),
+            color: Colors.black.withValues(alpha: esOscuro ? .25 : .05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -426,6 +447,7 @@ class _RecomendacionItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -434,7 +456,10 @@ class _RecomendacionItem extends StatelessWidget {
         Expanded(
           child: Text(
             texto,
-            style: const TextStyle(fontSize: 12.5, color: Color(0xFF4A4A55)),
+            style: TextStyle(
+              fontSize: 12.5,
+              color: tema.colorScheme.onSurface.withValues(alpha: .75),
+            ),
           ),
         ),
       ],

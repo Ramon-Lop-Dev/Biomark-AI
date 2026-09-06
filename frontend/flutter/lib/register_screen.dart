@@ -9,6 +9,13 @@ import 'core/config/app_config.dart';
 /// ---------------------------------------------------------------
 /// REGISTER SCREEN — mismo estilo "claymorfismo" que el login,
 /// con pestañas Iniciar Sesión / Registrarse arriba (igual que login)
+///
+/// Migrada para soportar modo claro y oscuro: como esta pantalla usa
+/// un diseño propio (degradado + tarjetas "clay"/glassmorfismo) en vez
+/// de los colores base de Material, cada color fijo se resuelve ahora
+/// según `Theme.of(context).brightness` en vez de quedar hardcodeado.
+/// El azul de marca (accentBlue) se mantiene fijo en ambos modos, igual
+/// que BiomarkColors.blue/green en el resto de la app.
 /// ---------------------------------------------------------------
 
 class RegisterScreen extends StatefulWidget {
@@ -42,17 +49,9 @@ class _RegisterScreenState extends State<RegisterScreen>
       ? _contentSlide
       : const AlwaysStoppedAnimation<Offset>(Offset.zero);
 
-  // Fondo con más carácter — degradado en tonos azules de marca
-  static const Color bgTop = Color.fromARGB(255, 244, 245, 246);
-  static const Color bgMid = Color.fromARGB(255, 239, 239, 240);
-  static const Color accentBlue = Color.fromARGB(
-    255,
-    50,
-    96,
-    169,
-  ); // azul de marca
-  static const Color textDark = Color(0xFF1F2542);
-  static const Color textGray = Color.fromARGB(255, 36, 36, 37);
+  // Azul de marca — se mantiene fijo en ambos modos (igual que
+  // BiomarkColors.blue en el resto de la app).
+  static const Color accentBlue = Color.fromARGB(255, 50, 96, 169);
 
   @override
   void initState() {
@@ -92,20 +91,30 @@ class _RegisterScreenState extends State<RegisterScreen>
     bool isError = false,
   }) async {
     if (!mounted) return;
+    final tema = Theme.of(context);
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        surfaceTintColor: Colors.white,
+        backgroundColor: tema.dialogTheme.backgroundColor ?? tema.cardColor,
+        surfaceTintColor: tema.cardColor,
         icon: Icon(
           icon,
           size: 46,
           color: isError ? Colors.redAccent : accentBlue,
         ),
-        title: Text(title, textAlign: TextAlign.center),
-        content: Text(message, textAlign: TextAlign.center),
+        title: Text(
+          title,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: tema.colorScheme.onSurface),
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: tema.colorScheme.onSurface.withValues(alpha: .8)),
+        ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           FilledButton(
@@ -172,17 +181,30 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final esOscuro = tema.brightness == Brightness.dark;
+
+    final bgTop = esOscuro
+        ? const Color(0xFF14161C)
+        : const Color.fromARGB(255, 244, 245, 246);
+    final bgMid = esOscuro
+        ? const Color(0xFF1B1E27)
+        : const Color.fromARGB(255, 239, 239, 240);
+    final bgBottom = esOscuro
+        ? const Color(0xFF10131A)
+        : const Color.fromARGB(255, 244, 245, 243);
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [bgTop, bgMid, Color.fromARGB(255, 244, 245, 243)],
-            stops: [0.0, 0.55, 1.0],
+            colors: [bgTop, bgMid, bgBottom],
+            stops: const [0.0, 0.55, 1.0],
           ),
         ),
         child: SafeArea(
@@ -207,19 +229,19 @@ class _RegisterScreenState extends State<RegisterScreen>
                               const SizedBox(height: 28),
                               FadeTransition(
                                 opacity: _safeContentFade,
-                                child: _buildLogo(),
+                                child: _buildLogo(tema),
                               ),
                               const SizedBox(height: 20),
                               FadeTransition(
                                 opacity: _safeContentFade,
-                                child: _buildAuthTabs(),
+                                child: _buildAuthTabs(tema),
                               ),
                               const SizedBox(height: 20),
                               SlideTransition(
                                 position: _safeContentSlide,
                                 child: FadeTransition(
                                   opacity: _safeContentFade,
-                                  child: _buildTitle(),
+                                  child: _buildTitle(tema),
                                 ),
                               ),
                               const SizedBox(height: 28),
@@ -227,7 +249,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                 position: _safeContentSlide,
                                 child: FadeTransition(
                                   opacity: _safeContentFade,
-                                  child: _buildFormCard(),
+                                  child: _buildFormCard(tema),
                                 ),
                               ),
                               const SizedBox(height: 24),
@@ -246,16 +268,17 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
-  Widget _buildLogo() {
+  Widget _buildLogo(ThemeData tema) {
+    final esOscuro = tema.brightness == Brightness.dark;
     return Container(
       width: 96,
       height: 96,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white,
+        color: tema.cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.25),
+            color: Colors.black.withValues(alpha: esOscuro ? .35 : .12),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -273,7 +296,15 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   // ---------------- PESTAÑAS INICIAR SESIÓN / REGISTRARSE (glassmorfismo) ----------------
-  Widget _buildAuthTabs() {
+  Widget _buildAuthTabs(ThemeData tema) {
+    final esOscuro = tema.brightness == Brightness.dark;
+    final glassFill = esOscuro
+        ? tema.colorScheme.onSurface.withValues(alpha: .08)
+        : Colors.white.withValues(alpha: 0.18);
+    final glassBorder = esOscuro
+        ? tema.colorScheme.onSurface.withValues(alpha: .18)
+        : Colors.white.withValues(alpha: 0.5);
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
@@ -281,14 +312,15 @@ class _RegisterScreenState extends State<RegisterScreen>
         child: Container(
           padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.18),
+            color: glassFill,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1),
+            border: Border.all(color: glassBorder, width: 1),
           ),
           child: Row(
             children: [
               Expanded(
                 child: _buildGlassTabItem(
+                  tema: tema,
                   texto: 'Iniciar Sesión',
                   activo: false,
                   onTap: _irALogin,
@@ -296,6 +328,7 @@ class _RegisterScreenState extends State<RegisterScreen>
               ),
               Expanded(
                 child: _buildGlassTabItem(
+                  tema: tema,
                   texto: 'Registrarse',
                   activo: true,
                   onTap: () {},
@@ -309,6 +342,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   Widget _buildGlassTabItem({
+    required ThemeData tema,
     required String texto,
     required bool activo,
     required VoidCallback onTap,
@@ -339,7 +373,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           texto,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: activo ? accentBlue : textDark,
+            color: activo ? accentBlue : tema.colorScheme.onSurface,
             fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
             fontSize: 14,
           ),
@@ -349,44 +383,55 @@ class _RegisterScreenState extends State<RegisterScreen>
   }
 
   // ---------------- TÍTULO ----------------
-  Widget _buildTitle() {
+  Widget _buildTitle(ThemeData tema) {
     return Text(
       'Completa tus datos para registrarte',
       textAlign: TextAlign.center,
-      style: TextStyle(fontSize: 13.5, color: textGray),
+      style: TextStyle(
+        fontSize: 13.5,
+        color: tema.colorScheme.onSurface.withValues(alpha: .6),
+      ),
     );
   }
 
   // ---------------- TARJETA CON EL FORMULARIO ----------------
-  Widget _buildFormCard() {
+  Widget _buildFormCard(ThemeData tema) {
+    final esOscuro = tema.brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: tema.cardColor,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: const Color.fromARGB(255, 11, 8, 99).withValues(alpha: 0.25),
+            color: (esOscuro ? Colors.black : const Color.fromARGB(255, 11, 8, 99))
+                .withValues(alpha: esOscuro ? .4 : .25),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
-          const BoxShadow(
-            color: Color.fromARGB(232, 189, 193, 193),
-            blurRadius: 20,
-            offset: Offset(-6, -6),
-          ),
+          if (!esOscuro)
+            const BoxShadow(
+              color: Color.fromARGB(232, 189, 193, 193),
+              blurRadius: 20,
+              offset: Offset(-6, -6),
+            ),
         ],
-        border: Border.all(color: Colors.white.withValues(alpha: 0.75)),
+        border: Border.all(
+          color: esOscuro
+              ? tema.colorScheme.onSurface.withValues(alpha: .1)
+              : Colors.white.withValues(alpha: 0.75),
+        ),
       ),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildLabel('Nombre completo'),
+            _buildLabel(tema, 'Nombre completo'),
             const SizedBox(height: 8),
             _buildClayTextField(
+              tema: tema,
               controller: _nameController,
               hint: 'Tu nombre completo',
               icon: Icons.person_outline_rounded,
@@ -398,9 +443,10 @@ class _RegisterScreenState extends State<RegisterScreen>
               },
             ),
             const SizedBox(height: 16),
-            _buildLabel('Correo electrónico'),
+            _buildLabel(tema, 'Correo electrónico'),
             const SizedBox(height: 8),
             _buildClayTextField(
+              tema: tema,
               controller: _emailController,
               hint: 'tunombre123@gmail.com',
               icon: Icons.mail_outline_rounded,
@@ -414,9 +460,10 @@ class _RegisterScreenState extends State<RegisterScreen>
               },
             ),
             const SizedBox(height: 16),
-            _buildLabel('Contraseña'),
+            _buildLabel(tema, 'Contraseña'),
             const SizedBox(height: 8),
             _buildClayTextField(
+              tema: tema,
               controller: _passwordController,
               hint: '••••••••••',
               icon: Icons.lock_outline_rounded,
@@ -427,7 +474,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                   _obscurePassword
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
-                  color: textGray,
+                  color: tema.colorScheme.onSurface.withValues(alpha: .6),
                 ),
                 onPressed: () {
                   setState(() => _obscurePassword = !_obscurePassword);
@@ -450,9 +497,10 @@ class _RegisterScreenState extends State<RegisterScreen>
               },
             ),
             const SizedBox(height: 16),
-            _buildLabel('Confirmar contraseña'),
+            _buildLabel(tema, 'Confirmar contraseña'),
             const SizedBox(height: 8),
             _buildClayTextField(
+              tema: tema,
               controller: _confirmPasswordController,
               hint: '••••••••••',
               icon: Icons.lock_outline_rounded,
@@ -463,7 +511,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                   _obscureConfirmPassword
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
-                  color: textGray,
+                  color: tema.colorScheme.onSurface.withValues(alpha: .6),
                 ),
                 onPressed: () {
                   setState(
@@ -486,19 +534,20 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
-  Widget _buildLabel(String text) {
+  Widget _buildLabel(ThemeData tema, String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w600,
-        color: textDark,
+        color: tema.colorScheme.onSurface,
       ),
     );
   }
 
   // Campo de texto con efecto "clay" — idéntico al del login
   Widget _buildClayTextField({
+    required ThemeData tema,
     required TextEditingController controller,
     required String hint,
     required IconData icon,
@@ -510,23 +559,34 @@ class _RegisterScreenState extends State<RegisterScreen>
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
+    final esOscuro = tema.brightness == Brightness.dark;
+    final fieldColor = esOscuro
+        ? tema.colorScheme.onSurface.withValues(alpha: .05)
+        : const Color(0xFFF4F6FB);
+    final iconColor = tema.colorScheme.onSurface.withValues(alpha: .6);
+
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F6FB),
+        color: fieldColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.15),
+            color: Colors.black.withValues(alpha: esOscuro ? .2 : .15),
             blurRadius: 8,
             offset: const Offset(2, 2),
           ),
-          const BoxShadow(
-            color: Colors.white,
-            blurRadius: 8,
-            offset: Offset(-2, -2),
-          ),
+          if (!esOscuro)
+            const BoxShadow(
+              color: Colors.white,
+              blurRadius: 8,
+              offset: Offset(-2, -2),
+            ),
         ],
-        border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
+        border: Border.all(
+          color: esOscuro
+              ? tema.colorScheme.onSurface.withValues(alpha: .1)
+              : Colors.white.withValues(alpha: 0.85),
+        ),
       ),
       child: TextFormField(
         controller: controller,
@@ -535,9 +595,9 @@ class _RegisterScreenState extends State<RegisterScreen>
         onTap: onTap,
         keyboardType: keyboardType,
         validator: validator,
-        style: const TextStyle(color: textDark, fontSize: 14),
+        style: TextStyle(color: tema.colorScheme.onSurface, fontSize: 14),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: textGray, size: 20),
+          prefixIcon: Icon(icon, color: iconColor, size: 20),
           suffixIcon: suffixIcon,
             hintText: floatingHint ? null : hint,
             floatingLabelBehavior: floatingHint
