@@ -8,7 +8,8 @@ const {
     getMedications,
     createMedication,
     getFamilyHistory,
-    createFamilyHistory
+    createFamilyHistory,
+    replaceSurvey
 } = require('./medical.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
 const { validate } = require('../../middleware/validate.middleware');
