@@ -6,7 +6,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import 'acercade.dart';
 import 'biomark_brand.dart';
 import 'datos_personales.dart';
 import 'editar_perfil.dart';
@@ -160,10 +162,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _ItemPerfil(
                 icon: Icons.help_outline_rounded,
                 label: 'Centro de ayuda',
+                onTap: _abrirCentroDeAyuda,
               ),
               _ItemPerfil(
                 icon: Icons.info_outline_rounded,
                 label: 'Acerca de Biomark AI',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AcercaScreen(),
+                    ),
+                  );
+                },
               ),
             ]),
             const SizedBox(height: 28),
@@ -355,6 +366,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  // TODO: si luego prefieres una sección específica de tu landing (por
+  // ejemplo un ancla como #soporte), cambia esta URL.
+  static const String _urlCentroDeAyuda =
+      'https://biomark-landing-p.vercel.app';
+
+  Future<void> _abrirCentroDeAyuda() async {
+    final uri = Uri.parse(_urlCentroDeAyuda);
+    final abierto =
+        await canLaunchUrl(uri) &&
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!abierto && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No pudimos abrir el enlace')),
+      );
+    }
   }
 
   Future<void> _cerrarSesion(BuildContext context) async {
