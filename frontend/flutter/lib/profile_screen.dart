@@ -1,11 +1,14 @@
 // Pantalla de perfil de usuario — Biomark AI
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 import 'biomark_brand.dart';
 import 'main.dart'; // para poder cerrar sesión y volver a LoginScreen
 import 'core/auth/auth_api.dart';
 import 'core/auth/auth_session.dart';
 import 'core/config/app_config.dart';
+import 'features/community/promoter_screens.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -59,6 +62,18 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.lock_outline_rounded,
                 label: 'Seguridad y contraseña',
               ),
+              if (!AuthSession.instance.isPromoter && !AuthSession.instance.isAdmin)
+                _ItemPerfil(
+                  icon: Icons.volunteer_activism_outlined,
+                  label: 'Solicitar ser promotor',
+                  onTap: () => _solicitarPromotor(context),
+                ),
+              if (AuthSession.instance.isAdmin)
+                _ItemPerfil(
+                  icon: Icons.admin_panel_settings_outlined,
+                  label: 'Solicitudes de promotor',
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminRoleRequestsScreen())),
+                ),
             ]),
             const SizedBox(height: 18),
             _buildSeccion('Preferencias', [
@@ -255,6 +270,50 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _solicitarPromotor(BuildContext context) async {
+    final token = AuthSession.instance.accessToken;
+    if (token == null || token.isEmpty) return;
+    final base = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
+    final headers = {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'};
+    try {
+      final current = await http.get(Uri.parse('$base/api/auth/promotor/solicitud'), headers: headers);
+      if (!context.mounted) return;
+      final currentBody = current.body.isEmpty ? null : jsonDecode(current.body);
+      final currentStatus = currentBody is Map<String, dynamic> ? currentBody['estado'] as String? : null;
+      if (currentStatus == 'PENDIENTE') {
+        _showPromoterMessage(context, 'Tu solicitud está pendiente de revisión administrativa.');
+        return;
+      }
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.volunteer_activism_rounded, color: BiomarkColors.green, size: 42),
+          title: const Text('Solicitar rol de promotor'),
+          content: const Text('Podrás organizar jornadas y validar reportes comunitarios. Un administrador revisará tu solicitud antes de activar el rol.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Enviar solicitud')),
+          ],
+        ),
+      );
+      if (confirmed != true || !context.mounted) return;
+      final response = await http.post(Uri.parse('$base/api/auth/promotor/solicitud'), headers: headers);
+      if (!context.mounted) return;
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        _showPromoterMessage(context, 'Solicitud enviada. Te avisaremos cuando sea revisada.');
+      } else {
+        final body = response.body.isEmpty ? null : jsonDecode(response.body);
+        _showPromoterMessage(context, body is Map<String, dynamic> ? '${body['error'] ?? 'No se pudo enviar la solicitud.'}' : 'No se pudo enviar la solicitud.');
+      }
+    } catch (_) {
+      if (context.mounted) _showPromoterMessage(context, 'No se pudo conectar con el servidor.');
+    }
+  }
+
+  void _showPromoterMessage(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
+  }
+
   Widget _buildBotonCerrarSesion(BuildContext context) {
     return SizedBox(
       width: double.infinity,
@@ -289,5 +348,5 @@ class _ItemPerfil {
   final String label;
   final VoidCallback? onTap;
 
-  _ItemPerfil({required this.icon, required this.label}) : onTap = null;
+  _ItemPerfil({required this.icon, required this.label, this.onTap});
 }

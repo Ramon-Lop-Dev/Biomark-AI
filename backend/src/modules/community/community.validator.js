@@ -6,6 +6,7 @@ const createEventSchema = z.object({
   descripcion: z.string().trim().max(2000).optional(),
   fecha_evento: z.string().datetime({ offset: true, message: 'fecha_evento debe ser una fecha/hora ISO 8601 válida' }),
   ubicacion: z.string().trim().max(500).optional(),
+  tipo: z.enum(['VACUNACION', 'FUMIGACION', 'CONSULTA_MEDICA', 'PREVENCION_DENGUE', 'SALUD_COMUNITARIA']).default('SALUD_COMUNITARIA'),
   latitud: z.number().min(-90).max(90).optional(),
   longitud: z.number().min(-180).max(180).optional()
 }).refine(

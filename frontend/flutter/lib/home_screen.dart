@@ -5,16 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'biomark_brand.dart';
-import 'survey_service.dart';
-import 'health_history.dart';
 import 'features/gis/presentation/gis_map_screen.dart';
-import 'features/progress/presentation/progress_screen.dart';
-import 'features/reminders/presentation/reminders_screen.dart';
 import 'core/auth/auth_session.dart';
 import 'core/config/app_config.dart';
-import 'features/progress/data/progress_api.dart';
-import 'features/progress/domain/progress_snapshot.dart';
-import 'features/reminders/data/reminders_service.dart';
 
 /// Transición personalizada (duplicada para evitar circular imports)
 class _FadeSlidePageRoute<T> extends MaterialPageRoute<T> {
@@ -41,7 +34,9 @@ class _FadeSlidePageRoute<T> extends MaterialPageRoute<T> {
 }
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.onOpenMap});
+
+  final VoidCallback? onOpenMap;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -49,14 +44,26 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String _nombreUsuario = 'usuario';
-  ProgressGoal? _objetivo;
-  List<Reminder> _recordatorios = const [];
+  int _totalCases = 0;
+  int _validatedReports = 0;
+  List<_CommunitySignal> _signals = const [];
+  List<_CommunityEvent> _events = const [];
+  bool _loadingCommunity = true;
+  String? _communityError;
+
+  void _openMap() {
+    if (widget.onOpenMap != null) {
+      widget.onOpenMap!();
+      return;
+    }
+    Navigator.push(context, _FadeSlidePageRoute(builder: (_) => const GisMapScreen()));
+  }
 
   @override
   void initState() {
     super.initState();
     _cargarNombreUsuario();
-    _cargarInicio();
+    _cargarPanoramaComunitario();
   }
 
   Future<void> _cargarNombreUsuario() async {
@@ -79,32 +86,53 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
-  Future<void> _cargarInicio() async {
+  Future<void> _cargarPanoramaComunitario() async {
+    if (mounted) {
+      setState(() {
+        _loadingCommunity = true;
+        _communityError = null;
+      });
+    }
     try {
-      final goals = await ProgressApi().fetchGoals();
-      final reminders = await RemindersService(
-        baseUrl: AppConfig.apiUrl,
-        accessToken: AuthSession.instance.accessToken ?? '',
-      ).getReminders();
+      final base = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
+      final token = AuthSession.instance.accessToken ?? '';
+      final headers = {'Authorization': 'Bearer $token'};
+      final responses = await Future.wait([
+        http.get(Uri.parse('$base/api/community/statistics'), headers: headers),
+        http.get(Uri.parse('$base/api/community/heatmap'), headers: headers),
+        http.get(Uri.parse('$base/api/community/events')),
+      ]);
+      final statistics = responses[0].statusCode >= 200 && responses[0].statusCode < 300
+          ? jsonDecode(responses[0].body) as Map<String, dynamic>
+          : <String, dynamic>{};
+      final heatmap = responses[1].statusCode >= 200 && responses[1].statusCode < 300
+          ? jsonDecode(responses[1].body) as List<dynamic>
+          : const <dynamic>[];
+      final events = responses[2].statusCode >= 200 && responses[2].statusCode < 300
+          ? jsonDecode(responses[2].body) as List<dynamic>
+          : const <dynamic>[];
+      final signals = heatmap.whereType<Map<String, dynamic>>().map(_CommunitySignal.fromJson).toList();
+      final upcomingEvents = events
+          .whereType<Map<String, dynamic>>()
+          .map(_CommunityEvent.fromJson)
+          .where((event) => event.date.isAfter(DateTime.now()))
+          .take(4)
+          .toList();
       if (!mounted) return;
       setState(() {
-        _objetivo = goals.where((goal) => goal.estado == 'ACTIVO').firstOrNull;
-        _recordatorios = reminders.where((reminder) {
-          final today = DateTime.now();
-          final date = reminder.fechaRecordatorio.toLocal();
-          final difference = DateTime(date.year, date.month, date.day)
-              .difference(DateTime(today.year, today.month, today.day))
-              .inDays;
-          return reminder.estado == 'PENDIENTE' && difference >= 0 && difference <= 1;
-        }).toList();
+        _totalCases = (statistics['total_casos'] as num?)?.toInt() ?? signals.fold(0, (total, signal) => total + signal.cases);
+        _validatedReports = signals.length;
+        _signals = signals;
+        _events = upcomingEvents;
+        _loadingCommunity = false;
       });
-    } catch (_) {}
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingCommunity = false;
+        _communityError = 'No pudimos actualizar el panorama comunitario.';
+      });
+    }
   }
 
   @override
@@ -112,178 +140,113 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        Text(
-          '¡Hola, $_nombreUsuario!',
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: BiomarkColors.black,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '¡Hola, $_nombreUsuario!',
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Actualizar panorama',
+              onPressed: _loadingCommunity ? null : _cargarPanoramaComunitario,
+              icon: Icon(_loadingCommunity ? Icons.sync_rounded : Icons.refresh_rounded),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Panorama de salud comunitaria',
+          style: TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
-        _buildHealthGoal(),
-        const SizedBox(height: 20),
-        Row(
-          children: [
-            Expanded(
-              child: _buildFeatureButton(
-                'Conversa con\nBiomark',
-                Icons.health_and_safety_rounded,
-                BiomarkColors.blue,
-                () => SurveyService.abrirChat(context),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: _buildFeatureButton(
-                'Mapa de\nSalud',
-                Icons.map_outlined,
-                BiomarkColors.green,
-                () => Navigator.push(
-                  context,
-                  _FadeSlidePageRoute(builder: (_) => const GisMapScreen()),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            Expanded(
-              child: _buildFeatureButton(
-                'Mis\nAntecedentes',
-                Icons.folder_shared_outlined,
-                BiomarkColors.green,
-                () => Navigator.push(
-                  context,
-                  _FadeSlidePageRoute(builder: (_) => const AntecedentesScreen()),
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: _buildFeatureButton(
-                'Mi\nProgreso',
-                Icons.show_chart_rounded,
-                BiomarkColors.blue,
-                () => Navigator.push(
-                  context,
-                  _FadeSlidePageRoute(builder: (_) => const ProgressScreen()),
-                ),
-              ),
-            ),
-          ],
-        ),
+        _buildCommunitySummary(),
         const SizedBox(height: 24),
-        const Row(
-          children: [
-            Icon(
-              Icons.notifications_active_outlined,
-              color: BiomarkColors.blue,
-              size: 20,
-            ),
-            SizedBox(width: 8),
-            Text(
-              'Recordatorios Inteligentes',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: BiomarkColors.black,
-              ),
-            ),
-          ],
+        _sectionTitle(
+          Icons.campaign_rounded,
+          'Señales de la comunidad',
+          'Reportes validados y agrupados por zona aproximada',
         ),
-        const SizedBox(height: 12),
-        if (_recordatorios.isEmpty)
-          Text('No tienes recordatorios para hoy o mañana.')
+        const SizedBox(height: 10),
+        if (_communityError != null)
+          _buildEmptyState(_communityError!, Icons.cloud_off_rounded)
+        else if (_loadingCommunity)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 28),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_signals.isEmpty)
+          _buildEmptyState('Todavía no hay reportes validados para mostrar.', Icons.verified_outlined)
         else
-          ..._recordatorios.map((reminder) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildReminder(
-                  reminder.titulo,
-                  reminder.descripcion ?? reminder.tipo,
-                  _dayLabel(reminder.fechaRecordatorio),
-                  reminder.hora ?? '--:--',
-                  Icons.notifications_active_outlined,
-                  BiomarkColors.blue,
-                  () => Navigator.push(context, _FadeSlidePageRoute(builder: (_) => const RemindersScreen())),
-                ),
-              )),
+          ..._signals.take(5).map(_buildSignalCard),
+        const SizedBox(height: 24),
+        _sectionTitle(
+          Icons.event_available_rounded,
+          'Próximas jornadas',
+          'Actividades comunitarias cercanas',
+        ),
+        const SizedBox(height: 10),
+        if (_events.isEmpty)
+          _buildEmptyState('No hay jornadas próximas publicadas.', Icons.event_busy_rounded)
+        else
+          ..._events.map(_buildEventCard),
+        const SizedBox(height: 18),
+        OutlinedButton.icon(
+          onPressed: _openMap,
+          icon: const Icon(Icons.add_location_alt_rounded),
+          label: const Text('Aportar un reporte desde el mapa'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: BiomarkColors.green,
+            side: const BorderSide(color: BiomarkColors.green),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Las señales mostradas fueron revisadas antes de aparecer en este panorama.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 11, color: Colors.black45),
+        ),
       ],
     );
   }
 
-  String _dayLabel(DateTime date) {
-    final today = DateTime.now();
-    final local = date.toLocal();
-    final days = DateTime(local.year, local.month, local.day)
-        .difference(DateTime(today.year, today.month, today.day))
-        .inDays;
-    return days == 0 ? 'Hoy' : 'Mañana';
-  }
-
-  Widget _buildHealthGoal() {
-    final title = _objetivo?.titulo ?? 'Define un objetivo de salud';
-    final milestones = _objetivo?.milestones ?? const <ProgressMilestone>[];
-    final completed = milestones.where((milestone) => milestone.completed).length;
-    final total = milestones.length;
+  Widget _buildCommunitySummary() {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            BiomarkColors.blue.withValues(alpha: .10),
-            BiomarkColors.blue.withValues(alpha: .04),
+            BiomarkColors.green.withValues(alpha: .14),
+            BiomarkColors.blue.withValues(alpha: .06),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Meta de Salud de Hoy',
-                style: TextStyle(
-                  color: BiomarkColors.blue,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: BiomarkColors.green.withValues(alpha: .15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.health_and_safety_rounded, color: BiomarkColors.green),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Actividad comunitaria', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                const SizedBox(height: 3),
+                Text(
+                  '$_validatedReports zonas con reportes validados · $_totalCases casos observados',
+                  style: const TextStyle(fontSize: 12.5, height: 1.3),
                 ),
-              ),
-              if (_objetivo != null) Text('$completed/$total', style: const TextStyle(fontWeight: FontWeight.w700)),
-            ],
-          ),
-          Text(
-            title,
-            style: TextStyle(color: BiomarkColors.black, fontSize: 13),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Progreso',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-              Text(
-                _objetivo == null ? 'Crea uno desde Mi progreso' : '$completed/$total hitos',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: total == 0 ? 0 : completed / total,
-              minHeight: 8,
-              valueColor: const AlwaysStoppedAnimation(BiomarkColors.blue),
+              ],
             ),
           ),
         ],
@@ -291,127 +254,116 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFeatureButton(
-    String title,
-    IconData icon,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return Material(
-      color: Colors.white,
-      elevation: 3,
-      shadowColor: Colors.black.withValues(alpha: .08),
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        splashColor: color.withValues(alpha: .15),
-        highlightColor: color.withValues(alpha: .08),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+  Widget _sectionTitle(IconData icon, String title, String subtitle) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: BiomarkColors.blue, size: 21),
+        const SizedBox(width: 8),
+        Expanded(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [color, color.withValues(alpha: .72)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withValues(alpha: .35),
-                      blurRadius: 14,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Icon(icon, color: Colors.white, size: 24),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: BiomarkColors.black,
-                  height: 1.2,
-                ),
-              ),
+              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 2),
+              Text(subtitle, style: const TextStyle(fontSize: 11.5, color: Colors.black54)),
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(String message, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.black45),
+          const SizedBox(width: 10),
+          Expanded(child: Text(message, style: const TextStyle(fontSize: 13, color: Colors.black54))),
+        ],
       ),
     );
   }
 
-  Widget _buildReminder(
-    String title,
-    String subtitle,
-    String day,
-    String time,
-    IconData icon,
-    Color color,
-    VoidCallback? onTap,
-  ) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap ?? () => _showMessage('$title: $day · $time'),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13.5,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(subtitle, style: const TextStyle(fontSize: 12)),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    day,
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12.5,
-                    ),
-                  ),
-                  Text(time, style: const TextStyle(fontSize: 11.5)),
-                ],
-              ),
-            ],
+  Widget _buildSignalCard(_CommunitySignal signal) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 20,
+            backgroundColor: Color(0xFFE8F5E9),
+            child: Icon(Icons.verified_rounded, color: BiomarkColors.green, size: 21),
           ),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '${signal.cases} ${signal.cases == 1 ? 'caso' : 'casos'} reportados en un área comunitaria aproximada.',
+              style: const TextStyle(fontSize: 13, height: 1.3, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const Icon(Icons.chevron_right_rounded, color: Colors.black38),
+        ],
       ),
     );
   }
+
+  Widget _buildEventCard(_CommunityEvent event) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 20,
+            backgroundColor: Color(0xFFE8EEF9),
+            child: Icon(Icons.event_available_rounded, color: BiomarkColors.blue, size: 21),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(event.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                const SizedBox(height: 3),
+                Text('${event.location} · ${_formatEventDate(event.date)}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatEventDate(DateTime date) => '${date.day}/${date.month} · ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+}
+
+class _CommunitySignal {
+  final int cases;
+
+  const _CommunitySignal({required this.cases});
+
+  factory _CommunitySignal.fromJson(Map<String, dynamic> json) => _CommunitySignal(
+        cases: (json['cantidad_casos'] as num?)?.toInt() ?? 0,
+      );
+}
+
+class _CommunityEvent {
+  final String title;
+  final String location;
+  final DateTime date;
+
+  const _CommunityEvent({required this.title, required this.location, required this.date});
+
+  factory _CommunityEvent.fromJson(Map<String, dynamic> json) => _CommunityEvent(
+        title: '${json['titulo'] ?? 'Jornada comunitaria'}',
+        location: '${json['ubicacion'] ?? 'Ubicación por confirmar'}',
+        date: DateTime.tryParse('${json['fecha_evento'] ?? ''}') ?? DateTime.now(),
+      );
 }

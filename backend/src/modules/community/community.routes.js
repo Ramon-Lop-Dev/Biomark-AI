@@ -1,6 +1,6 @@
 // Define las rutas de participación y estadísticas comunitarias.
 const express = require('express');
-const { getEvents, createEvent, createReport, getStatistics, getHeatmap, updateReportStatus } = require('./community.controller');
+const { getEvents, createEvent, createReport, getStatistics, getHeatmap, getOperationalReports, updateReportStatus } = require('./community.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
 const { requireRole } = require('../../middleware/rbac.middleware');
 const { validate } = require('../../middleware/validate.middleware');
@@ -33,12 +33,13 @@ router.post('/reports', verifyToken, validate(createReportSchema), createReport)
 router.patch(
   '/reports/:id/estado',
   verifyToken,
-  requireRole('TRABAJADOR_SALUD', 'LIDER_COMUNITARIO', 'ADMIN'),
+  requireRole('TRABAJADOR_SALUD', 'LIDER_COMUNITARIO', 'PROMOTOR', 'ADMIN'),
   validate(updateReportStatusSchema),
   updateReportStatus
 );
 
 router.get('/statistics', verifyToken, getStatistics);
 router.get('/heatmap', verifyToken, getHeatmap);
+router.get('/reports/operational', verifyToken, requireRole('TRABAJADOR_SALUD', 'LIDER_COMUNITARIO', 'PROMOTOR', 'ADMIN'), getOperationalReports);
 
 module.exports = router;

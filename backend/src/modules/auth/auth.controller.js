@@ -9,8 +9,8 @@ const asyncHandler = require('../../utils/asyncHandler');
 // errorHandler.middleware.js gracias a asyncHandler.
 
 const register = asyncHandler(async (req, res) => {
-  const { email, password, full_name, tipo_cuenta } = req.body;
-  const result = await authService.registerUser(email, password, full_name, tipo_cuenta);
+  const { email, password, full_name } = req.body;
+  const result = await authService.registerUser(email, password, full_name);
   return res.status(201).json(result);
 });
 
@@ -56,4 +56,36 @@ const resetPassword = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
-module.exports = { register, login, loginGoogle, logout, refresh, forgotPassword, resetPassword };
+const requestPromoterRole = asyncHandler(async (req, res) => {
+  const data = await authService.requestPromoterRole(req.usuarioId);
+  return res.status(201).json(data);
+});
+
+const getMyPromoterRequest = asyncHandler(async (req, res) => {
+  const data = await authService.getMyPromoterRequest(req.usuarioId);
+  return res.status(200).json(data);
+});
+
+const listPromoterRequests = asyncHandler(async (req, res) => {
+  const data = await authService.listPromoterRequests();
+  return res.status(200).json(data);
+});
+
+const reviewPromoterRequest = asyncHandler(async (req, res) => {
+  const data = await authService.reviewPromoterRequest(req.usuarioId, req.params.id, req.body.estado);
+  return res.status(200).json(data);
+});
+
+module.exports = {
+  register,
+  login,
+  loginGoogle,
+  logout,
+  refresh,
+  forgotPassword,
+  resetPassword,
+  requestPromoterRole,
+  getMyPromoterRequest,
+  listPromoterRequests,
+  reviewPromoterRequest
+};

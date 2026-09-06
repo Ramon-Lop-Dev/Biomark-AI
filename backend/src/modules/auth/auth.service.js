@@ -71,10 +71,14 @@ const loginUser = async (email, password) => {
     throw new AppError('Credenciales inválidas', 401);
   }
 
+  const { data: usuario, error: usuarioError } = await authRepo.findUsuarioByAuthId(data.user.id);
+  if (usuarioError || !usuario) throw new AppError('No se pudo cargar el perfil de la cuenta', 500);
+
   return {
     token: data.session.access_token,
     refresh_token: data.session.refresh_token,
-    expires_in: data.session.expires_in || 3600
+    expires_in: data.session.expires_in || 3600,
+    rol: usuario.rol
   };
 };
 
@@ -130,7 +134,8 @@ const loginWithGoogle = async (idToken, accessToken, fullNameFallback) => {
     token: data.session.access_token,
     refresh_token: data.session.refresh_token,
     expires_in: data.session.expires_in || 3600,
-    is_new_user: esNuevo
+    is_new_user: esNuevo,
+    rol: usuario.rol
   };
 };
 
@@ -224,6 +229,54 @@ const resetPassword = async (accessToken, newPassword) => {
   return { message: 'Contraseña actualizada correctamente' };
 };
 
+const requestPromoterRole = async (usuarioId) => {
+  const { data: usuario, error: usuarioError } = await authRepo.findUsuarioById(usuarioId);
+  if (usuarioError) throw new AppError('No se pudo verificar el usuario', 500);
+  if (usuario.rol === 'PROMOTOR') throw new AppError('Ya tienes el rol de promotor', 409);
+
+  const { data: pending, error: pendingError } = await authRepo.findPendingRoleRequest(usuarioId, 'PROMOTOR');
+  if (pendingError) throw new AppError('No se pudo verificar la solicitud existente', 500);
+  if (pending) throw new AppError('Ya tienes una solicitud de promotor pendiente', 409);
+
+  const { data, error } = await authRepo.createRoleRequest(usuarioId, 'PROMOTOR');
+  if (error) throw new AppError('No se pudo registrar la solicitud de promotor', 500);
+  return data;
+};
+
+const getMyPromoterRequest = async (usuarioId) => {
+  const { data, error } = await authRepo.findLatestRoleRequest(usuarioId, 'PROMOTOR');
+  if (error) throw new AppError('No se pudo consultar la solicitud de promotor', 500);
+  return data;
+};
+
+const listPromoterRequests = async () => {
+  const { data, error } = await authRepo.listRoleRequests('PROMOTOR');
+  if (error) throw new AppError('No se pudieron cargar las solicitudes de promotor', 500);
+  return data;
+};
+
+const reviewPromoterRequest = async (adminId, requestId, estado) => {
+  const { data: request, error: requestError } = await authRepo.findPendingRoleRequestById(requestId, 'PROMOTOR');
+  if (requestError) throw new AppError('No se pudo verificar la solicitud', 500);
+  if (!request) throw new AppError('La solicitud no existe o ya fue revisada', 404);
+
+  if (estado === 'APROBADA') {
+    const { error: roleError } = await authRepo.assignRole(request.usuario_id, 'PROMOTOR');
+    if (roleError) throw new AppError('No se pudo asignar el rol de promotor', 500);
+  }
+
+  const { data, error } = await authRepo.reviewRoleRequest(requestId, adminId, estado);
+  if (error) throw new AppError('No se pudo actualizar la solicitud', 500);
+  await auditService.registrar({
+    usuarioId: adminId,
+    tipoEntidad: 'solicitudes_roles',
+    idEntidad: requestId,
+    accion: estado === 'APROBADA' ? 'APROBACION_PROMOTOR' : 'RECHAZO_PROMOTOR',
+    detalle: { usuario_id: request.usuario_id }
+  });
+  return data;
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -231,5 +284,9 @@ module.exports = {
   logoutUser,
   refreshToken,
   forgotPassword,
-  resetPassword
+  resetPassword,
+  requestPromoterRole,
+  getMyPromoterRequest,
+  listPromoterRequests,
+  reviewPromoterRequest
 };

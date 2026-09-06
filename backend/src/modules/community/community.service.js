@@ -82,6 +82,14 @@ const getHeatmap = async () => {
   }));
 };
 
+const getOperationalReports = async (estado) => {
+  const allowed = [undefined, 'PENDIENTE_VALIDACION', 'VALIDADO', 'DESCARTADO'];
+  if (!allowed.includes(estado)) throw new AppError('Estado de reporte inválido', 400);
+  const { data, error } = await communityRepo.listarReportesParaOperacion(estado);
+  if (error) throw new AppError('Error al obtener los reportes comunitarios', 500);
+  return data;
+};
+
 // Cierra el ciclo de vida de un reporte comunitario que hoy quedaba
 // atascado en PENDIENTE_VALIDACION para siempre: un TRABAJADOR_SALUD,
 // LIDER_COMUNITARIO o ADMIN (ver requireRole en community.routes.js) lo
@@ -105,4 +113,4 @@ const updateReportStatus = async (usuarioValidadorId, reporteId, estado) => {
   return data;
 };
 
-module.exports = { getEvents, createEvent, createReport, getStatistics, getHeatmap, updateReportStatus };
+module.exports = { getEvents, createEvent, createReport, getStatistics, getHeatmap, getOperationalReports, updateReportStatus };

@@ -153,59 +153,12 @@ class _GisMapScreenState extends State<GisMapScreen> {
       _showStatus('Activa tu ubicación para registrar un reporte comunitario.');
       return;
     }
-    final descriptionController = TextEditingController();
-    var caseCount = 1;
-    final submitted = await showDialog<bool>(
+    final report = await showDialog<_CommunityReportDraft>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Reportar situación en mi sector'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Ayúdanos a identificar zonas con posibles casos. Tu reporte será revisado antes de aparecer en el mapa.',
-                  style: TextStyle(height: 1.35),
-                ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descriptionController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: '¿Qué está ocurriendo?',
-                  hintText: 'Ej. posibles casos de dengue',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: caseCount,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Cantidad de casos',
-                  helperText: 'Indica cuántos casos aproximados observaste.',
-                ),
-                items: List.generate(10, (index) => DropdownMenuItem(value: index + 1, child: Text('${index + 1}'))),
-                onChanged: (value) => setDialogState(() => caseCount = value ?? 1),
-              ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Enviar reporte')),
-          ],
-        ),
-      ),
+      builder: (_) => const _CommunityReportDialog(),
     );
-    if (submitted != true || !mounted) {
-      descriptionController.dispose();
-      return;
-    }
-    if (descriptionController.text.trim().isEmpty) {
-      descriptionController.dispose();
+    if (report == null || !mounted) return;
+    if (report.description.trim().isEmpty) {
       _showStatus('Describe brevemente la situación antes de enviar.');
       return;
     }
@@ -213,14 +166,12 @@ class _GisMapScreenState extends State<GisMapScreen> {
       await _gisApi.createCommunityReport(
         latitude: _userLocation.latitude,
         longitude: _userLocation.longitude,
-        description: descriptionController.text.trim(),
-        caseCount: caseCount,
+        description: report.description.trim(),
+        caseCount: report.caseCount,
       );
       if (mounted) _showStatus('Reporte enviado. Quedará pendiente de validación.');
     } catch (_) {
       if (mounted) _showStatus('No se pudo enviar el reporte comunitario.');
-    } finally {
-      descriptionController.dispose();
     }
   }
 
@@ -464,7 +415,7 @@ class _GisMapScreenState extends State<GisMapScreen> {
             ),
           Positioned(
             left: 16,
-            bottom: _showPlacesPanel ? 178 : 86,
+            top: 116,
             child: Column(
               children: [
                 _MapControl(
@@ -505,17 +456,14 @@ class _GisMapScreenState extends State<GisMapScreen> {
                   active: _showPlacesPanel,
                   onTap: () => setState(() => _showPlacesPanel = !_showPlacesPanel),
                 ),
+                const SizedBox(height: 12),
+                _MapControl(
+                  icon: Icons.add_location_alt_rounded,
+                  tooltip: 'Reportar situación',
+                  label: 'Reportar',
+                  onTap: _showReportDialog,
+                ),
               ],
-            ),
-          ),
-          Positioned(
-            left: 16,
-            bottom: _showPlacesPanel ? 352 : 150,
-            child: _MapControl(
-              icon: Icons.add_location_alt_rounded,
-              tooltip: 'Reportar situación',
-              label: 'Reportar',
-              onTap: _showReportDialog,
             ),
           ),
           if (_showPlacesPanel)
@@ -540,6 +488,135 @@ class _GisMapScreenState extends State<GisMapScreen> {
     _searchController.dispose();
     _gisApi.dispose();
     super.dispose();
+  }
+}
+
+class _CommunityReportDraft {
+  final String description;
+  final int caseCount;
+
+  const _CommunityReportDraft({required this.description, required this.caseCount});
+}
+
+class _CommunityReportDialog extends StatefulWidget {
+  const _CommunityReportDialog();
+
+  @override
+  State<_CommunityReportDialog> createState() => _CommunityReportDialogState();
+}
+
+class _CommunityReportDialogState extends State<_CommunityReportDialog> {
+  final _descriptionController = TextEditingController();
+  int _caseCount = 1;
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    Navigator.of(context).pop(
+      _CommunityReportDraft(
+        description: _descriptionController.text,
+        caseCount: _caseCount,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      title: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Image.asset('assets/branding/Icono.png', width: 42, height: 42),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Reportar situación',
+              style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ayúdanos a identificar zonas con posibles casos. Tu reporte será revisado antes de aparecer en el mapa comunitario.',
+              textAlign: TextAlign.justify,
+              style: TextStyle(fontSize: 13, height: 1.35, color: Colors.black87),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _descriptionController,
+              maxLines: 3,
+              textInputAction: TextInputAction.newline,
+              decoration: InputDecoration(
+                labelText: '¿Qué está ocurriendo?',
+                hintText: 'Ej. posibles casos de dengue',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              initialValue: _caseCount,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: 'Cantidad aproximada de casos',
+                helperText: 'Selecciona cuántos casos observaste.',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              items: List.generate(
+                10,
+                (index) => DropdownMenuItem(value: index + 1, child: Text('${index + 1} casos')),
+              ),
+              onChanged: (value) => setState(() => _caseCount = value ?? 1),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              FilledButton.icon(
+                onPressed: _submit,
+                style: FilledButton.styleFrom(
+                  backgroundColor: BiomarkColors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                ),
+                icon: const Icon(Icons.send_rounded),
+                label: const Text('Agregar reporte'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red.shade700,
+                  side: BorderSide(color: Colors.red.shade300),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.close_rounded),
+                label: const Text('Cancelar'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 

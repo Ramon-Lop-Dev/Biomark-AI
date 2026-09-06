@@ -12,6 +12,7 @@ import 'features/progress/presentation/progress_screen.dart';
 import 'features/progress/data/progress_api.dart';
 import 'features/reminders/presentation/reminders_screen.dart';
 import 'features/reminders/data/reminders_service.dart';
+import 'features/community/promoter_screens.dart';
 
 /// Transición personalizada para navegación entre pantallas
 class _FadeSlidePageRoute<T> extends MaterialPageRoute<T> {
@@ -44,14 +45,16 @@ class _AppShellState extends State<AppShell> {
   final ValueNotifier<int> _remindersRefresh = ValueNotifier(0);
   final ValueNotifier<int> _progressRefresh = ValueNotifier(0);
 
-  final _navLabels = const ['Inicio', 'Mejoría', 'Mapa', 'Recordatorio', 'Perfil'];
-  final _navIcons = const [
+  final _userNavLabels = const ['Inicio', 'Mejoría', 'Mapa', 'Recordatorio', 'Perfil'];
+  final _userNavIcons = const [
     Icons.home_rounded,
     Icons.insights_rounded,
     Icons.location_on_rounded,
     Icons.notifications_rounded,
     Icons.person_outline_rounded,
   ];
+  final _promoterNavLabels = const ['Panel', 'Mapa', 'Jornadas', 'Reportes', 'Perfil'];
+  final _promoterNavIcons = const [Icons.dashboard_rounded, Icons.location_on_rounded, Icons.event_available_rounded, Icons.fact_check_rounded, Icons.person_outline_rounded];
 
   @override
   void dispose() {
@@ -81,25 +84,54 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      const HomeScreen(),
+    final promoter = AuthSession.instance.isPromoter;
+    final pages = promoter ? <Widget>[
+      PromoterDashboardScreen(onOpenMap: () => setState(() => _navIndex = 1)),
+      const GisMapScreen(),
+      const PromoterEventsScreen(),
+      const PromoterReportsScreen(),
+    ] : <Widget>[
+      HomeScreen(onOpenMap: () => setState(() => _navIndex = 2)),
       ProgressScreen(refreshSignal: _progressRefresh),
       const GisMapScreen(),
       RemindersScreen(refreshSignal: _remindersRefresh),
+    ];
+    pages.add(
       const _PlaceholderBody(
         title: 'Perfil',
         icon: Icons.person_outline_rounded,
       ),
-    ];
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9FC),
       appBar: _buildAppBar(),
-      body: SafeArea(child: pages[_navIndex]),
+      body: SafeArea(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 280),
+          reverseDuration: const Duration(milliseconds: 180),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            final offset = Tween<Offset>(
+              begin: const Offset(.06, 0),
+              end: Offset.zero,
+            ).animate(animation);
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(position: offset, child: child),
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey(_navIndex),
+            child: pages[_navIndex],
+          ),
+        ),
+      ),
       bottomNavigationBar: _buildBottomNav(),
-        floatingActionButton: _navIndex == 3
+          floatingActionButton: !promoter && _navIndex == 3
           ? _buildAddReminderFAB()
-          : _navIndex == 1
+            : !promoter && _navIndex == 1
             ? _buildAddGoalFAB()
             : null,
     );
@@ -254,6 +286,9 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _navItem(int index) {
+    final promoter = AuthSession.instance.isPromoter;
+    final labels = promoter ? _promoterNavLabels : _userNavLabels;
+    final icons = promoter ? _promoterNavIcons : _userNavIcons;
     final selected = _navIndex == index;
     return GestureDetector(
       onTap: () => _handleNavTap(index),
@@ -263,17 +298,24 @@ class _AppShellState extends State<AppShell> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              _navIcons[index],
+              icons[index],
               color: selected ? BiomarkColors.green : const Color(0xFF3F4A3B),
               size: 20,
             ),
             const SizedBox(height: 3),
-            Text(
-              _navLabels[index],
-              style: TextStyle(
-                color: selected ? BiomarkColors.green : const Color(0xFF3F4A3B),
-                fontSize: 10.5,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            SizedBox(
+              width: 74,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  labels[index],
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: selected ? BiomarkColors.green : const Color(0xFF3F4A3B),
+                    fontSize: 10.5,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
               ),
             ),
           ],

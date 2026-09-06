@@ -17,12 +17,14 @@ class AuthSessionResult {
   final String? refreshToken;
   final int expiresIn;
   final bool isNewUser;
+  final String role;
 
   const AuthSessionResult({
     required this.token,
     this.refreshToken,
     required this.expiresIn,
     this.isNewUser = false,
+    this.role = 'USUARIO',
   });
 }
 
@@ -121,6 +123,7 @@ class AuthApi {
       token: json['token'] as String? ?? '',
       refreshToken: json['refresh_token'] as String?,
       expiresIn: (json['expires_in'] as num?)?.toInt() ?? 3600,
+      role: json['rol'] as String? ?? 'USUARIO',
     );
   }
 
@@ -139,6 +142,7 @@ class AuthApi {
       refreshToken: json['refresh_token'] as String?,
       expiresIn: (json['expires_in'] as num?)?.toInt() ?? 3600,
       isNewUser: json['is_new_user'] as bool? ?? false,
+      role: json['rol'] as String? ?? 'USUARIO',
     );
   }
 

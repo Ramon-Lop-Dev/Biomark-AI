@@ -66,7 +66,28 @@ const createPerfil = (usuarioId, nombreCompleto) =>
   supabase.from('perfiles').insert({ usuario_id: usuarioId, nombre_completo: nombreCompleto });
 
 const createRoleRequest = (usuarioId, role) =>
-  supabase.from('solicitudes_roles').insert({ usuario_id: usuarioId, rol_solicitado: role });
+  supabase.from('solicitudes_roles').insert({ usuario_id: usuarioId, rol_solicitado: role }).select().single();
+
+const findUsuarioById = (usuarioId) =>
+  supabase.from('usuarios').select('id, rol, activo').eq('id', usuarioId).single();
+
+const findPendingRoleRequest = (usuarioId, role) =>
+  supabase.from('solicitudes_roles').select('*').eq('usuario_id', usuarioId).eq('rol_solicitado', role).eq('estado', 'PENDIENTE').maybeSingle();
+
+const findLatestRoleRequest = (usuarioId, role) =>
+  supabase.from('solicitudes_roles').select('*').eq('usuario_id', usuarioId).eq('rol_solicitado', role).order('fecha_creacion', { ascending: false }).limit(1).maybeSingle();
+
+const listRoleRequests = (role) =>
+  supabase.from('solicitudes_roles').select('*, usuarios!solicitudes_roles_usuario_id_fkey(correo, rol, perfiles(nombre_completo))').eq('rol_solicitado', role).order('fecha_creacion', { ascending: false });
+
+const findPendingRoleRequestById = (requestId, role) =>
+  supabase.from('solicitudes_roles').select('*').eq('id', requestId).eq('rol_solicitado', role).eq('estado', 'PENDIENTE').maybeSingle();
+
+const assignRole = (usuarioId, role) =>
+  supabase.from('usuarios').update({ rol: role, fecha_actualizacion: new Date().toISOString() }).eq('id', usuarioId);
+
+const reviewRoleRequest = (requestId, reviewerId, estado) =>
+  supabase.from('solicitudes_roles').update({ estado, revisado_por: reviewerId, fecha_revision: new Date().toISOString() }).eq('id', requestId).eq('estado', 'PENDIENTE').select().single();
 
 // Usado únicamente para revertir un insert en "usuarios" cuando el insert
 // subsecuente en "perfiles" falla (ver auth.service.js: aprovisionarUsuario).
@@ -85,5 +106,12 @@ module.exports = {
   createUsuario,
   createPerfil,
   createRoleRequest,
+  findUsuarioById,
+  findPendingRoleRequest,
+  findLatestRoleRequest,
+  listRoleRequests,
+  findPendingRoleRequestById,
+  assignRole,
+  reviewRoleRequest,
   eliminarUsuario
 };

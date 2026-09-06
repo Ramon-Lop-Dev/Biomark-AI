@@ -35,6 +35,11 @@ const getHeatmap = asyncHandler(async (req, res) => {
     return res.status(200).json(puntos);
 });
 
+const getOperationalReports = asyncHandler(async (req, res) => {
+    const data = await communityService.getOperationalReports(req.query.estado);
+    return res.status(200).json(data);
+});
+
 // PATCH /api/community/reports/:id/estado
 const updateReportStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -47,4 +52,4 @@ const updateReportStatus = asyncHandler(async (req, res) => {
     return res.status(200).json(data);
 });
 
-module.exports = { getEvents, createEvent, createReport, getStatistics, getHeatmap, updateReportStatus };
+module.exports = { getEvents, createEvent, createReport, getStatistics, getHeatmap, getOperationalReports, updateReportStatus };

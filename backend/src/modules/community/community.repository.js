@@ -7,10 +7,10 @@ const listarEventos = () =>
     .select('*')
     .order('fecha_evento', { ascending: true });
 
-const crearEvento = (organizadorId, { titulo, descripcion, fecha_evento, ubicacion, latitud, longitud }) =>
+const crearEvento = (organizadorId, { titulo, descripcion, fecha_evento, ubicacion, latitud, longitud, tipo }) =>
   supabase
     .from('eventos_comunitarios')
-    .insert([{ organizador_id: organizadorId, titulo, descripcion, fecha_evento, ubicacion, latitud, longitud }])
+    .insert([{ organizador_id: organizadorId, titulo, descripcion, fecha_evento, ubicacion, latitud, longitud, tipo }])
     .select();
 
 // El reporte SIEMPRE se crea como PENDIENTE_VALIDACION (default de la
@@ -46,6 +46,15 @@ const listarReportesParaEstadisticas = () =>
 const listarReportesParaHeatmap = () =>
   supabase.from('reportes_comunitarios').select('latitud, longitud, cantidad_casos').eq('estado', 'VALIDADO');
 
+const listarReportesParaOperacion = (estado) => {
+  let query = supabase
+    .from('reportes_comunitarios')
+    .select('id, usuario_id, cantidad_casos, descripcion, latitud, longitud, estado, fecha_creacion, usuarios(correo, perfiles(nombre_completo))')
+    .order('fecha_creacion', { ascending: false });
+  if (estado) query = query.eq('estado', estado);
+  return query;
+};
+
 // Transición de estado (PENDIENTE_VALIDACION -> VALIDADO/DESCARTADO) hecha
 // por un TRABAJADOR_SALUD/LIDER_COMUNITARIO/ADMIN (ver requireRole en
 // community.routes.js). No se filtra por usuario_id a propósito: quien
@@ -55,6 +64,7 @@ const actualizarEstadoReporte = (reporteId, estado) =>
     .from('reportes_comunitarios')
     .update({ estado })
     .eq('id', reporteId)
+    .eq('estado', 'PENDIENTE_VALIDACION')
     .select()
     .maybeSingle();
 
@@ -64,5 +74,6 @@ module.exports = {
   crearReporte,
   listarReportesParaEstadisticas,
   listarReportesParaHeatmap,
+  listarReportesParaOperacion,
   actualizarEstadoReporte
 };

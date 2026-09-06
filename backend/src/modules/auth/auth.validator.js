@@ -14,7 +14,7 @@ const registerSchema = z.object({
   email: z.string().trim().toLowerCase().email('Correo inválido'),
   password: passwordSchema,
   full_name: z.string().trim().min(1, 'El nombre completo es obligatorio'),
-  tipo_cuenta: z.enum(['PERSONAL', 'PROMOTOR']).default('PERSONAL')
+  tipo_cuenta: z.literal('PERSONAL').default('PERSONAL')
 });
 
 const loginSchema = z.object({
@@ -55,6 +55,10 @@ const resetPasswordSchema = z.object({
   new_password: passwordSchema
 });
 
+const reviewPromoterRequestSchema = z.object({
+  estado: z.enum(['APROBADA', 'RECHAZADA'])
+});
+
 module.exports = {
   registerSchema,
   loginSchema,
@@ -62,5 +66,6 @@ module.exports = {
   refreshSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-  passwordSchema
+  passwordSchema,
+  reviewPromoterRequestSchema
 };

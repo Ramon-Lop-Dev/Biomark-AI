@@ -1,6 +1,6 @@
 // Define las rutas públicas y protegidas del módulo de autenticación.
 const express = require('express');
-const { register, login, loginGoogle, logout, refresh, forgotPassword, resetPassword } = require('./auth.controller');
+const { register, login, loginGoogle, logout, refresh, forgotPassword, resetPassword, requestPromoterRole, getMyPromoterRequest, listPromoterRequests, reviewPromoterRequest } = require('./auth.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
 const { validate } = require('../../middleware/validate.middleware');
 const {
@@ -11,6 +11,8 @@ const {
   forgotPasswordSchema,
   resetPasswordSchema
 } = require('./auth.validator');
+const { reviewPromoterRequestSchema } = require('./auth.validator');
+const { requireRole } = require('../../middleware/rbac.middleware');
 
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
@@ -38,6 +40,11 @@ router.post('/refresh', validate(refreshSchema), refresh);
 // access_token del enlace recibido para fijar la contraseña nueva)
 router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
+
+router.post('/promotor/solicitud', verifyToken, requestPromoterRole);
+router.get('/promotor/solicitud', verifyToken, getMyPromoterRequest);
+router.get('/promotor/solicitudes', verifyToken, requireRole('ADMIN'), listPromoterRequests);
+router.patch('/promotor/solicitudes/:id', verifyToken, requireRole('ADMIN'), validate(reviewPromoterRequestSchema), reviewPromoterRequest);
 
 // Logout SÍ requiere sesión vigente: se necesita el access_token actual
 // para revocarlo (ver auth.service.logoutUser).

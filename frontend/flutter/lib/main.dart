@@ -150,6 +150,7 @@ class _LoginScreenState extends State<LoginScreen>
         accessToken: session.token,
         refreshToken: session.refreshToken,
         expiresIn: session.expiresIn,
+          role: session.role,
       );
       if (!mounted) return;
       await _showAuthDialog(
@@ -186,6 +187,7 @@ class _LoginScreenState extends State<LoginScreen>
         accessToken: session.token,
         refreshToken: session.refreshToken,
         expiresIn: session.expiresIn,
+        role: session.role,
       );
       if (!mounted) return;
       await _showAuthDialog(
