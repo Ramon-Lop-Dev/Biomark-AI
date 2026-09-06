@@ -8,7 +8,24 @@ _MARCADORES_NUEVO_TURNO = [
     r"\n?\s*Paciente\s*:",
     r"\n?\s*USUARIO\s*:",
     r"\n?\s*Asistente[^:]*:",
+    # El modelo base fue afinado con formato tipo [INST]...[/INST]. Si el
+    # prompt de entrada no respeta exactamente ese formato, el modelo
+    # "termina la idea" solo y empieza a alucinar un turno nuevo completo
+    # (incluyendo su propia pregunta de apertura, a veces con errores de
+    # tipeo). Cortamos ahí para no mostrarle ese ruido al paciente.
+    r"\[/?INST\]",
+    r"<<SYS>>",
+    r"<</SYS>>",
+    r"<\|im_start\|>",
+    r"<\|im_end\|>",
 ]
+
+# Limpieza final: si algún token de control queda suelto en el texto (sin
+# que dispare un corte de turno completo), se elimina igual antes de
+# mostrar la respuesta.
+_TOKENS_DE_CONTROL = re.compile(
+    r"\[/?INST\]|<<SYS>>|<</SYS>>|<\|im_start\|>|<\|im_end\|>|</?s>"
+)
 
 
 def _calcular_edad(fecha_nacimiento) -> Optional[int]:
@@ -117,19 +134,55 @@ class TextGenerator:
             for turno in historial[-10:]
         ) or "Sin mensajes anteriores."
         referencia = contexto_rag or "No hay referencia clínica específica cargada."
-        return (
-            f"{PERSONA_BIOMARK}\n\n"
+
+        reglas = (
             "Reglas obligatorias: no inventes datos, no afirmes un diagnóstico, no prescribas "
             "ni indiques dosis. Distingue orientación de diagnóstico. Si faltan datos, haz "
-            "preguntas concretas sobre duración, intensidad, edad, sexo y señales de alarma. "
-            "Para un saludo responde cordialmente y pregunta qué síntoma o duda tiene la persona. "
-            "Para síntomas, explica posibilidades de forma condicional, señales de alarma y "
-            "el siguiente paso recomendado. Responde SOLO por el Asistente, en un único turno, "
-            "y no continúes la conversación inventando nuevos mensajes del paciente.\n\n"
+            "preguntas concretas sobre duración, intensidad, edad, sexo y señales de alarma.\n\n"
+            "Para un saludo, responde cordialmente y pregunta qué síntoma o duda tiene la persona.\n\n"
+            "Para síntomas, responde SIEMPRE con un diagnóstico preventivo completo, usando "
+            "exactamente estas tres etiquetas y en este orden (igual que en el análisis de "
+            "fotos, para que la persona reciba el mismo tipo de respuesta estructurada "
+            "converse por texto, por foto o por audio):\n"
+            "Posible causa: una frase con la causa o causas más probables según lo descrito, "
+            "en tono condicional ('podría tratarse de', 'suele asociarse a'), nunca como "
+            "diagnóstico confirmado.\n"
+            "Recomendación: medidas generales de autocuidado (reposo, hidratación, higiene), "
+            "nunca medicamentos ni dosis específicas.\n"
+            "Señales de alarma: en qué casos debe acudir de inmediato a un centro de salud.\n\n"
+            "Responde SOLO por el Asistente, en un único turno, y no continúes la conversación "
+            "inventando nuevos mensajes del paciente."
+        )
+
+        cuerpo = (
             f"Contexto médico autorizado del paciente: {contexto_paciente}\n\n"
             f"Historial reciente de conversación:\n{turnos}\n\n"
             f"Referencia clínica: {referencia}\n\n"
-            f"Paciente: {mensaje_usuario}\n"
+            f"Paciente: {mensaje_usuario}"
+        )
+
+        # El modelo de producción es un fine-tune de tipo instruct (formato
+        # [INST]...[/INST]). Si le mandamos texto plano sin ese formato, no
+        # reconoce dónde termina el turno y empieza a alucinar uno nuevo
+        # (de ahí el "[/INST]" filtrándose en las respuestas). Si el
+        # tokenizador trae su chat_template, lo usamos para que el prompt
+        # quede exactamente en el formato con el que se entrenó el modelo;
+        # si no lo trae, se cae al formato de texto plano de siempre.
+        chat_template = getattr(self.tokenizer, "chat_template", None)
+        if chat_template:
+            try:
+                mensajes = [
+                    {"role": "system", "content": f"{PERSONA_BIOMARK}\n\n{reglas}"},
+                    {"role": "user", "content": cuerpo},
+                ]
+                return self.tokenizer.apply_chat_template(
+                    mensajes, tokenize=False, add_generation_prompt=True
+                )
+            except Exception as e:
+                print(f"[TextGenerator] No se pudo aplicar chat_template, uso prompt plano: {e}")
+
+        return (
+            f"{PERSONA_BIOMARK}\n\n{reglas}\n\n{cuerpo}\n"
             "Asistente preventivo (responde en español claro y breve):"
         )
 
@@ -185,6 +238,10 @@ class TextGenerator:
         respuesta = self.tokenizer.decode(tokens_generados, skip_special_tokens=True).strip()
 
         respuesta = self._cortar_en_siguiente_turno(respuesta)
+        # Red de seguridad extra: si algún token de control quedó suelto sin
+        # disparar un corte de turno (por ejemplo al final del texto, sin
+        # nada después que lo delate como un turno nuevo), se limpia igual.
+        respuesta = _TOKENS_DE_CONTROL.sub("", respuesta)
         respuesta = re.sub(r"^(Asistente(?: preventivo)?\s*:\s*)", "", respuesta, flags=re.IGNORECASE)
         respuesta = re.sub(r"\n{3,}", "\n\n", respuesta).strip()
 

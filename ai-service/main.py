@@ -94,38 +94,50 @@ def chat_inference(data: dict, x_internal_key: str = Header(None)):
     # REAL más cercano (nunca inventado por el LLM) y se agrega tanto al
     # texto de la respuesta como en un campo estructurado aparte, para que
     # Flutter pueda mostrarlo en un mapa sin tener que parsear el texto.
+    #
+    # IMPORTANTE: esto solo debe pasar cuando ESTE mensaje en particular
+    # amerita un centro de salud (síntoma descrito, riesgo real, o
+    # solicitud explícita). Antes se ejecutaba con solo que el cliente
+    # mandara lat/long en el payload — y como la app manda la ubicación en
+    # cada request una vez que el usuario da el permiso, el resultado era
+    # que la recomendación de hospital se repetía en cada mensaje del chat,
+    # incluso en mensajes de seguimiento tipo "gracias" o "ok". Con el
+    # chequeo de abajo, solo se agrega cuando de verdad aplica.
     centro_sugerido = None
     ubicacion_requerida = False
-    latitude = data.get("latitude")
-    longitude = data.get("longitude")
-    if latitude is not None and longitude is not None:
-        try:
-            latitude = float(latitude)
-            longitude = float(longitude)
-            if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
-                raise ValueError
-        except (TypeError, ValueError):
-            latitude = longitude = None
+    requiere_centro = clinical_service.debe_recomendar_centro(mensaje_usuario, risk_level)
 
-    if latitude is not None and longitude is not None:
-        centro_sugerido = locator.buscar_mas_cercano(
-            latitude,
-            longitude,
-            especialidades_preferidas=especialidades_sugeridas(mensaje_usuario),
-            excluir_no_aptos_para_emergencia=risk_level in ("CRITICAL", "HIGH"),
-        )
-        if centro_sugerido:
-            respuesta += (
-                f"\n\nEl centro recomendado para tu caso es "
-                f"{centro_sugerido['nombre']} (a {centro_sugerido['distancia_km']} km)"
-                + (f", en {centro_sugerido['direccion']}." if centro_sugerido.get("direccion") else ".")
+    if requiere_centro:
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
+        if latitude is not None and longitude is not None:
+            try:
+                latitude = float(latitude)
+                longitude = float(longitude)
+                if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+                    raise ValueError
+            except (TypeError, ValueError):
+                latitude = longitude = None
+
+        if latitude is not None and longitude is not None:
+            centro_sugerido = locator.buscar_mas_cercano(
+                latitude,
+                longitude,
+                especialidades_preferidas=especialidades_sugeridas(mensaje_usuario),
+                excluir_no_aptos_para_emergencia=risk_level in ("CRITICAL", "HIGH"),
             )
-    elif clinical_service.debe_recomendar_centro(mensaje_usuario, risk_level):
-        ubicacion_requerida = True
-        respuesta += (
-            "\n\nPara recomendarte el centro de salud u hospital más cercano, "
-            "necesito tu ubicación. Activa el permiso de ubicación en la app."
-        )
+            if centro_sugerido:
+                respuesta += (
+                    f"\n\nEl centro recomendado para tu caso es "
+                    f"{centro_sugerido['nombre']} (a {centro_sugerido['distancia_km']} km)"
+                    + (f", en {centro_sugerido['direccion']}." if centro_sugerido.get("direccion") else ".")
+                )
+        else:
+            ubicacion_requerida = True
+            respuesta += (
+                "\n\nPara recomendarte el centro de salud u hospital más cercano, "
+                "necesito tu ubicación. Activa el permiso de ubicación en la app."
+            )
 
     return {
         "reply": respuesta,
