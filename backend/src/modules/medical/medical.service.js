@@ -101,6 +101,23 @@ const createFamilyHistory = async (usuarioId, payload) => {
   return registro;
 };
 
+const replaceSurvey = async (usuarioId, payload) => {
+  const removals = await Promise.all([
+    medicalRepo.eliminarHistorial(usuarioId),
+    medicalRepo.eliminarAlergias(usuarioId),
+    medicalRepo.eliminarMedicamentos(usuarioId),
+    medicalRepo.eliminarAntecedentes(usuarioId)
+  ]);
+  if (removals.some(({ error }) => error)) throw new AppError('No se pudo limpiar la encuesta clínica anterior', 500);
+
+  const date = new Date().toISOString().split('T')[0];
+  for (const condition of payload.enfermedades_cronicas) await createMedicalRecord(usuarioId, { nombre_condicion: condition, fecha_diagnostico: date, notas: 'Registrado desde la encuesta clínica.' });
+  for (const condition of payload.antecedentes_hereditarios) await createFamilyHistory(usuarioId, { parentesco: 'Familiar', nombre_condicion: condition, notas: 'Registrado desde la encuesta clínica.' });
+  for (const allergy of payload.alergias) await createAllergy(usuarioId, { alergeno: allergy, severidad: 'LEVE', notas: 'Registrado desde la encuesta clínica.' });
+  if (payload.medicamentos.trim()) await createMedication(usuarioId, { nombre_medicamento: payload.medicamentos.trim(), dosis: 'No especificada', frecuencia: 'Según indicación', fecha_inicio: date });
+  return { updated: true };
+};
+
 module.exports = {
   getMedicalHistory,
   createMedicalRecord,
@@ -110,4 +127,5 @@ module.exports = {
   createMedication,
   getFamilyHistory,
   createFamilyHistory
+  ,replaceSurvey
 };

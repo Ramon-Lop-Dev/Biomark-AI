@@ -13,10 +13,12 @@ import 'core/auth/google_auth_helper.dart';
 import 'core/auth/reset_password_link_listener.dart';
 import 'core/config/app_config.dart';
 import 'core/design/app_themecontroller.dart';
+import 'survey_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AuthSession.instance.init();
+  await SurveyService.cargarDesdeBackend();
   await ResetPasswordLinkListener.instance.init();
   await AppThemeController.instance.cargarGuardado();
   runApp(const MyApp());

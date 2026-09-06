@@ -16,11 +16,14 @@ const {
     createMedicalRecordSchema,
     createAllergySchema,
     createMedicationSchema,
-    createFamilyHistorySchema
+    createFamilyHistorySchema,
+    replaceSurveySchema
 } = require('./medical.validator');
 const router = express.Router();
 
 router.use(verifyToken);
+
+router.put('/survey', validate(replaceSurveySchema), replaceSurvey);
 
 // historial_medico -> GET/POST /api/medical-history
 router.get('/', getMedicalHistory);

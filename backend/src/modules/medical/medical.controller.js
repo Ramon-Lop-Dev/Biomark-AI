@@ -42,6 +42,11 @@ const createFamilyHistory = asyncHandler(async (req, res) => {
     return res.status(201).json(registro);
 });
 
+const replaceSurvey = asyncHandler(async (req, res) => {
+    const data = await medicalService.replaceSurvey(req.usuarioId, req.body);
+    return res.status(200).json(data);
+});
+
 module.exports = {
     getMedicalHistory,
     createMedicalRecord,
@@ -50,5 +55,6 @@ module.exports = {
     getMedications,
     createMedication,
     getFamilyHistory,
-    createFamilyHistory
+    createFamilyHistory,
+    replaceSurvey
 };

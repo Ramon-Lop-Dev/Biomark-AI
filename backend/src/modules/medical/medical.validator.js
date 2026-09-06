@@ -32,10 +32,18 @@ const createFamilyHistorySchema = z.object({
   notas: z.string().trim().max(2000).optional()
 });
 
+const replaceSurveySchema = z.object({
+  enfermedades_cronicas: z.array(z.string().trim().min(1)).default([]),
+  antecedentes_hereditarios: z.array(z.string().trim().min(1)).default([]),
+  alergias: z.array(z.string().trim().min(1)).default([]),
+  medicamentos: z.string().trim().max(2000).default('')
+});
+
 module.exports = {
   createMedicalRecordSchema,
   createAllergySchema,
   createMedicationSchema,
   createFamilyHistorySchema,
+  replaceSurveySchema,
   SEVERIDADES_ALERGIA
 };

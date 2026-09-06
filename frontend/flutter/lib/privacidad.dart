@@ -2,6 +2,10 @@
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'core/auth/auth_session.dart';
+import 'core/config/app_config.dart';
 
 class PrivacidadScreen extends StatefulWidget {
   const PrivacidadScreen({super.key});
@@ -14,7 +18,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
   // TODO: cargar estos valores reales desde tu backend/SharedPreferences
   // en initState, y guardarlos cada vez que cambien.
   // ignore: unused_field
-  bool _compartirConFamiliares = true;
+  final bool _compartirConFamiliares = true;
   bool _usoDatosIA = true;
   bool _bloqueoBiometrico = false;
 
@@ -22,7 +26,14 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
 
   void _alternar(void Function(bool) setter, bool valorActual) {
     setState(() => setter(!valorActual));
-    // TODO: persistir el cambio.
+    final token = AuthSession.instance.accessToken;
+    if (token != null && token.isNotEmpty) {
+      http.put(
+        Uri.parse('${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/consent'),
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        body: jsonEncode({'tipo_consentimiento': 'CONTEXTO_MEDICO_IA', 'otorgado': !valorActual}),
+      );
+    }
   }
 
   Future<void> _exportarDatos() async {

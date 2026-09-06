@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
 import 'core/auth/auth_api.dart';
-import 'core/auth/auth_session.dart';
 import 'core/config/app_config.dart';
 
 class SeguridadScreen extends StatefulWidget {
@@ -129,22 +128,19 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
 
   Future<void> _enviarCorreoRecuperacion() async {
     setState(() => _enviandoRecuperacion = true);
-
-    // TODO: llamar al endpoint real de recuperación de contraseña, ej:
-    // final authApi = AuthApi(baseUrl: AppConfig.apiUrl);
-    // await authApi.solicitarRecuperacion(correo: widget.correoUsuario);
-
-    await Future.delayed(const Duration(milliseconds: 600)); // placeholder
-
-    if (!mounted) return;
-    setState(() => _enviandoRecuperacion = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Enlace de recuperación enviado a ${widget.correoUsuario}',
-        ),
-      ),
-    );
+    final api = AuthApi(baseUrl: AppConfig.apiUrl);
+    try {
+      await api.forgotPassword(
+        email: widget.correoUsuario,
+        redirectTo: 'biomarkai://reset-password',
+      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enlace de recuperación enviado.')));
+    } on AuthApiException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      api.dispose();
+      if (mounted) setState(() => _enviandoRecuperacion = false);
+    }
   }
 
   @override

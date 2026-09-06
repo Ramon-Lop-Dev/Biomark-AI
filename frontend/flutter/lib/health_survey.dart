@@ -8,7 +8,9 @@ import 'survey_service.dart';
 import 'features/chat/presentation/chat_screen.dart';
 
 class HealthSurveyScreen extends StatefulWidget {
-  const HealthSurveyScreen({super.key});
+  const HealthSurveyScreen({super.key, this.editing = false});
+
+  final bool editing;
 
   @override
   State<HealthSurveyScreen> createState() => _HealthSurveyScreenState();
@@ -66,6 +68,28 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   bool _consentimientoMedico = true;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.editing) _loadExistingAnswers();
+  }
+
+  Future<void> _loadExistingAnswers() async {
+    await SurveyService.cargarDesdeBackend();
+    if (!mounted) return;
+    final answers = SurveyService.respuestas;
+    setState(() {
+      final age = answers['edad'];
+      if (age is num) _edadController.text = '${age.toInt()}';
+      _sexoSeleccionado = answers['sexo'] is String ? answers['sexo'] as String : null;
+      _cronicasSeleccionadas.addAll(List<String>.from(answers['enfermedadesCronicas'] ?? const []));
+      _hereditariasSeleccionadas.addAll(List<String>.from(answers['antecedentesHereditarios'] ?? const []));
+      _alergiasSeleccionadas.addAll(List<String>.from(answers['alergias'] ?? const []));
+      _medicamentosController.text = '${answers['medicamentosActuales'] ?? ''}';
+      _consentimientoMedico = answers['consentimientoMedico'] != false;
+    });
+  }
+
+  @override
   void dispose() {
     _medicamentosController.dispose();
     _edadController.dispose();
@@ -118,21 +142,37 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     final sexo = _sexoSeleccionado;
     if (edad == null || sexo == null) return;
 
-    await SurveyService.guardarRespuestas(
-      edad: edad,
-      sexo: sexo,
-      enfermedadesCronicas: _cronicasSeleccionadas.toList(),
-      antecedentesHereditarios: _hereditariasSeleccionadas.toList(),
-      alergias: _alergiasSeleccionadas.toList(),
-      medicamentosActuales: _medicamentosController.text.trim(),
-      consentimientoMedico: _consentimientoMedico,
-    ).timeout(const Duration(seconds: 20), onTimeout: () {});
+    if (widget.editing) {
+      await SurveyService.reemplazarEncuesta(
+        edad: edad,
+        sexo: sexo,
+        enfermedadesCronicas: _cronicasSeleccionadas.toList(),
+        antecedentesHereditarios: _hereditariasSeleccionadas.toList(),
+        alergias: _alergiasSeleccionadas.toList(),
+        medicamentosActuales: _medicamentosController.text.trim(),
+        consentimientoMedico: _consentimientoMedico,
+      ).timeout(const Duration(seconds: 20), onTimeout: () {});
+    } else {
+      await SurveyService.guardarRespuestas(
+        edad: edad,
+        sexo: sexo,
+        enfermedadesCronicas: _cronicasSeleccionadas.toList(),
+        antecedentesHereditarios: _hereditariasSeleccionadas.toList(),
+        alergias: _alergiasSeleccionadas.toList(),
+        medicamentosActuales: _medicamentosController.text.trim(),
+        consentimientoMedico: _consentimientoMedico,
+      ).timeout(const Duration(seconds: 20), onTimeout: () {});
+    }
 
     if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const ChatScreen()),
-    );
+    if (widget.editing) {
+      Navigator.pop(context, true);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ChatScreen()),
+      );
+    }
   }
 
   @override
@@ -198,9 +238,9 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        const Expanded(
+        Expanded(
           child: Text(
-            'Antes de conversar con Biomark AI',
+            widget.editing ? 'Editar encuesta clínica' : 'Antes de conversar con Biomark AI',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: BiomarkColors.black),
           ),
         ),

@@ -49,6 +49,65 @@ class SurveyService {
   /// Respuestas de la encuesta — luego las envías a tu backend/IA.
   static Map<String, dynamic> respuestas = {};
 
+  static Future<void> cargarDesdeBackend() async {
+    final token = AuthSession.instance.accessToken;
+    if (token == null || token.isEmpty) return;
+    final base = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
+    final headers = {'Authorization': 'Bearer $token'};
+    try {
+      final responses = await Future.wait([
+        http.get(Uri.parse('$base/api/users/profile'), headers: headers),
+        http.get(Uri.parse('$base/api/medical-history'), headers: headers),
+        http.get(Uri.parse('$base/api/medical-history/family-history'), headers: headers),
+        http.get(Uri.parse('$base/api/medical-history/allergies'), headers: headers),
+        http.get(Uri.parse('$base/api/medical-history/medications'), headers: headers),
+        http.get(Uri.parse('$base/api/users/consent'), headers: headers),
+      ]);
+      final profile = responses[0].statusCode >= 200 && responses[0].statusCode < 300
+          ? jsonDecode(responses[0].body) as Map<String, dynamic>
+          : <String, dynamic>{};
+      final nested = profile['perfiles'] as Map<String, dynamic>? ?? const {};
+      final birth = DateTime.tryParse('${nested['fecha_nacimiento'] ?? ''}');
+      final age = birth == null ? null : _calculateAge(birth);
+      final history = _listFromResponse(responses[1]);
+      final family = _listFromResponse(responses[2]);
+      final allergies = _listFromResponse(responses[3]);
+      final medications = _listFromResponse(responses[4]);
+      final consentList = responses[5].statusCode >= 200 && responses[5].statusCode < 300
+          ? jsonDecode(responses[5].body) as List<dynamic>
+          : const [];
+      final consent = consentList.whereType<Map<String, dynamic>>().cast<Map<String, dynamic>?>().firstWhere(
+            (item) => item?['tipo_consentimiento'] == 'CONTEXTO_MEDICO_IA',
+            orElse: () => null,
+          );
+      respuestas = {
+        'edad': age,
+        'sexo': nested['sexo'],
+        'enfermedadesCronicas': history.map((item) => '${item['nombre_condicion'] ?? ''}').where((value) => value.isNotEmpty).toList(),
+        'antecedentesHereditarios': family.map((item) => '${item['nombre_condicion'] ?? ''}').where((value) => value.isNotEmpty).toList(),
+        'alergias': allergies.map((item) => '${item['alergeno'] ?? ''}').where((value) => value.isNotEmpty).toList(),
+        'medicamentosActuales': medications.map((item) => '${item['nombre_medicamento'] ?? ''}').where((value) => value.isNotEmpty).join(', '),
+        'consentimientoMedico': consent?['otorgado'] != false,
+      };
+      completado = age != null && nested['sexo'] != null;
+    } catch (_) {
+      // La app conserva el estado local si el backend no está disponible.
+    }
+  }
+
+  static List<Map<String, dynamic>> _listFromResponse(http.Response response) {
+    if (response.statusCode < 200 || response.statusCode >= 300) return const [];
+    final decoded = jsonDecode(response.body);
+    return decoded is List ? decoded.whereType<Map<String, dynamic>>().toList() : const [];
+  }
+
+  static int _calculateAge(DateTime birth) {
+    final now = DateTime.now();
+    var age = now.year - birth.year;
+    if (now.month < birth.month || (now.month == birth.month && now.day < birth.day)) age--;
+    return age;
+  }
+
   static Future<void> guardarRespuestas({
     required int edad,
     required String sexo,
@@ -186,6 +245,51 @@ class SurveyService {
     }
   }
 
+  static Future<void> reemplazarEncuesta({
+    required int edad,
+    required String sexo,
+    required List<String> enfermedadesCronicas,
+    required List<String> antecedentesHereditarios,
+    required List<String> alergias,
+    required String medicamentosActuales,
+    required bool consentimientoMedico,
+  }) async {
+    respuestas = {
+      'edad': edad,
+      'sexo': sexo,
+      'enfermedadesCronicas': enfermedadesCronicas,
+      'antecedentesHereditarios': antecedentesHereditarios,
+      'alergias': alergias,
+      'medicamentosActuales': medicamentosActuales,
+      'consentimientoMedico': consentimientoMedico,
+    };
+    completado = true;
+    final token = AuthSession.instance.accessToken;
+    if (token == null || token.isEmpty) return;
+    final base = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
+    final birthDate = DateTime(DateTime.now().year - edad, DateTime.now().month, DateTime.now().day).toIso8601String().split('T').first;
+    await http.put(
+      Uri.parse('$base/api/users/profile'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode({'fecha_nacimiento': birthDate, 'sexo': sexo}),
+    );
+    await http.put(
+      Uri.parse('$base/api/users/consent'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode({'tipo_consentimiento': 'CONTEXTO_MEDICO_IA', 'otorgado': consentimientoMedico}),
+    );
+    await http.put(
+      Uri.parse('$base/api/medical-history/survey'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode({
+        'enfermedades_cronicas': enfermedadesCronicas,
+        'antecedentes_hereditarios': antecedentesHereditarios,
+        'alergias': alergias,
+        'medicamentos': medicamentosActuales,
+      }),
+    );
+  }
+
   /// Agrega un nuevo valor a una categoría de lista existente
   /// (ej. 'enfermedadesCronicas', 'antecedentesHereditarios', 'alergias').
   /// Se usa desde la pantalla de Antecedentes para agregar algo nuevo
@@ -199,7 +303,7 @@ class SurveyService {
     if (!actual.contains(normalizado)) actual.add(normalizado);
     respuestas[categoria] = actual;
 
-    // TODO: persistir este cambio también en tu backend
+    cargarDesdeBackend();
   }
 
   static void eliminarItem(String categoria, String valor) {
@@ -207,13 +311,13 @@ class SurveyService {
     actual.remove(valor);
     respuestas[categoria] = actual;
 
-    // TODO: persistir este cambio también en tu backend
+    cargarDesdeBackend();
   }
 
   static void actualizarMedicamentos(String texto) {
     respuestas['medicamentosActuales'] = texto.trim();
 
-    // TODO: persistir este cambio también en tu backend
+    cargarDesdeBackend();
   }
 
   /// Punto único de entrada al chat: si el usuario ya completó la

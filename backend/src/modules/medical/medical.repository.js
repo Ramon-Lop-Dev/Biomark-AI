@@ -59,6 +59,11 @@ const crearAntecedente = (usuarioId, { parentesco, nombre_condicion, notas }) =>
     .insert([{ usuario_id: usuarioId, parentesco, nombre_condicion, notas }])
     .select();
 
+  const eliminarHistorial = (usuarioId) => supabase.from('historial_medico').delete().eq('usuario_id', usuarioId);
+  const eliminarAlergias = (usuarioId) => supabase.from('alergias').delete().eq('usuario_id', usuarioId);
+  const eliminarMedicamentos = (usuarioId) => supabase.from('medicamentos').delete().eq('usuario_id', usuarioId);
+  const eliminarAntecedentes = (usuarioId) => supabase.from('antecedentes_familiares').delete().eq('usuario_id', usuarioId);
+
 module.exports = {
   listarPorUsuario,
   crearRegistro,
@@ -67,5 +72,9 @@ module.exports = {
   listarMedicamentosPorUsuario,
   crearMedicamento,
   listarAntecedentesPorUsuario,
-  crearAntecedente
+  crearAntecedente,
+  eliminarHistorial,
+  eliminarAlergias,
+  eliminarMedicamentos,
+  eliminarAntecedentes
 };

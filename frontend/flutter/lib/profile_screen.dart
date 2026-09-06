@@ -12,6 +12,8 @@ import 'notifications.dart';
 import 'privacidad.dart';
 import 'apariencia.dart';
 import 'seguridad_screen.dart';
+import 'health_survey.dart';
+import 'survey_service.dart';
 import 'main.dart'; // para poder cerrar sesión y volver a LoginScreen
 import 'core/auth/auth_api.dart';
 import 'core/auth/auth_session.dart';
@@ -29,7 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Antes eran "static const". Ahora son variables de instancia para
   // poder actualizarlas con setState al volver de EditarPerfilScreen.
   String _nombreUsuario = 'Familia';
-  final String _correoUsuario = 'usuario@correo.com';
+  String _correoUsuario = 'usuario@correo.com';
   int? _edadUsuario; // viene de la encuesta hecha en el chat
   String? _fotoPath; // ruta local de la foto de perfil, si se cambió
   String? _generoUsuario;
@@ -37,11 +39,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // TODO: cargar los datos reales del usuario aquí, por ejemplo:
-    // _nombreUsuario = AuthSession.instance.nombre ?? 'Familia';
-    // _correoUsuario = AuthSession.instance.correo ?? 'usuario@correo.com';
-    // _edadUsuario = AuthSession.instance.edad;
-    // _fotoPath = AuthSession.instance.fotoPath;
+    _cargarPerfil();
+  }
+
+  Future<void> _cargarPerfil() async {
+    final token = AuthSession.instance.accessToken;
+    if (token == null || token.isEmpty) return;
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/profile'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted) return;
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final profile = body['perfiles'] as Map<String, dynamic>? ?? const {};
+      final birth = DateTime.tryParse('${profile['fecha_nacimiento'] ?? ''}');
+      setState(() {
+        _nombreUsuario = '${profile['nombre_completo'] ?? _nombreUsuario}';
+        _correoUsuario = '${body['correo'] ?? _correoUsuario}';
+        _generoUsuario = profile['sexo'] as String?;
+        _edadUsuario = birth == null ? null : _calculateAge(birth);
+      });
+      await SurveyService.cargarDesdeBackend();
+    } catch (_) {}
+  }
+
+  int _calculateAge(DateTime birth) {
+    final now = DateTime.now();
+    var age = now.year - birth.year;
+    if (now.month < birth.month || (now.month == birth.month && now.day < birth.day)) age--;
+    return age;
+  }
+
+  Future<void> _actualizarDatos(Map<String, dynamic> values) async {
+    final token = AuthSession.instance.accessToken;
+    if (token == null || token.isEmpty) return;
+    final changes = <String, dynamic>{};
+    if (values['nombre'] is String && (values['nombre'] as String).trim().isNotEmpty) {
+      changes['nombre_completo'] = (values['nombre'] as String).trim();
+    }
+    if (values['genero'] is String) {
+      const genderMap = {
+        'Femenino': 'FEMENINO',
+        'Masculino': 'MASCULINO',
+        'Otro': 'OTRO',
+        'Prefiero no decir': 'NO_ESPECIFICA',
+      };
+      changes['sexo'] = genderMap[values['genero']] ?? values['genero'];
+    }
+    if (changes.isEmpty) return;
+    try {
+      final response = await http.put(
+        Uri.parse('${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/profile'),
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        body: jsonEncode(changes),
+      );
+      if (response.statusCode >= 200 && response.statusCode < 300 && mounted) await _cargarPerfil();
+    } catch (_) {}
   }
 
   @override
@@ -95,7 +149,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _nombreUsuario = resultado['nombre'] ?? _nombreUsuario;
                       _generoUsuario = resultado['genero'] ?? _generoUsuario;
                     });
-                    // TODO: persistir también aquí si aplica.
+                    await _actualizarDatos(resultado);
                   }
                 },
               ),
@@ -110,6 +164,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           SeguridadScreen(correoUsuario: _correoUsuario),
                     ),
                   );
+                },
+              ),
+              _ItemPerfil(
+                icon: Icons.assignment_outlined,
+                label: 'Editar encuesta clínica',
+                onTap: () async {
+                  final updated = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const HealthSurveyScreen(editing: true)));
+                  if (updated == true && mounted) await _cargarPerfil();
                 },
               ),
               if (!AuthSession.instance.isPromoter && !AuthSession.instance.isAdmin)
@@ -204,9 +266,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _nombreUsuario = resultado['nombre'] ?? _nombreUsuario;
             _fotoPath = resultado['fotoPath'] ?? _fotoPath;
           });
-          // TODO: persistir el cambio, por ejemplo:
-          // await AuthSession.instance.actualizarNombre(_nombreUsuario);
-          // await AuthSession.instance.actualizarFoto(_fotoPath);
+          await _actualizarDatos(resultado);
         }
       },
       child: Container(
