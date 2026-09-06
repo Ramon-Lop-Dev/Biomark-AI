@@ -12,11 +12,13 @@ import 'core/auth/auth_session.dart';
 import 'core/auth/google_auth_helper.dart';
 import 'core/auth/reset_password_link_listener.dart';
 import 'core/config/app_config.dart';
+import 'core/design/app_themecontroller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AuthSession.instance.init();
   await ResetPasswordLinkListener.instance.init();
+  await AppThemeController.instance.cargarGuardado();
   runApp(const MyApp());
 }
 
@@ -25,14 +27,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Login Biomark',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        fontFamily: 'Syne', // opcional: agrega la fuente en pubspec.yaml
-        useMaterial3: true,
-      ),
-      home: const SplashScreen(),
+    // ListenableBuilder reconstruye el MaterialApp cada vez que el
+    // usuario cambia de apariencia (claro/oscuro/sistema) en
+    // AparienciaScreen, sin necesidad de un paquete externo como provider.
+    return ListenableBuilder(
+      listenable: AppThemeController.instance,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Login Biomark',
+          debugShowCheckedModeBanner: false,
+          theme: biomarkTheme,
+          darkTheme: biomarkDarkTheme,
+          themeMode: AppThemeController.instance.themeMode,
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }

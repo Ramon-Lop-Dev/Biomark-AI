@@ -1,9 +1,7 @@
 // Pantalla de edición de perfil — Biomark AI
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-
 import 'biomark_brand.dart';
 
 class EditarPerfilScreen extends StatefulWidget {
@@ -58,22 +56,20 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF9F9FC),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: BiomarkColors.black,
+            color: Theme.of(context).colorScheme.onSurface,
             size: 20,
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Mi perfil',
           style: TextStyle(
-            color: BiomarkColors.black,
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
