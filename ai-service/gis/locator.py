@@ -85,4 +85,11 @@ class HealthCenterLocator:
                     resultado["especialidad_coincidente"] = especialidad
                     return resultado
 
-        return self._mas_cercano_de(candidatos, latitude, longitude)
+        # Sin coincidencia de especialidad: se devuelve el centro general más
+        # cercano, pero manteniendo la misma forma de respuesta (con la clave
+        # presente y en null) para que el cliente no tenga que manejar dos
+        # esquemas JSON distintos según hubo match o no.
+        resultado = self._mas_cercano_de(candidatos, latitude, longitude)
+        if resultado is not None:
+            resultado.setdefault("especialidad_coincidente", None)
+        return resultado

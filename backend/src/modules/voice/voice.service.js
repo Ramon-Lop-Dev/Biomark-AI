@@ -70,7 +70,25 @@ const transcribirYResponder = async (usuarioId, file, sessionId) => {
       console.error('[Voice] No se pudo persistir la respuesta del asistente:', errorMsgAsistente.message);
     }
 
-    const audioResponse = await sintetizarVoz(reply);
+    // El ai-service ya sintetiza el audio de la respuesta dentro de /voice
+    // (ver contrato en ai-service/README.md), así que se reutiliza ese
+    // audio_base64 directamente. Antes se hacía una SEGUNDA llamada a
+    // /audio/synthesize con el mismo texto, corriendo el modelo TTS dos
+    // veces por cada mensaje de voz sin ninguna ganancia — solo doblaba la
+    // latencia y el uso de GPU. Si por algún motivo el ai-service no pudo
+    // generar el audio (TTS caído, ver 'audio_base64: null' en ese caso),
+    // se cae de nuevo a pedirlo aparte para no dejar al usuario sin audio.
+    let audioBase64 = data.audio_base64 || null;
+    let audioContentType = data.audio_content_type || 'audio/wav';
+    if (!audioBase64) {
+      try {
+        const audioResponse = await sintetizarVoz(reply);
+        audioBase64 = Buffer.from(audioResponse).toString('base64');
+        audioContentType = 'audio/wav';
+      } catch (errorSintesis) {
+        console.error('[Voice] No se pudo sintetizar el audio de respaldo:', errorSintesis.message);
+      }
+    }
 
     await auditService.registrar({
       usuarioId,
@@ -94,8 +112,8 @@ const transcribirYResponder = async (usuarioId, file, sessionId) => {
       reply,
       risk_level,
       sources,
-      audio_base64: Buffer.from(audioResponse).toString('base64'),
-      audio_content_type: 'audio/wav'
+      audio_base64: audioBase64,
+      audio_content_type: audioContentType
     };
   } catch (error) {
     if (error instanceof AppError) throw error;

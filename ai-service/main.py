@@ -9,6 +9,7 @@ Funciona igual en Google Colab (pruebas) y en un VPS (producción) — lo
 único que cambia entre entornos es cómo se arranca (ver README.md).
 """
 
+import base64
 import json
 import os
 import tempfile
@@ -174,11 +175,28 @@ def voice_endpoint(
         medical_context=contexto,
         conversation_history=historial,
     )
+
+    # El contrato documentado en README.md promete audio_base64 y
+    # audio_content_type en /voice (respuesta hablada, no solo texto), pero
+    # antes de este cambio el endpoint nunca llamaba al TTS. Si el TTS no
+    # está disponible, se sigue devolviendo el texto para no tumbar el flujo.
+    audio_base64 = None
+    audio_content_type = None
+    if tts_service.disponible:
+        try:
+            audio_bytes = tts_service.sintetizar(respuesta)
+            audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
+            audio_content_type = "audio/wav"
+        except Exception as e:
+            print(f"[TTS] Error generando audio de respuesta: {e}")
+
     return {
         "transcription": texto_transcrito,
         "reply": respuesta,
         "risk_level": risk_level,
         "sources": fuentes,
+        "audio_base64": audio_base64,
+        "audio_content_type": audio_content_type,
     }
 
 

@@ -1,13 +1,101 @@
 import re
+from datetime import date, datetime
 from typing import Optional
 
 from config import DEVICE, PERSONA_BIOMARK
 
-__MARCADORES_NUEVO_TURNO = [
+_MARCADORES_NUEVO_TURNO = [
     r"\n?\s*Paciente\s*:",
     r"\n?\s*USUARIO\s*:",
     r"\n?\s*Asistente[^:]*:",
 ]
+
+
+def _calcular_edad(fecha_nacimiento) -> Optional[int]:
+    """Calcula edad en años a partir de un ISO date/datetime string. Los
+    modelos de lenguaje son poco confiables haciendo aritmética de fechas
+    por su cuenta, así que se calcula acá en vez de pasarle la fecha cruda
+    y esperar que el modelo infiera la edad."""
+    if not fecha_nacimiento:
+        return None
+    try:
+        texto = str(fecha_nacimiento)[:10]
+        nacimiento = datetime.strptime(texto, "%Y-%m-%d").date()
+        hoy = date.today()
+        edad = hoy.year - nacimiento.year - ((hoy.month, hoy.day) < (nacimiento.month, nacimiento.day))
+        return edad if 0 <= edad <= 120 else None
+    except (ValueError, TypeError):
+        return None
+
+
+def _formatear_contexto_medico(medical_context) -> str:
+    """Convierte el contexto médico crudo (dict anidado que arma
+    medicalContext.service.js en el backend: perfil, alergias,
+    medicamentos, historial, antecedentes_familiares, vacunas, sintomas)
+    en un resumen clínico en español que el modelo pueda leer de forma
+    confiable, en vez de inyectar el repr crudo del dict de Python."""
+    if not medical_context or not isinstance(medical_context, dict):
+        return "No hay contexto médico autorizado para este paciente."
+
+    lineas = []
+
+    perfil = medical_context.get("perfil") or {}
+    edad = _calcular_edad(perfil.get("fecha_nacimiento"))
+    sexo = perfil.get("sexo")
+    datos_perfil = []
+    if edad is not None:
+        datos_perfil.append(f"{edad} años")
+    if sexo:
+        datos_perfil.append(f"sexo {sexo}")
+    if datos_perfil:
+        lineas.append("Paciente: " + ", ".join(datos_perfil) + ".")
+
+    alergias = medical_context.get("alergias") or []
+    if alergias:
+        texto_alergias = "; ".join(
+            f"{a.get('alergeno', 'desconocido')} (severidad {a.get('severidad', 'no especificada')})"
+            for a in alergias[:10]
+        )
+        lineas.append(f"Alergias conocidas: {texto_alergias}.")
+
+    medicamentos = medical_context.get("medicamentos") or []
+    if medicamentos:
+        texto_meds = "; ".join(
+            f"{m.get('nombre_medicamento', 'desconocido')}"
+            + (f" ({m.get('dosis')}, {m.get('frecuencia')})" if m.get("dosis") or m.get("frecuencia") else "")
+            for m in medicamentos[:10]
+        )
+        lineas.append(f"Medicamentos actuales: {texto_meds}.")
+
+    historial = medical_context.get("historial") or []
+    if historial:
+        texto_historial = "; ".join(
+            h.get("nombre_condicion", "condición no especificada") for h in historial[:10]
+        )
+        lineas.append(f"Condiciones diagnosticadas previamente: {texto_historial}.")
+
+    antecedentes = medical_context.get("antecedentes_familiares") or []
+    if antecedentes:
+        texto_antecedentes = "; ".join(
+            f"{a.get('parentesco', 'familiar')}: {a.get('nombre_condicion', 'condición no especificada')}"
+            for a in antecedentes[:10]
+        )
+        lineas.append(f"Antecedentes familiares: {texto_antecedentes}.")
+
+    sintomas = medical_context.get("sintomas") or []
+    if sintomas:
+        texto_sintomas = "; ".join(s.get("nombre_sintoma", "síntoma no especificado") for s in sintomas[:10])
+        lineas.append(f"Síntomas registrados recientemente por el paciente: {texto_sintomas}.")
+
+    vacunas = medical_context.get("vacunas") or []
+    if vacunas:
+        texto_vacunas = "; ".join(v.get("nombre_vacuna", "vacuna no especificada") for v in vacunas[:5])
+        lineas.append(f"Vacunas más recientes: {texto_vacunas}.")
+
+    if not lineas:
+        return "El paciente autorizó su contexto médico, pero no tiene datos cargados todavía."
+
+    return " ".join(lineas)
 
 
 class TextGenerator:
@@ -22,7 +110,7 @@ class TextGenerator:
         medical_context=None,
         conversation_history=None,
     ) -> str:
-        contexto_paciente = medical_context or "No hay contexto médico autorizado."
+        contexto_paciente = _formatear_contexto_medico(medical_context)
         historial = conversation_history or []
         turnos = "\n".join(
             f"{turno.get('emisor', 'USUARIO')}: {turno.get('mensaje', '')}"

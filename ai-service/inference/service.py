@@ -48,12 +48,23 @@ class ClinicalService:
             )
 
         contexto, fuentes = self.retriever.buscar_contexto_relevante(mensaje_usuario)
-        respuesta = self.generator.generate_response(
-            mensaje_usuario,
-            contexto,
-            medical_context,
-            conversation_history,
-        )
+        try:
+            respuesta = self.generator.generate_response(
+                mensaje_usuario,
+                contexto,
+                medical_context,
+                conversation_history,
+            )
+        except Exception as e:
+            # Nunca dejar que un error de generación tumbe la petición con un
+            # 500 crudo: eso el cliente lo termina viendo como una respuesta
+            # rara o vacía. Se registra el error real y se devuelve un
+            # mensaje seguro en su lugar.
+            print(f"[ClinicalService] Error generando respuesta: {e}")
+            respuesta = (
+                "No logré generar una orientación clara para eso en este momento. "
+                "¿Puedes reformular tu mensaje o describir el síntoma con más detalle?"
+            )
 
         risk_level = riesgo_detectado
         if risk_level == "LOW" and contexto:
