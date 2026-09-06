@@ -19,10 +19,10 @@ El proyecto se estructura como un conjunto de servicios conectados en red privad
 flowchart LR
   F[Flutter] -->|HTTPS + JWT| N[nginx]
   N --> B[Backend Express]
-  B -->|service role| S[(Supabase)]
+  B -->|service role| S[Supabase]
   B -->|X-Internal-Key| A[AI Service]
-  B -->|Webhook secret| W[n8n]
-  W -->|FCM| F
+  B -->|Webhook secret| Wn[n8n]
+  Wn -->|FCM| F
 ```
 
 ## Funcionalidades principales
