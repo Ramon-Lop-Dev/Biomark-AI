@@ -4,12 +4,8 @@
 // médicos guardados en SurveyService (la misma fuente que usa la
 // pantalla "Mis Antecedentes"), para no duplicar datos.
 import 'package:flutter/material.dart';
-
 import 'biomark_brand.dart';
 import 'survey_service.dart';
-
-// AJUSTA este import y el nombre de la clase si tu pantalla de
-// antecedentes se llama distinto:
 import 'health_history.dart';
 
 class DatosPersonalesScreen extends StatefulWidget {
@@ -75,22 +71,20 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
     final medicamentos = (respuestas['medicamentosActuales'] ?? '') as String;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF9F9FC),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: BiomarkColors.black,
+            color: Theme.of(context).colorScheme.onSurface,
             size: 20,
           ),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
+        title: Text(
           'Mis datos personales',
           style: TextStyle(
-            color: BiomarkColors.black,
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
@@ -128,7 +122,7 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
                       ),
                     ),
                   ),
-                  const Divider(height: 1, color: Color(0xFFEFEFF3)),
+                  Divider(height: 1, color: Theme.of(context).dividerColor),
                   DropdownButtonFormField<String>(
                     initialValue: _generoSeleccionado,
                     decoration: const InputDecoration(
@@ -210,23 +204,26 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
   Widget _buildSeccionTitulo(String texto) {
     return Text(
       texto,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 12.5,
         fontWeight: FontWeight.w700,
-        color: Color(0xFF7A7A85),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .6),
       ),
     );
   }
 
   Widget _buildTarjeta({required Widget child}) {
+    final tema = Theme.of(context);
+    final esOscuro = tema.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: tema.cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: .05),
+            color: Colors.black.withValues(alpha: esOscuro ? .3 : .05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -241,14 +238,17 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
     required String titulo,
     required List<String> valores,
   }) {
+    final tema = Theme.of(context);
+    final esOscuro = tema.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: tema.cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: .04),
+            color: Colors.black.withValues(alpha: esOscuro ? .25 : .04),
             blurRadius: 8,
             offset: const Offset(2, 3),
           ),
@@ -265,17 +265,20 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
               children: [
                 Text(
                   titulo,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: BiomarkColors.black,
+                    color: tema.colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 6),
                 if (valores.isEmpty)
-                  const Text(
+                  Text(
                     'Sin información registrada',
-                    style: TextStyle(fontSize: 12.5, color: Color(0xFF9C9CA6)),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: tema.colorScheme.onSurface.withValues(alpha: .45),
+                    ),
                   )
                 else
                   Wrap(

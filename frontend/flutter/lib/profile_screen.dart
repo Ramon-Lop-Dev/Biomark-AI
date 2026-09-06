@@ -6,6 +6,10 @@ import 'package:flutter/material.dart';
 import 'biomark_brand.dart';
 import 'datos_personales.dart';
 import 'editar_perfil.dart';
+import 'notifications.dart';
+import 'privacidad.dart';
+import 'apariencia.dart';
+import 'seguridad_screen.dart';
 import 'main.dart'; // para poder cerrar sesión y volver a LoginScreen
 import 'core/auth/auth_api.dart';
 import 'core/auth/auth_session.dart';
@@ -19,8 +23,10 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  // Antes eran "static const". Ahora son variables de instancia para
+  // poder actualizarlas con setState al volver de EditarPerfilScreen.
   String _nombreUsuario = 'Familia';
-  String _correoUsuario = 'usuario@correo.com';
+  final String _correoUsuario = 'usuario@correo.com';
   int? _edadUsuario; // viene de la encuesta hecha en el chat
   String? _fotoPath; // ruta local de la foto de perfil, si se cambió
   String? _generoUsuario;
@@ -93,6 +99,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _ItemPerfil(
                 icon: Icons.lock_outline_rounded,
                 label: 'Seguridad y contraseña',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          SeguridadScreen(correoUsuario: _correoUsuario),
+                    ),
+                  );
+                },
               ),
             ]),
             const SizedBox(height: 18),
@@ -100,12 +115,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _ItemPerfil(
                 icon: Icons.notifications_none_rounded,
                 label: 'Notificaciones',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationsScreen(),
+                    ),
+                  );
+                },
               ),
               _ItemPerfil(
                 icon: Icons.privacy_tip_outlined,
                 label: 'Privacidad y datos médicos',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PrivacidadScreen(),
+                    ),
+                  );
+                },
               ),
-              _ItemPerfil(icon: Icons.language_rounded, label: 'Idioma'),
+              _ItemPerfil(
+                icon: Icons.palette_rounded,
+                label: 'Aspecto de la app',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AparienciaScreen(),
+                    ),
+                  );
+                },
+              ),
             ]),
             const SizedBox(height: 18),
             _buildSeccion('Soporte', [
