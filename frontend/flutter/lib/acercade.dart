@@ -1,12 +1,17 @@
 // Pantalla "Acerca de Biomark AI"
 //
-
+// Requiere el paquete url_launcher (pubspec.yaml):
+//   url_launcher: ^6.3.0
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import 'biomark_brand.dart';
 
 class AcercaScreen extends StatelessWidget {
   const AcercaScreen({super.key});
+
+  // TODO: si tienes flutter_package_info o similar, reemplaza esto con
+  // la versión real del build en vez de un valor fijo.
   static const String _version = '1.0.0';
   static const String _sitioWeb = 'https://biomark-landing-p.vercel.app';
 
@@ -54,22 +59,25 @@ class AcercaScreen extends StatelessWidget {
           children: [
             Center(
               child: Container(
-                width: 84,
-                height: 84,
+                width: 100,
+                height: 100,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: BiomarkColors.blue.withValues(alpha: .12),
                 ),
-                child: const Icon(
-                  Icons.favorite_rounded,
-                  color: BiomarkColors.blue,
-                  size: 38,
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/branding/Icono.png',
+                    width: 90,
+                    height: 90,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 14),
             Text(
-              'Biomark AI',
+              'BIOMARK AI',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 20,
@@ -90,10 +98,10 @@ class AcercaScreen extends StatelessWidget {
             _buildTarjeta(
               tema: tema,
               child: Text(
-                'Biomark AI es tu asistente de salud: te ayuda a resolver '
+                'BIOMARK AI es tu asistente de salud: te ayuda a resolver '
                 'dudas sobre medicamentos de uso común, organiza tus '
-                'antecedentes médicos, y te acompaña a cualquier clinica si es que no conoces la zona.'
-                'Con recordatorios para que no se te pase nada importante. '
+                'antecedentes médicos y los de tu familia, y te acompaña '
+                'con recordatorios para que no se te pase nada importante. '
                 'La visita a tu médico sigue siendo lo más importante — '
                 'nosotros solo te ayudamos a llegar más informado.',
                 style: TextStyle(

@@ -1,11 +1,6 @@
 // Pantalla "Apariencia" — Biomark AI
 //
-// A diferencia de las otras pantallas del perfil, esta usa los colores
-// de Theme.of(context) en vez de BiomarkColors fijos, para que ya
-// funcione correctamente tanto en modo claro como oscuro. Sirve de
-// referencia para ir migrando el resto de pantallas más adelante.
 import 'package:flutter/material.dart';
-
 import 'core/design/app_themecontroller.dart';
 
 class AparienciaScreen extends StatefulWidget {

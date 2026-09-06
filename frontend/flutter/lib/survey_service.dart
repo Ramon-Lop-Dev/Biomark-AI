@@ -9,9 +9,6 @@ import 'package:flutter/material.dart';
 import 'health_survey.dart';
 import 'features/chat/presentation/chat_screen.dart';
 
-/// Misma transición fade+slide usada en el resto de la app
-/// (duplicada aquí para evitar imports circulares, mismo patrón
-/// que ya usan home_screen.dart y app_shell.dart).
 class _FadeSlidePageRoute<T> extends MaterialPageRoute<T> {
   _FadeSlidePageRoute({required super.builder, super.settings});
 
@@ -58,7 +55,7 @@ class SurveyService {
     };
     completado = true;
 
-    // TODO: aquí va tu lógica real para persistir esto:
+    // TODO: aquí va la lógica real para persistir esto:
     // - Enviarlo a tu backend/API asociado al usuario logueado
     // - O guardarlo local con SharedPreferences para que sobreviva
     //   a cerrar la app (hasta que tengas backend conectado)

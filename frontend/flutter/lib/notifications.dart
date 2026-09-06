@@ -1,11 +1,5 @@
 // Pantalla "Notificaciones" — Biomark AI
 //
-// Interruptor maestro + categorías específicas. Las categorías se
-// desactivan visualmente (pero conservan su valor) cuando el maestro
-// está apagado, para que el usuario no pierda su configuración fina.
-//
-// Migrada a Theme.of(context) (mismo patrón que aparicencia_screen.dart
-// y antecedentes_screen.dart) para funcionar en modo claro y oscuro.
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';

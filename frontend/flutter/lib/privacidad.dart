@@ -1,11 +1,10 @@
 // Pantalla "Privacidad y datos médicos" — Biomark AI
 //
-// Migrada a Theme.of(context) (mismo patrón que notifications_screen.dart,
-// aparicencia_screen.dart y antecedentes_screen.dart) para funcionar en
-// modo claro y oscuro.
 import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
+import 'politicapriv.dart';
+import 'terminos_serv.dart';
 
 class PrivacidadScreen extends StatefulWidget {
   const PrivacidadScreen({super.key});
@@ -65,7 +64,9 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
         content: Text(
           'Esta acción es permanente. Se eliminarán tu perfil, tus antecedentes '
           'médicos y todo tu historial con Biomark AI. No se puede deshacer.',
-          style: TextStyle(color: tema.colorScheme.onSurface.withValues(alpha: .8)),
+          style: TextStyle(
+            color: tema.colorScheme.onSurface.withValues(alpha: .8),
+          ),
         ),
         actions: [
           TextButton(
@@ -124,25 +125,32 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
               tema: tema,
               child: Column(
                 children: [
-                  Divider(height: 24, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
+                  Divider(
+                    height: 24,
+                    color: tema.colorScheme.onSurface.withValues(alpha: .08),
+                  ),
                   _buildFilaSwitch(
                     tema: tema,
                     icono: Icons.psychology_alt_rounded,
-                    titulo: 'Uso de datos por Biomark AI',
+                    titulo: 'Uso de datos por BIOMARK AI',
                     subtitulo:
                         'Permite que la IA use tu historial para personalizar consejos',
                     valor: _usoDatosIA,
                     onChanged: (_) =>
                         _alternar((v) => _usoDatosIA = v, _usoDatosIA),
                   ),
-                  Divider(height: 24, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
+                  Divider(
+                    height: 24,
+                    color: tema.colorScheme.onSurface.withValues(alpha: .08),
+                  ),
                   _buildFilaSwitch(
                     tema: tema,
                     icono: Icons.fingerprint_rounded,
-                    titulo: 'Bloqueo biométrico (PROXIMAMENTE)',
+                    titulo: 'Bloqueo biométrico',
                     subtitulo:
                         'Pide huella o Face ID antes de mostrar tus datos médicos',
                     valor: _bloqueoBiometrico,
+                    deshabilitado: true,
                     onChanged: (_) => _alternar(
                       (v) => _bloqueoBiometrico = v,
                       _bloqueoBiometrico,
@@ -171,11 +179,16 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                           )
                         : Icon(
                             Icons.chevron_right_rounded,
-                            color: tema.colorScheme.onSurface.withValues(alpha: .35),
+                            color: tema.colorScheme.onSurface.withValues(
+                              alpha: .35,
+                            ),
                           ),
                     onTap: _exportando ? null : _exportarDatos,
                   ),
-                  Divider(height: 24, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
+                  Divider(
+                    height: 24,
+                    color: tema.colorScheme.onSurface.withValues(alpha: .08),
+                  ),
                   _buildFilaAccion(
                     tema: tema,
                     icono: Icons.delete_outline_rounded,
@@ -208,11 +221,17 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                       Icons.chevron_right_rounded,
                       color: tema.colorScheme.onSurface.withValues(alpha: .35),
                     ),
-                    onTap: () {
-                      // TODO: abrir la URL real, ej. con url_launcher.
-                    },
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PoliticaPrivacidadScreen(),
+                      ),
+                    ),
                   ),
-                  Divider(height: 24, color: tema.colorScheme.onSurface.withValues(alpha: .08)),
+                  Divider(
+                    height: 24,
+                    color: tema.colorScheme.onSurface.withValues(alpha: .08),
+                  ),
                   _buildFilaAccion(
                     tema: tema,
                     icono: Icons.description_outlined,
@@ -221,9 +240,12 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                       Icons.chevron_right_rounded,
                       color: tema.colorScheme.onSurface.withValues(alpha: .35),
                     ),
-                    onTap: () {
-                      // TODO: abrir la URL real, ej. con url_launcher.
-                    },
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const TerminosServicioScreen(),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -241,7 +263,10 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
     required String subtitulo,
     required bool valor,
     required ValueChanged<bool> onChanged,
+    bool deshabilitado = false,
   }) {
+    final colorApagado = tema.colorScheme.onSurface.withValues(alpha: .35);
+
     return Row(
       children: [
         Container(
@@ -249,34 +274,75 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
           height: 34,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: BiomarkColors.blue.withValues(alpha: .12),
+            color: (deshabilitado ? colorApagado : BiomarkColors.blue)
+                .withValues(alpha: .12),
           ),
-          child: Icon(icono, size: 17, color: BiomarkColors.blue),
+          child: Icon(
+            icono,
+            size: 17,
+            color: deshabilitado ? colorApagado : BiomarkColors.blue,
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                titulo,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: tema.colorScheme.onSurface,
-                ),
+              Row(
+                children: [
+                  Text(
+                    titulo,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: deshabilitado
+                          ? colorApagado
+                          : tema.colorScheme.onSurface,
+                    ),
+                  ),
+                  if (deshabilitado) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tema.colorScheme.onSurface.withValues(
+                          alpha: .08,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Próximamente',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: tema.colorScheme.onSurface.withValues(
+                            alpha: .5,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 2),
               Text(
                 subtitulo,
-                style: TextStyle(fontSize: 12, color: tema.colorScheme.onSurface.withValues(alpha: .5)),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: deshabilitado
+                      ? colorApagado
+                      : tema.colorScheme.onSurface.withValues(alpha: .5),
+                ),
               ),
             ],
           ),
         ),
         Switch(
           value: valor,
-          onChanged: onChanged,
+          onChanged: deshabilitado ? null : onChanged,
           activeThumbColor: BiomarkColors.green,
         ),
       ],

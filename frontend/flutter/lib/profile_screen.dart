@@ -1,8 +1,5 @@
 // Pantalla de perfil de usuario — Biomark AI
 //
-// Migrada a Theme.of(context) (mismo patrón que notifications_screen.dart,
-// privacidad_screen.dart y apariencia_screen.dart) para funcionar en modo
-// claro y oscuro.
 import 'dart:io';
 
 import 'package:flutter/material.dart';

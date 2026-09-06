@@ -1,11 +1,6 @@
 // Shell de navegación principal de Biomark AI.
-//
-// El fondo del Scaffold y el AppBar se adaptan con Theme.of(context)
-// para modo claro/oscuro. La píldora de la barra de navegación inferior
-// se queda blanca fija a propósito (igual que los cuadros de HomeScreen),
-// para que siempre resalte igual sobre el fondo, sea claro u oscuro.
-import 'package:flutter/material.dart';
 
+import 'package:flutter/material.dart';
 import 'biomark_brand.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';

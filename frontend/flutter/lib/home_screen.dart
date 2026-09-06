@@ -1,15 +1,6 @@
 // Pantalla de inicio (Home) de Biomark AI.
 //
-// Diseño: las tarjetas (Meta de Salud, cuadros de acciones rápidas y
-// recordatorios) se quedan con fondo claro FIJO y texto oscuro fijo,
-// sin importar el tema — son "tarjetas flotantes" pensadas para resaltar
-// sobre el fondo. Solo el fondo de la pantalla y los títulos sueltos
-// ("¡Hola, Familia!", "Recordatorios Inteligentes") se adaptan con
-// Theme.of(context) para modo claro/oscuro. La barra de navegación
-// inferior vive en otro archivo (app_shell.dart / similar) y necesita
-// el mismo tratamiento por separado.
 import 'package:flutter/material.dart';
-
 import 'biomark_brand.dart';
 import 'survey_service.dart';
 import 'health_history.dart';

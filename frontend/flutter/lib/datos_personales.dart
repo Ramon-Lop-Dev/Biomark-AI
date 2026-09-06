@@ -1,8 +1,6 @@
 // Pantalla "Mis datos personales" — Biomark AI
 //
 // Muestra nombre y género editables, y un resumen de los antecedentes
-// médicos guardados en SurveyService (la misma fuente que usa la
-// pantalla "Mis Antecedentes"), para no duplicar datos.
 import 'package:flutter/material.dart';
 import 'biomark_brand.dart';
 import 'survey_service.dart';

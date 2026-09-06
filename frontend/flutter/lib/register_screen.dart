@@ -9,14 +9,6 @@ import 'core/config/app_config.dart';
 /// ---------------------------------------------------------------
 /// REGISTER SCREEN — mismo estilo "claymorfismo" que el login,
 /// con pestañas Iniciar Sesión / Registrarse arriba (igual que login)
-///
-/// Migrada para soportar modo claro y oscuro: como esta pantalla usa
-/// un diseño propio (degradado + tarjetas "clay"/glassmorfismo) en vez
-/// de los colores base de Material, cada color fijo se resuelve ahora
-/// según `Theme.of(context).brightness` en vez de quedar hardcodeado.
-/// El azul de marca (accentBlue) se mantiene fijo en ambos modos, igual
-/// que BiomarkColors.blue/green en el resto de la app.
-/// ---------------------------------------------------------------
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
