@@ -14,4 +14,10 @@ const updateProfile = asyncHandler(async (req, res) => {
     return res.status(200).json(data);
 });
 
-module.exports = { getProfile, updateProfile };
+// POST /api/users/profile/photo
+const updateProfilePhoto = asyncHandler(async (req, res) => {
+    const data = await usersService.updateProfilePhoto(req.usuarioId, req.file);
+    return res.status(200).json(data);
+});
+
+module.exports = { getProfile, updateProfile, updateProfilePhoto };

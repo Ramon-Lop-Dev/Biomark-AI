@@ -107,7 +107,7 @@ class _AppShellState extends State<AppShell> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: _buildAppBar(),
       body: SafeArea(
         child: AnimatedSwitcher(
@@ -142,7 +142,7 @@ class _AppShellState extends State<AppShell> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      backgroundColor: const Color(0xFFF9F9FC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
       titleSpacing: 16,
       title: Image.asset(
@@ -229,7 +229,7 @@ class _AppShellState extends State<AppShell> {
               bottom: 8,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(32),
                   boxShadow: [
                     BoxShadow(
@@ -263,7 +263,7 @@ class _AppShellState extends State<AppShell> {
                       colors: [Color(0xFF46AB39), Color(0xFF006E03)],
                     ),
                     border: Border.all(
-                      color: const Color(0xFFF9F9FC),
+                      color: Theme.of(context).scaffoldBackgroundColor,
                       width: 4,
                     ),
                     boxShadow: [
@@ -302,7 +302,9 @@ class _AppShellState extends State<AppShell> {
           children: [
             Icon(
               icons[index],
-              color: selected ? BiomarkColors.green : const Color(0xFF3F4A3B),
+              color: selected
+                  ? BiomarkColors.green
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 20,
             ),
             const SizedBox(height: 3),
@@ -408,8 +410,8 @@ class _AddGoalModalState extends State<_AddGoalModal> {
       minChildSize: 0.55,
       maxChildSize: 0.92,
       builder: (context, scrollController) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: ListView(
@@ -571,8 +573,8 @@ class _AddReminderModalState extends State<_AddReminderModal> {
       minChildSize: 0.5,
       maxChildSize: 0.95,
       builder: (context, scrollController) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
@@ -753,7 +755,9 @@ class _AddReminderModalState extends State<_AddReminderModal> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? BiomarkColors.green : Colors.grey.shade200,
+            color: isSelected
+              ? BiomarkColors.green
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? BiomarkColors.green : Colors.transparent,
@@ -766,13 +770,17 @@ class _AddReminderModalState extends State<_AddReminderModal> {
             Icon(
               icon,
               size: 16,
-              color: isSelected ? Colors.white : BiomarkColors.black,
+                color: isSelected
+                  ? Colors.white
+                  : Theme.of(context).colorScheme.onSurface,
             ),
             const SizedBox(width: 6),
             Text(
               typeLabel,
               style: TextStyle(
-                color: isSelected ? Colors.white : BiomarkColors.black,
+                color: isSelected
+                  ? Colors.white
+                  : Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
               ),

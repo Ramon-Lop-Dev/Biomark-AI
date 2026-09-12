@@ -156,9 +156,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Panorama de salud comunitaria',
-          style: TextStyle(fontSize: 15, color: Colors.black54, fontWeight: FontWeight.w600),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
         _buildCommunitySummary(),
@@ -203,10 +203,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'Las señales mostradas fueron revisadas antes de aparecer en este panorama.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 11, color: Colors.black45),
+          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ],
     );
@@ -240,11 +240,11 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Actividad comunitaria', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                Text('Actividad comunitaria', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Theme.of(context).colorScheme.onSurface)),
                 const SizedBox(height: 3),
                 Text(
                   '$_validatedReports zonas con reportes validados · $_totalCases casos observados',
-                  style: const TextStyle(fontSize: 12.5, height: 1.3),
+                  style: TextStyle(fontSize: 12.5, height: 1.3, color: Theme.of(context).colorScheme.onSurface),
                 ),
               ],
             ),
@@ -264,9 +264,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface)),
               const SizedBox(height: 2),
-              Text(subtitle, style: const TextStyle(fontSize: 11.5, color: Colors.black54)),
+              Text(subtitle, style: TextStyle(fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ],
           ),
         ),
@@ -277,12 +277,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildEmptyState(String message, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16)),
       child: Row(
         children: [
-          Icon(icon, color: Colors.black45),
+          Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant),
           const SizedBox(width: 10),
-          Expanded(child: Text(message, style: const TextStyle(fontSize: 13, color: Colors.black54))),
+          Expanded(child: Text(message, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant))),
         ],
       ),
     );
@@ -292,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16)),
       child: Row(
         children: [
           const CircleAvatar(
@@ -304,10 +304,10 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: Text(
               '${signal.cases} ${signal.cases == 1 ? 'caso' : 'casos'} reportados en un área comunitaria aproximada.',
-              style: const TextStyle(fontSize: 13, height: 1.3, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 13, height: 1.3, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
             ),
           ),
-          const Icon(Icons.chevron_right_rounded, color: Colors.black38),
+          Icon(Icons.chevron_right_rounded, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ],
       ),
     );
@@ -317,7 +317,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16)),
       child: Row(
         children: [
           const CircleAvatar(
@@ -330,9 +330,9 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(event.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5)),
+                Text(event.title, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: Theme.of(context).colorScheme.onSurface)),
                 const SizedBox(height: 3),
-                Text('${event.location} · ${_formatEventDate(event.date)}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                Text('${event.location} · ${_formatEventDate(event.date)}', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ),

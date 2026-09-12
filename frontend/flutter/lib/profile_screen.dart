@@ -33,7 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _nombreUsuario = 'Familia';
   String _correoUsuario = 'usuario@correo.com';
   int? _edadUsuario; // viene de la encuesta hecha en el chat
-  String? _fotoPath; // ruta local de la foto de perfil, si se cambió
+  String? _fotoUrl;
   String? _generoUsuario;
 
   @override
@@ -58,6 +58,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _nombreUsuario = '${profile['nombre_completo'] ?? _nombreUsuario}';
         _correoUsuario = '${body['correo'] ?? _correoUsuario}';
         _generoUsuario = profile['sexo'] as String?;
+        _fotoUrl = profile['foto_url'] as String?;
         _edadUsuario = birth == null ? null : _calculateAge(birth);
       });
       await SurveyService.cargarDesdeBackend();
@@ -98,12 +99,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {}
   }
 
+  Future<void> _subirFoto(File foto) async {
+    final token = AuthSession.instance.accessToken;
+    if (token == null || token.isEmpty) return;
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/profile/photo'),
+    )
+      ..headers['Authorization'] = 'Bearer $token'
+      ..files.add(await http.MultipartFile.fromPath('foto', foto.path));
+
+    try {
+      final response = await request.send();
+      if (!mounted) return;
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        await _cargarPerfil();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo guardar la foto de perfil.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo conectar para guardar la foto.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F9FC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF9F9FC),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
@@ -113,10 +144,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
+        title: Text(
           'Mi Perfil',
           style: TextStyle(
-            color: BiomarkColors.black,
+            color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
@@ -256,7 +287,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               nombreActual: _nombreUsuario,
               correo: _correoUsuario,
               edad: _edadUsuario,
-              fotoPath: _fotoPath,
+              fotoUrl: _fotoUrl,
             ),
           ),
         );
@@ -264,26 +295,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (resultado != null && mounted) {
           setState(() {
             _nombreUsuario = resultado['nombre'] ?? _nombreUsuario;
-            _fotoPath = resultado['fotoPath'] ?? _fotoPath;
           });
           await _actualizarDatos(resultado);
+          final foto = resultado['foto'];
+          if (foto is File) await _subirFoto(foto);
         }
       },
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: .06),
               blurRadius: 16,
               offset: const Offset(0, 6),
-            ),
-            const BoxShadow(
-              color: Colors.white,
-              blurRadius: 10,
-              offset: Offset(-4, -4),
             ),
           ],
         ),
@@ -295,14 +322,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: BiomarkColors.blue.withValues(alpha: .12),
-                image: _fotoPath != null
+                image: _fotoUrl != null
                     ? DecorationImage(
-                        image: FileImage(File(_fotoPath!)),
+                        image: NetworkImage(_fotoUrl!),
                         fit: BoxFit.cover,
                       )
                     : null,
               ),
-              child: _fotoPath == null
+              child: _fotoUrl == null
                   ? const Icon(
                       Icons.person_rounded,
                       color: BiomarkColors.blue,
@@ -317,24 +344,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Text(
                     _nombreUsuario,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
-                      color: BiomarkColors.black,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     _correoUsuario,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
-                      color: Color(0xFF7A7A85),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF7A7A85)),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),
@@ -349,16 +379,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             titulo,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF7A7A85),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(18),
             boxShadow: [
               BoxShadow(
@@ -375,11 +405,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildFila(items[i]),
                   if (!esUltimo)
-                    const Divider(
+                    Divider(
                       height: 1,
                       indent: 56,
                       endIndent: 16,
-                      color: Color(0xFFEFEFF3),
+                      color: Theme.of(context).dividerColor,
                     ),
                 ],
               );
@@ -402,17 +432,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: Text(
                 item.label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
-                  color: BiomarkColors.black,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 20,
-              color: Color(0xFFBFBFC9),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ],
         ),

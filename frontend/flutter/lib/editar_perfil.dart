@@ -8,14 +8,14 @@ class EditarPerfilScreen extends StatefulWidget {
   final String nombreActual;
   final String correo;
   final int? edad;
-  final String? fotoPath;
+  final String? fotoUrl;
 
   const EditarPerfilScreen({
     super.key,
     required this.nombreActual,
     required this.correo,
     this.edad,
-    this.fotoPath,
+    this.fotoUrl,
   });
 
   @override
@@ -30,9 +30,6 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   void initState() {
     super.initState();
     _nombreController = TextEditingController(text: widget.nombreActual);
-    if (widget.fotoPath != null) {
-      _fotoSeleccionada = File(widget.fotoPath!);
-    }
   }
 
   Future<void> _cambiarFoto() async {
@@ -49,7 +46,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   void _guardarCambios() {
     Navigator.pop(context, {
       'nombre': _nombreController.text.trim(),
-      'fotoPath': _fotoSeleccionada?.path,
+      'foto': _fotoSeleccionada,
     });
   }
 
@@ -98,9 +95,11 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                     radius: 50,
                     backgroundColor: BiomarkColors.blue.withValues(alpha: .12),
                     backgroundImage: _fotoSeleccionada != null
-                        ? FileImage(_fotoSeleccionada!)
+                      ? FileImage(_fotoSeleccionada!)
+                      : widget.fotoUrl != null
+                        ? NetworkImage(widget.fotoUrl!)
                         : null,
-                    child: _fotoSeleccionada == null
+                    child: _fotoSeleccionada == null && widget.fotoUrl == null
                         ? const Icon(
                             Icons.person_rounded,
                             size: 50,

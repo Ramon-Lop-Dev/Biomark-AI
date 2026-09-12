@@ -5,7 +5,7 @@ const supabase = require('../../config/supabase');
 const findUsuarioConPerfil = (usuarioId) =>
   supabase
     .from('usuarios')
-    .select('id, correo, rol, activo, fecha_creacion, perfiles(nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio)')
+    .select('id, correo, rol, activo, fecha_creacion, perfiles(nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio, foto_path)')
     .eq('id', usuarioId)
     .single();
 
@@ -21,4 +21,12 @@ const actualizarPerfil = (usuarioId, cambios) =>
     .select('nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio')
     .maybeSingle();
 
-module.exports = { findUsuarioConPerfil, actualizarPerfil };
+const actualizarFotoPath = (usuarioId, fotoPath) =>
+  supabase
+    .from('perfiles')
+    .update({ foto_path: fotoPath, fecha_actualizacion: new Date().toISOString() })
+    .eq('usuario_id', usuarioId)
+    .select('foto_path')
+    .single();
+
+module.exports = { findUsuarioConPerfil, actualizarPerfil, actualizarFotoPath };

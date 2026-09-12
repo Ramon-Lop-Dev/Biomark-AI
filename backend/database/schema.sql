@@ -23,6 +23,7 @@ CREATE TABLE public.perfiles (
   telefono text,
   direccion text,
   municipio text,
+  foto_path text,
   fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
   fecha_actualizacion timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT perfiles_pkey PRIMARY KEY (id),

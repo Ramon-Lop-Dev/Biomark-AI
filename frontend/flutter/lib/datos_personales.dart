@@ -37,7 +37,18 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
   void initState() {
     super.initState();
     _nombreController = TextEditingController(text: widget.nombreActual);
-    _generoSeleccionado = widget.generoActual;
+    _generoSeleccionado = _normalizarGenero(widget.generoActual);
+  }
+
+  String? _normalizarGenero(String? genero) {
+    const valoresBackend = {
+      'FEMENINO': 'Femenino',
+      'MASCULINO': 'Masculino',
+      'OTRO': 'Otro',
+      'NO_ESPECIFICA': 'Prefiero no decir',
+    };
+    return valoresBackend[genero?.toUpperCase()] ??
+        (_opcionesGenero.contains(genero) ? genero : null);
   }
 
   @override
