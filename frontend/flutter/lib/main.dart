@@ -22,8 +22,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
   await FirebaseConfig.initialize();
-  await PushNotificationsService.instance.initialize();
   await AuthSession.instance.init();
+  await PushNotificationsService.instance.initialize();
   await SurveyService.cargarDesdeBackend();
   await ResetPasswordLinkListener.instance.init();
   await AppThemeController.instance.cargarGuardado();
@@ -62,7 +62,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen>
-  with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -73,12 +73,11 @@ class _LoginScreenState extends State<LoginScreen>
   late final AnimationController _entranceController;
   late final Animation<double> _contentFade;
   late final Animation<Offset> _contentSlide;
-    bool _animationsReady = false;
+  bool _animationsReady = false;
 
-    Animation<double> get _safeContentFade => _animationsReady
-      ? _contentFade
-      : const AlwaysStoppedAnimation<double>(1);
-    Animation<Offset> get _safeContentSlide => _animationsReady
+  Animation<double> get _safeContentFade =>
+      _animationsReady ? _contentFade : const AlwaysStoppedAnimation<double>(1);
+  Animation<Offset> get _safeContentSlide => _animationsReady
       ? _contentSlide
       : const AlwaysStoppedAnimation<Offset>(Offset.zero);
 
@@ -167,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen>
         accessToken: session.token,
         refreshToken: session.refreshToken,
         expiresIn: session.expiresIn,
-          role: session.role,
+        role: session.role,
       );
       if (!mounted) return;
       await _showAuthDialog(
@@ -176,7 +175,10 @@ class _LoginScreenState extends State<LoginScreen>
         icon: Icons.check_circle_outline_rounded,
       );
       if (!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AppShell()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AppShell()),
+      );
     } on AuthApiException catch (error) {
       await _showAuthDialog(
         title: 'No pudimos iniciar sesión',
@@ -213,7 +215,10 @@ class _LoginScreenState extends State<LoginScreen>
         icon: Icons.check_circle_outline_rounded,
       );
       if (!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AppShell()));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AppShell()),
+      );
     } on AuthApiException catch (error) {
       await _showAuthDialog(
         title: 'No pudimos conectar Google',
@@ -610,12 +615,14 @@ class _LoginScreenState extends State<LoginScreen>
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: textGray, size: 20),
           suffixIcon: suffixIcon,
-            hintText: floatingHint ? null : hint,
-            floatingLabelBehavior: floatingHint
+          hintText: floatingHint ? null : hint,
+          floatingLabelBehavior: floatingHint
               ? FloatingLabelBehavior.auto
               : FloatingLabelBehavior.never,
-            labelText: floatingHint ? hint : null,
-          floatingLabelStyle: TextStyle(color: primaryGreen.withValues(alpha: 0.9)),
+          labelText: floatingHint ? hint : null,
+          floatingLabelStyle: TextStyle(
+            color: primaryGreen.withValues(alpha: 0.9),
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             vertical: 16,

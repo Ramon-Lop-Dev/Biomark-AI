@@ -25,9 +25,22 @@ const addReminder = async (usuarioId, payload) => {
   });
 
   try {
+    const eventoRecordatorio = {
+      id: registro.id,
+      usuario_id: usuarioId,
+      titulo: registro.titulo,
+      descripcion: registro.descripcion || '',
+      tipo: registro.tipo,
+      fecha_programada: registro.fecha_programada,
+    };
     await publicarEvento('recordatorio.creado', {
       recordatorio: registro,
-      usuario_id: usuarioId
+      usuario_id: usuarioId,
+      recordatorio_id: eventoRecordatorio.id,
+      titulo: eventoRecordatorio.titulo,
+      descripcion: eventoRecordatorio.descripcion,
+      tipo: eventoRecordatorio.tipo,
+      fecha_programada: eventoRecordatorio.fecha_programada,
     });
   } catch (error) {
     console.error('[Reminders] No se pudo publicar el evento en n8n:', error.message);

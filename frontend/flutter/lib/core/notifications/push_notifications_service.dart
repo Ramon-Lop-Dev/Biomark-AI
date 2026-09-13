@@ -111,7 +111,9 @@ class PushNotificationsService {
       }
 
       FirebaseMessaging.onMessage.listen((message) {
-        debugPrint('FCM foreground message: ${message.notification?.title}');
+        debugPrint('FCM RAW notification: ${message.notification}');
+        debugPrint('FCM RAW data: ${message.data}');
+        debugPrint('FCM RAW messageId: ${message.messageId}');
         _showForegroundNotification(message);
       });
 
@@ -143,11 +145,15 @@ class PushNotificationsService {
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     if (kIsWeb) return;
     final notification = message.notification;
-    if (notification == null) return;
+    final title = notification?.title ?? message.data['title']?.toString();
+    final body = notification?.body ?? message.data['body']?.toString();
+    if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) {
+      return;
+    }
     await _localNotifications.show(
       message.hashCode,
-      notification.title ?? 'Biomark AI',
-      notification.body ?? '',
+      title ?? 'Biomark AI',
+      body ?? '',
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'biomark_notifications',

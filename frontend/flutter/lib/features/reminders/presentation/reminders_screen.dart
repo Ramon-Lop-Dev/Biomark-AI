@@ -21,7 +21,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
   void _handleRefreshSignal() {
     if (!mounted) return;
-    setState(() => _remindersFuture = _remindersService.getReminders());
+    final future = _remindersService.getReminders();
+    setState(() => _remindersFuture = future);
   }
 
   @override
