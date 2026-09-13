@@ -7,4 +7,4 @@ deploy/backend.env
 deploy/ai-service.env
 deploy/.env
 frontend/flutter/.env
-nginx/certs/
+nginx/certs/ai-service/.env
