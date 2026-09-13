@@ -112,12 +112,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final response = await request.send();
+      final body = await response.stream.bytesToString();
       if (!mounted) return;
       if (response.statusCode >= 200 && response.statusCode < 300) {
         await _cargarPerfil();
       } else {
+        String mensaje = 'No se pudo guardar la foto de perfil.';
+        try {
+          final decoded = jsonDecode(body) as Map<String, dynamic>;
+          final detalle = decoded['error'];
+          if (detalle is String && detalle.trim().isNotEmpty) {
+            mensaje = detalle;
+          }
+        } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo guardar la foto de perfil.')),
+          SnackBar(content: Text(mensaje)),
         );
       }
     } catch (_) {

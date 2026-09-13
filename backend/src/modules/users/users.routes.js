@@ -15,12 +15,14 @@ const uploadFoto = multer({
 	limits: { fileSize: 5 * 1024 * 1024, files: 1 },
 	fileFilter: (req, file, callback) => {
 		const permitidos = ['image/jpeg', 'image/png', 'image/webp'];
-		callback(null, permitidos.includes(file.mimetype));
+        if (permitidos.includes(file.mimetype)) {
+            callback(null, true);
+            return;
+        }
+        callback(new Error('Formato de imagen no permitido. Usa JPG, PNG o WEBP.'));
 	}
 });
 
-// Al poner verifyToken antes de los controllers, protegemos ambas rutas
-router.get('/profile', verifyToken, getProfile);
 router.put('/profile', verifyToken, validate(updateProfileSchema), updateProfile);
 router.post('/profile/photo', verifyToken, uploadFoto.single('foto'), updateProfilePhoto);
 router.get('/consent', verifyToken, getConsentimientos);

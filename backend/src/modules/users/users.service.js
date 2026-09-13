@@ -80,12 +80,14 @@ const updateProfilePhoto = async (usuarioId, file) => {
       cacheControl: '3600',
       upsert: false
     });
-  if (uploadError) throw new AppError('No se pudo guardar la foto de perfil', 500);
+  if (uploadError) {
+    throw new AppError(`No se pudo guardar la foto de perfil: ${uploadError.message}`, 500);
+  }
 
   const { error: updateError } = await usersRepo.actualizarFotoPath(usuarioId, fotoPath);
   if (updateError) {
     await supabase.storage.from(BUCKET_FOTOS_PERFIL).remove([fotoPath]);
-    throw new AppError('No se pudo asociar la foto al perfil', 500);
+    throw new AppError(`No se pudo asociar la foto al perfil: ${updateError.message}`, 500);
   }
 
   const fotoAnterior = current.perfiles?.foto_path;
