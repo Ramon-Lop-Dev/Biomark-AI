@@ -81,9 +81,17 @@ Copia las plantillas de ejemplo:
 cp deploy/backend.env.example deploy/backend.env
 cp deploy/ai-service.env.example deploy/ai-service.env
 cp deploy/.env.example deploy/.env
+cp frontend/flutter/.env.example frontend/flutter/.env
 ```
 
-Ajusta los valores reales antes de levantar el proyecto. No publiques `SUPABASE_SERVICE_ROLE_KEY`, `AI_SERVICE_INTERNAL_KEY` ni `N8N_WEBHOOK_SECRET`.
+Ajusta los valores reales antes de levantar el proyecto. La separacion es:
+
+- `deploy/backend.env`: backend, Supabase, RunPod, n8n y Firebase Admin privado.
+- `deploy/.env`: Compose/n8n, Supabase para el workflow y FCM HTTP v1.
+- `deploy/ai-service.env`: AI Service local o RunPod.
+- `frontend/flutter/.env`: configuracion publica de Firebase Web, nunca secretos de servidor.
+
+No publiques `SUPABASE_SERVICE_ROLE_KEY`, `AI_SERVICE_INTERNAL_KEY`, `N8N_WEBHOOK_SECRET` ni `FIREBASE_PRIVATE_KEY`. Para el detalle de push y la actualizacion en Contabo, consulta [docs/ENVIRONMENT_VARIABLES.md](docs/ENVIRONMENT_VARIABLES.md).
 
 Antes de probar el recomendador clínico, aplica `database/migrations/005_centros_salud_recomendador.sql` en Supabase y carga una vez `database/seeds/seed_centros_salud_managua.sql`.
 

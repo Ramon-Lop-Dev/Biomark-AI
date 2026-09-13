@@ -4,6 +4,8 @@
 
 Se ejecuta con `Dockerfile.backend` y escucha internamente en el puerto 3000. En la topología Contabo + RunPod usa `deploy/backend.env` con `SUPABASE_SERVICE_ROLE_KEY`, `AI_SERVICE_INTERNAL_KEY`, `N8N_WEBHOOK_SECRET`, `AI_SERVICE_URL=https://POD_ID-8000.proxy.runpod.net` y `CORS_ORIGINS` limitado al dominio Flutter/Web. Solo el Compose monolítico local usa `http://ai-service:8000`.
 
+Para Firebase Admin y FCM, `deploy/backend.env` solo contiene `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` y `FIREBASE_PRIVATE_KEY`. La configuracion publica de Firebase Web pertenece a `frontend/flutter/.env`; la credencial Google API para enviar FCM HTTP v1 se configura en n8n y no se guarda en este repositorio.
+
 Nunca publiques el service role key, no ejecutes Node como root y no abras el puerto 3000. El endpoint `/internal/reminders/:id/sent` solo acepta `X-Webhook-Secret` y debe permanecer detrás de la red privada.
 
 Rutas relevantes: `/api/chat`, `/api/voice`, `/api/vision`, `/api/gis/smart-map`, `/api/navigation/recommend`, `/api/vaccines/recommendations`, `/api/medical-history/medications`, `/api/reminders`, `/api/progress`, `/api/epidemiology/alerts`, `/api/users/consent` y `/api/users/push-token`. Solo el Compose monolítico local usa `http://ai-service:8000`.

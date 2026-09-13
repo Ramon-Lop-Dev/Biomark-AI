@@ -44,6 +44,8 @@ openssl rand -hex 32
 
 En Contabo se editan `deploy/backend.env` y `deploy/.env`. El archivo `deploy/ai-service.env` se configura únicamente en RunPod. `AI_SERVICE_INTERNAL_KEY` debe ser idéntica en backend y AI Service. `N8N_ENCRYPTION_KEY` debe conservarse para no perder credenciales de n8n.
 
+Para Firebase y notificaciones push, configura en `deploy/backend.env` solamente `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` y `FIREBASE_PRIVATE_KEY`. En `deploy/.env` configura `FCM_PROJECT_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `BACKEND_INTERNAL_URL` y el mismo `N8N_WEBHOOK_SECRET`. La configuracion publica de Firebase Web se configura en `frontend/flutter/.env`; la credencial Google API de FCM se crea dentro de n8n. Consulta [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) para la matriz completa.
+
 Para la arquitectura distribuida, genera una clave interna adicional si no existe y conserva la misma copia para ambos servidores:
 
 ```bash
@@ -63,7 +65,7 @@ Compose: `N8N_HOST` y `N8N_ENCRYPTION_KEY`.
 ```bash
 docker compose --env-file deploy/.env -f docker-compose.contabo.yml config
 docker compose --env-file deploy/.env -f docker-compose.contabo.yml build backend
-docker compose --env-file deploy/.env -f docker-compose.contabo.yml up -d backend n8n nginx
+docker compose --env-file deploy/.env -f docker-compose.contabo.yml up -d --force-recreate backend n8n nginx
 docker compose --env-file deploy/.env -f docker-compose.contabo.yml ps
 ```
 

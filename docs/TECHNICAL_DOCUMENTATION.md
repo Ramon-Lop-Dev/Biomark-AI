@@ -201,6 +201,8 @@ Al crear un recordatorio, el backend publica `recordatorio.creado` en `N8N_WEBHO
 
 n8n conserva su configuración en el volumen `n8n_data`. Fijar una versión de imagen en producción y respaldar ese volumen.
 
+La configuracion de push esta separada por responsabilidad: Flutter conserva los tokens FCM y la configuracion publica Web; el backend registra los tokens en `dispositivos_push`; n8n envia FCM HTTP v1 con `FCM_PROJECT_ID` y una credencial Google API; Firebase Admin del backend se configura con `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` y `FIREBASE_PRIVATE_KEY` cuando se necesita inicializar el SDK. La referencia operativa completa esta en [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
+
 ## 10. Pruebas
 
 ```bash

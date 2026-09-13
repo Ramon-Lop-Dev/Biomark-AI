@@ -10,6 +10,8 @@ Crea o edita `deploy/.env` a partir del ejemplo:
 cp deploy/.env.example deploy/.env
 ```
 
+El workflow de notificaciones push necesita ademas `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FCM_PROJECT_ID`, `BACKEND_INTERNAL_URL` y `N8N_WEBHOOK_SECRET`. Configura una credencial **Google API** en n8n con una cuenta de servicio de Firebase que tenga el permiso `https://www.googleapis.com/auth/firebase.messaging`; no pegues la clave privada en el workflow ni en Flutter.
+
 Valores recomendados para arranque local:
 
 ```env

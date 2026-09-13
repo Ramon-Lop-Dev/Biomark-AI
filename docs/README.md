@@ -30,6 +30,7 @@ Los endpoints públicos del backend se consumen con JWT desde Flutter o clientes
 ## Recomendaciones de seguridad
 
 - Mantener `SUPABASE_SERVICE_ROLE_KEY` solo en backend y AI Service.
+- Mantener la configuracion publica Firebase Web en Flutter y las credenciales Firebase Admin/Google API fuera del repositorio.
 - No compartir `AI_SERVICE_INTERNAL_KEY` ni tokens de cliente en repositorios públicos.
 - Usar HTTPS y certificados válidos delante de nginx en producción.
 - Proteger n8n con `X-Webhook-Secret` y no abrir `/internal` al exterior.

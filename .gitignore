@@ -1,2 +1,10 @@
-.envai-service/.env
+.env
+**/.env
+**/.env.*
+!**/.env.example
+!deploy/*.env.example
+deploy/backend.env
+deploy/ai-service.env
+deploy/.env
+frontend/flutter/.env
 nginx/certs/

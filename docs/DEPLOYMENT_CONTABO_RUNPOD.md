@@ -166,7 +166,12 @@ AI_SERVICE_INTERNAL_KEY=LA_MISMA_CLAVE_DE_RUNPOD
 CORS_ORIGINS=https://TU_DOMINIO_PUBLICO
 N8N_WEBHOOK_URL=http://n8n:5678/webhook/biomark-events
 N8N_WEBHOOK_SECRET=EL_SECRETO_DE_N8N
+FIREBASE_PROJECT_ID=biomark-ai-prod
+FIREBASE_CLIENT_EMAIL=service-account@biomark-ai-prod.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 ```
+
+Las tres variables Firebase anteriores son privadas y opcionales para la inicializacion de Firebase Admin en Node; no son la configuracion Firebase Web de Flutter. El envio FCM del workflow actual se hace desde n8n.
 
 En `deploy/.env` configura n8n. Para una primera prueba local detrás de nginx:
 
@@ -179,7 +184,13 @@ N8N_SECURE_COOKIE=false
 N8N_ENCRYPTION_KEY=UNA_CLAVE_LARGA_Y_PERMANENTE
 GENERIC_TIMEZONE=America/Managua
 TZ=America/Managua
+SUPABASE_URL=https://TU_PROYECTO.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=TU_SERVICE_ROLE_KEY
+FCM_PROJECT_ID=biomark-ai-prod
+BACKEND_INTERNAL_URL=http://backend:3000
 ```
+
+El workflow de n8n usa `FCM_PROJECT_ID` y una credencial **Google API** configurada en n8n con permiso `https://www.googleapis.com/auth/firebase.messaging`. No guardes el JSON de la cuenta de servicio en el workflow ni en Git. Para Flutter Web, completa `frontend/flutter/.env` con la configuracion publica de Firebase y recompila el sitio; esa configuracion no se coloca en `deploy/backend.env`.
 
 En producción cambia n8n a HTTPS después de instalar el certificado.
 
@@ -191,7 +202,7 @@ No uses el Compose principal, porque también define un AI Service local. Usa el
 cd /opt/biomark-ai
 docker compose --env-file deploy/.env -f docker-compose.contabo.yml config
 docker compose --env-file deploy/.env -f docker-compose.contabo.yml build backend
-docker compose --env-file deploy/.env -f docker-compose.contabo.yml up -d backend n8n nginx
+docker compose --env-file deploy/.env -f docker-compose.contabo.yml up -d --force-recreate backend n8n nginx
 docker compose --env-file deploy/.env -f docker-compose.contabo.yml ps
 ```
 

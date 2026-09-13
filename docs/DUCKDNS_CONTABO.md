@@ -62,6 +62,9 @@ AI_SERVICE_INTERNAL_KEY=LA_MISMA_CLAVE_CONFIGURADA_EN_RUNPOD
 CORS_ORIGINS=https://biomark-api.duckdns.org
 N8N_WEBHOOK_URL=http://n8n:5678/webhook/biomark-events
 N8N_WEBHOOK_SECRET=TU_SECRETO_DE_N8N
+FIREBASE_PROJECT_ID=biomark-ai-prod
+FIREBASE_CLIENT_EMAIL=service-account@biomark-ai-prod.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 ```
 
 El backend permite además orígenes locales de Flutter Web con cualquier puerto
@@ -80,7 +83,13 @@ N8N_SECURE_COOKIE=true
 N8N_ENCRYPTION_KEY=UNA_CLAVE_LARGA_Y_PERMANENTE
 GENERIC_TIMEZONE=America/Managua
 TZ=America/Managua
+SUPABASE_URL=https://TU_PROYECTO.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=TU_SERVICE_ROLE_KEY
+FCM_PROJECT_ID=biomark-ai-prod
+BACKEND_INTERNAL_URL=http://backend:3000
 ```
+
+Firebase Admin usa solo las tres variables privadas del bloque Firebase en `deploy/backend.env`. Flutter Web usa `frontend/flutter/.env` con `FIREBASE_WEB_API_KEY`, `FIREBASE_WEB_APP_ID`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_MESSAGING_SENDER_ID` y `FIREBASE_VAPID_KEY`. El workflow de n8n usa una credencial Google API separada para FCM HTTP v1. Ver [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
 
 `N8N_WEBHOOK_URL` del backend es interno porque backend y n8n comparten la red Docker. `WEBHOOK_URL` de n8n es público porque n8n necesita generar URLs externas correctas.
 
