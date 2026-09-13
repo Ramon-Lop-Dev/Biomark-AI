@@ -44,21 +44,29 @@ class Reminder {
       tipo: json['tipo'] as String? ?? 'MEDICAMENTO',
       titulo: json['titulo'] as String? ?? '',
       descripcion: json['descripcion'] as String?,
-      fechaRecordatorio: DateTime.tryParse(
-            json['fecha_programada'] as String? ?? json['fecha_recordatorio'] as String? ?? '',
+      fechaRecordatorio:
+          DateTime.tryParse(
+            json['fecha_programada'] as String? ??
+                json['fecha_recordatorio'] as String? ??
+                '',
           ) ??
           DateTime.now(),
-      hora: json['hora'] as String? ?? RemindersService.formatHour(json['fecha_programada'] as String?),
+      hora:
+          json['hora'] as String? ??
+          RemindersService.formatHour(json['fecha_programada'] as String?),
       estado: json['estado'] as String? ?? 'PENDIENTE',
-      fechaCreacion: DateTime.tryParse(
-            json['fecha_creacion'] as String? ?? json['created_at'] as String? ?? '',
+      fechaCreacion:
+          DateTime.tryParse(
+            json['fecha_creacion'] as String? ??
+                json['created_at'] as String? ??
+                '',
           ) ??
           DateTime.now(),
       fechaActualizacion: json['fecha_actualizacion'] != null
           ? DateTime.tryParse(json['fecha_actualizacion'] as String)
           : json['updated_at'] != null
-              ? DateTime.tryParse(json['updated_at'] as String)
-              : null,
+          ? DateTime.tryParse(json['updated_at'] as String)
+          : null,
     );
   }
 
@@ -103,16 +111,25 @@ class RemindersService {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final body = _parseJson(response.body);
-      throw ReminderException(_errorMessage(body, 'Error al obtener recordatorios'), statusCode: response.statusCode);
+      throw ReminderException(
+        _errorMessage(body, 'Error al obtener recordatorios'),
+        statusCode: response.statusCode,
+      );
     }
 
     final body = _parseJson(response.body);
-    final data = body is List<dynamic> ? body : body is Map<String, dynamic> ? body['data'] : null;
+    final data = body is List<dynamic>
+        ? body
+        : body is Map<String, dynamic>
+        ? body['data']
+        : null;
     if (data is! List<dynamic>) {
       throw ReminderException('Expected data array from backend');
     }
 
-    return data.map((item) => Reminder.fromJson(item as Map<String, dynamic>)).toList();
+    return data
+        .map((item) => Reminder.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   /// Crea un nuevo recordatorio.
@@ -127,7 +144,10 @@ class RemindersService {
       'tipo': tipo,
       'titulo': titulo,
       'descripcion': descripcion,
-      'fecha_programada': _combineDateAndTime(fechaRecordatorio, hora).toUtc().toIso8601String(),
+      'fecha_programada': _combineDateAndTime(
+        fechaRecordatorio,
+        hora,
+      ).toUtc().toIso8601String(),
     };
 
     final response = await _client
@@ -143,11 +163,17 @@ class RemindersService {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final body = _parseJson(response.body);
-      throw ReminderException(_errorMessage(body, 'Error al crear recordatorio'), statusCode: response.statusCode);
+      throw ReminderException(
+        _errorMessage(body, 'Error al crear recordatorio'),
+        statusCode: response.statusCode,
+      );
     }
 
     final body = _parseJson(response.body);
-    final data = body is Map<String, dynamic> && body['data'] is Map<String, dynamic> ? body['data'] : body;
+    final data =
+        body is Map<String, dynamic> && body['data'] is Map<String, dynamic>
+        ? body['data']
+        : body;
     if (data is! Map<String, dynamic>) {
       throw ReminderException('Expected reminder object in response');
     }
@@ -177,11 +203,17 @@ class RemindersService {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final body = _parseJson(response.body);
-      throw ReminderException(_errorMessage(body, 'Error al actualizar recordatorio'), statusCode: response.statusCode);
+      throw ReminderException(
+        _errorMessage(body, 'Error al actualizar recordatorio'),
+        statusCode: response.statusCode,
+      );
     }
 
     final body = _parseJson(response.body);
-    final data = body is Map<String, dynamic> && body['data'] is Map<String, dynamic> ? body['data'] : body;
+    final data =
+        body is Map<String, dynamic> && body['data'] is Map<String, dynamic>
+        ? body['data']
+        : body;
     if (data is! Map<String, dynamic>) {
       throw ReminderException('Expected reminder object in response');
     }
@@ -208,12 +240,19 @@ class RemindersService {
   static String? formatHour(String? value) {
     final date = value == null ? null : DateTime.tryParse(value);
     if (date == null) return null;
-    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    final localDate = date.toLocal();
+    return '${localDate.hour.toString().padLeft(2, '0')}:${localDate.minute.toString().padLeft(2, '0')}';
   }
 
   static DateTime _combineDateAndTime(DateTime date, String? hour) {
     if (hour == null || !RegExp(r'^\d{2}:\d{2}$').hasMatch(hour)) return date;
     final parts = hour.split(':');
-    return DateTime(date.year, date.month, date.day, int.parse(parts[0]), int.parse(parts[1]));
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+    );
   }
 }
