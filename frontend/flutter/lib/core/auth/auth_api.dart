@@ -181,5 +181,20 @@ class AuthApi {
     await _post('/api/auth/logout', const {}, bearerToken: accessToken);
   }
 
+  Future<void> registerPushToken({
+    required String accessToken,
+    required String token,
+    required String platform,
+  }) async {
+    await _post(
+      '/api/users/push-token',
+      {
+        'fcm_token': token,
+        'plataforma': platform,
+      },
+      bearerToken: accessToken,
+    );
+  }
+
   void dispose() => _client.close();
 }

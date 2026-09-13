@@ -1,5 +1,6 @@
 // Arranca la aplicación y define la pantalla de autenticación inicial.
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'app_shell.dart';
 import 'biomark_brand.dart';
@@ -12,11 +13,16 @@ import 'core/auth/auth_session.dart';
 import 'core/auth/google_auth_helper.dart';
 import 'core/auth/reset_password_link_listener.dart';
 import 'core/config/app_config.dart';
+import 'core/config/firebase_config.dart';
 import 'core/design/app_themecontroller.dart';
+import 'core/notifications/push_notifications_service.dart';
 import 'survey_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
+  await FirebaseConfig.initialize();
+  await PushNotificationsService.instance.initialize();
   await AuthSession.instance.init();
   await SurveyService.cargarDesdeBackend();
   await ResetPasswordLinkListener.instance.init();

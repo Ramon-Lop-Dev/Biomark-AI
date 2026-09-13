@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "780734083560",
+    "project_id": "biomark-ai-prod",
+    "storage_bucket": "biomark-ai-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:780734083560:android:1d3e8e410f18404944745d",
+        "android_client_info": {
+          "package_name": "com.biomarkai.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "780734083560-ab3t99hnitsm0l98mbhgpi23orqu8d1j.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQsOrh7HcLdT7liWsjaNd7OiHOe6wCE5w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "780734083560-ab3t99hnitsm0l98mbhgpi23orqu8d1j.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

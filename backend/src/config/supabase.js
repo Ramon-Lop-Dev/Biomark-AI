@@ -1,4 +1,5 @@
 // Crea el cliente Supabase de servidor para datos protegidos del dominio.
+require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
 
