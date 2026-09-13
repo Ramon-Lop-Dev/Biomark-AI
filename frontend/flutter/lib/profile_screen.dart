@@ -47,10 +47,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (token == null || token.isEmpty) return;
     try {
       final response = await http.get(
-        Uri.parse('${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/profile'),
+        Uri.parse(
+          '${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/profile',
+        ),
         headers: {'Authorization': 'Bearer $token'},
       );
-      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted) return;
+      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted) {
+        return;
+      }
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final profile = body['perfiles'] as Map<String, dynamic>? ?? const {};
       final birth = DateTime.tryParse('${profile['fecha_nacimiento'] ?? ''}');
@@ -68,7 +72,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _calculateAge(DateTime birth) {
     final now = DateTime.now();
     var age = now.year - birth.year;
-    if (now.month < birth.month || (now.month == birth.month && now.day < birth.day)) age--;
+    if (now.month < birth.month ||
+        (now.month == birth.month && now.day < birth.day)) {
+      age--;
+    }
     return age;
   }
 
@@ -76,7 +83,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final token = AuthSession.instance.accessToken;
     if (token == null || token.isEmpty) return;
     final changes = <String, dynamic>{};
-    if (values['nombre'] is String && (values['nombre'] as String).trim().isNotEmpty) {
+    if (values['nombre'] is String &&
+        (values['nombre'] as String).trim().isNotEmpty) {
       changes['nombre_completo'] = (values['nombre'] as String).trim();
     }
     if (values['genero'] is String) {
@@ -91,24 +99,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (changes.isEmpty) return;
     try {
       final response = await http.put(
-        Uri.parse('${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/profile'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        Uri.parse(
+          '${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/profile',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode(changes),
       );
-      if (response.statusCode >= 200 && response.statusCode < 300 && mounted) await _cargarPerfil();
-    } catch (_) {}
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (mounted) await _cargarPerfil();
+        return;
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _mensajeError(response.body, 'No se pudo actualizar el perfil.'),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo actualizar el perfil: $error'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _subirFoto(File foto) async {
     final token = AuthSession.instance.accessToken;
     if (token == null || token.isEmpty) return;
 
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/profile/photo'),
-    )
-      ..headers['Authorization'] = 'Bearer $token'
-      ..files.add(await http.MultipartFile.fromPath('foto', foto.path));
+    final request =
+        http.MultipartRequest(
+            'POST',
+            Uri.parse(
+              '${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/profile/photo',
+            ),
+          )
+          ..headers['Authorization'] = 'Bearer $token'
+          ..files.add(await http.MultipartFile.fromPath('foto', foto.path));
 
     try {
       final response = await request.send();
@@ -119,23 +155,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else {
         String mensaje = 'No se pudo guardar la foto de perfil.';
         try {
-          final decoded = jsonDecode(body) as Map<String, dynamic>;
-          final detalle = decoded['error'];
-          if (detalle is String && detalle.trim().isNotEmpty) {
-            mensaje = detalle;
-          }
+          mensaje = _mensajeError(body, mensaje);
         } catch (_) {}
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(mensaje)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(mensaje)));
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo conectar para guardar la foto.')),
+          const SnackBar(
+            content: Text('No se pudo conectar para guardar la foto.'),
+          ),
         );
       }
     }
+  }
+
+  String _mensajeError(String body, String fallback) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final detail =
+            decoded['error'] ?? decoded['message'] ?? decoded['detail'];
+        if (detail is String && detail.trim().isNotEmpty) return detail;
+      }
+    } catch (_) {}
+    return fallback;
   }
 
   @override
@@ -210,11 +256,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.assignment_outlined,
                 label: 'Editar encuesta clínica',
                 onTap: () async {
-                  final updated = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const HealthSurveyScreen(editing: true)));
+                  final updated = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const HealthSurveyScreen(editing: true),
+                    ),
+                  );
                   if (updated == true && mounted) await _cargarPerfil();
                 },
               ),
-              if (!AuthSession.instance.isPromoter && !AuthSession.instance.isAdmin)
+              if (!AuthSession.instance.isPromoter &&
+                  !AuthSession.instance.isAdmin)
                 _ItemPerfil(
                   icon: Icons.volunteer_activism_outlined,
                   label: 'Solicitar ser promotor',
@@ -224,7 +276,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _ItemPerfil(
                   icon: Icons.admin_panel_settings_outlined,
                   label: 'Solicitudes de promotor',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminRoleRequestsScreen())),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminRoleRequestsScreen(),
+                    ),
+                  ),
                 ),
             ]),
             const SizedBox(height: 18),
@@ -484,44 +541,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final token = AuthSession.instance.accessToken;
     if (token == null || token.isEmpty) return;
     final base = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
-    final headers = {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'};
+    final headers = {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    };
     try {
-      final current = await http.get(Uri.parse('$base/api/auth/promotor/solicitud'), headers: headers);
+      final current = await http.get(
+        Uri.parse('$base/api/auth/promotor/solicitud'),
+        headers: headers,
+      );
       if (!context.mounted) return;
-      final currentBody = current.body.isEmpty ? null : jsonDecode(current.body);
-      final currentStatus = currentBody is Map<String, dynamic> ? currentBody['estado'] as String? : null;
+      final currentBody = current.body.isEmpty
+          ? null
+          : jsonDecode(current.body);
+      final currentStatus = currentBody is Map<String, dynamic>
+          ? currentBody['estado'] as String?
+          : null;
       if (currentStatus == 'PENDIENTE') {
-        _showPromoterMessage(context, 'Tu solicitud está pendiente de revisión administrativa.');
+        _showPromoterMessage(
+          context,
+          'Tu solicitud está pendiente de revisión administrativa.',
+        );
         return;
       }
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          icon: const Icon(Icons.volunteer_activism_rounded, color: BiomarkColors.green, size: 42),
+          icon: const Icon(
+            Icons.volunteer_activism_rounded,
+            color: BiomarkColors.green,
+            size: 42,
+          ),
           title: const Text('Solicitar rol de promotor'),
-          content: const Text('Podrás organizar jornadas y validar reportes comunitarios. Un administrador revisará tu solicitud antes de activar el rol.'),
+          content: const Text(
+            'Podrás organizar jornadas y validar reportes comunitarios. Un administrador revisará tu solicitud antes de activar el rol.',
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Enviar solicitud')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Enviar solicitud'),
+            ),
           ],
         ),
       );
       if (confirmed != true || !context.mounted) return;
-      final response = await http.post(Uri.parse('$base/api/auth/promotor/solicitud'), headers: headers);
+      final response = await http.post(
+        Uri.parse('$base/api/auth/promotor/solicitud'),
+        headers: headers,
+      );
       if (!context.mounted) return;
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        _showPromoterMessage(context, 'Solicitud enviada. Te avisaremos cuando sea revisada.');
+        _showPromoterMessage(
+          context,
+          'Solicitud enviada. Te avisaremos cuando sea revisada.',
+        );
       } else {
         final body = response.body.isEmpty ? null : jsonDecode(response.body);
-        _showPromoterMessage(context, body is Map<String, dynamic> ? '${body['error'] ?? 'No se pudo enviar la solicitud.'}' : 'No se pudo enviar la solicitud.');
+        _showPromoterMessage(
+          context,
+          body is Map<String, dynamic>
+              ? '${body['error'] ?? 'No se pudo enviar la solicitud.'}'
+              : 'No se pudo enviar la solicitud.',
+        );
       }
     } catch (_) {
-      if (context.mounted) _showPromoterMessage(context, 'No se pudo conectar con el servidor.');
+      if (context.mounted) {
+        _showPromoterMessage(context, 'No se pudo conectar con el servidor.');
+      }
     }
   }
 
   void _showPromoterMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
   }
 
   Widget _buildBotonCerrarSesion(BuildContext context) {

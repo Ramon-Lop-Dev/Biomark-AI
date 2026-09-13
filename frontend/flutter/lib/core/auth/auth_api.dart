@@ -34,14 +34,19 @@ class RegisterResult {
   final String? refreshToken;
   final int? expiresIn;
 
-  const RegisterResult({required this.userId, this.token, this.refreshToken, this.expiresIn});
+  const RegisterResult({
+    required this.userId,
+    this.token,
+    this.refreshToken,
+    this.expiresIn,
+  });
 
   bool get requiresEmailConfirmation => token == null;
 }
 
 class AuthApi {
   AuthApi({required this.baseUrl, http.Client? client})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
 
   final String baseUrl;
   final http.Client _client;
@@ -72,7 +77,8 @@ class AuthApi {
       }
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        final error = decoded['error'] ?? decoded['message'] ?? decoded['detail'];
+        final error =
+            decoded['error'] ?? decoded['message'] ?? decoded['detail'];
         throw AuthApiException(
           error is String
               ? error
@@ -85,9 +91,35 @@ class AuthApi {
     } on AuthApiException {
       rethrow;
     } on FormatException {
-      throw const AuthApiException('El servidor devolvió una respuesta inválida.');
+      throw const AuthApiException(
+        'El servidor devolvió una respuesta inválida.',
+      );
     } catch (error) {
       throw AuthApiException('No se pudo conectar con el servidor: $error');
+    }
+  }
+
+  Future<void> _delete(
+    String path,
+    Map<String, dynamic> body, {
+    String? bearerToken,
+  }) async {
+    final response = await _client
+        .delete(
+          Uri.parse('$_base$path'),
+          headers: {
+            'Content-Type': 'application/json',
+            if (bearerToken != null) 'Authorization': 'Bearer $bearerToken',
+          },
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 20));
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw AuthApiException(
+        'No se pudo desactivar el dispositivo (${response.statusCode}).',
+        statusCode: response.statusCode,
+      );
     }
   }
 
@@ -101,7 +133,7 @@ class AuthApi {
       'email': email,
       'password': password,
       'full_name': fullName,
-        'tipo_cuenta': accountType,
+      'tipo_cuenta': accountType,
     });
     return RegisterResult(
       userId: json['user_id'] as String? ?? '',
@@ -157,7 +189,10 @@ class AuthApi {
     );
   }
 
-  Future<String> forgotPassword({required String email, required String redirectTo}) async {
+  Future<String> forgotPassword({
+    required String email,
+    required String redirectTo,
+  }) async {
     final json = await _post('/api/auth/forgot-password', {
       'email': email,
       'redirect_to': redirectTo,
@@ -186,14 +221,19 @@ class AuthApi {
     required String token,
     required String platform,
   }) async {
-    await _post(
-      '/api/users/push-token',
-      {
-        'fcm_token': token,
-        'plataforma': platform,
-      },
-      bearerToken: accessToken,
-    );
+    await _post('/api/users/push-token', {
+      'fcm_token': token,
+      'plataforma': platform,
+    }, bearerToken: accessToken);
+  }
+
+  Future<void> deletePushToken({
+    required String accessToken,
+    required String token,
+  }) async {
+    await _delete('/api/users/push-token', {
+      'fcm_token': token,
+    }, bearerToken: accessToken);
   }
 
   void dispose() => _client.close();

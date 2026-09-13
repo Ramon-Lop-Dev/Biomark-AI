@@ -4,8 +4,10 @@
 // desactivan visualmente (pero conservan su valor) cuando el maestro
 // está apagado, para que el usuario no pierda su configuración fina.
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'biomark_brand.dart';
+import 'core/notifications/push_notifications_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -15,33 +17,69 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  // TODO: cargar estos valores reales desde SharedPreferences o tu
-  // backend en initState, y guardarlos cada vez que cambien.
   bool _todasActivas = true;
-
-  bool _jornadas = true;
-  bool _medicamentos = true;
-  bool _recomendacionesIA = true;
-  bool _actualizacionesAntecedentes = true;
-  bool _soporte = true;
-
   bool _modoSilencioso = false;
   TimeOfDay _inicioSilencio = const TimeOfDay(hour: 22, minute: 0);
   TimeOfDay _finSilencio = const TimeOfDay(hour: 7, minute: 0);
+  bool _guardando = false;
 
-  void _alternarTodas(bool valor) {
+  static const _pushEnabledKey = 'notifications_push_enabled';
+  static const _silentModeKey = 'notifications_silent_mode';
+  static const _silentStartKey = 'notifications_silent_start';
+  static const _silentEndKey = 'notifications_silent_end';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    final preferences = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
-      _todasActivas = valor;
-      // TODO: persistir. Nota: no forzamos las categorías individuales
-      // a `valor` para no perder la configuración fina del usuario;
-      // solo controlamos si el sistema puede enviar notificaciones.
+      _todasActivas = preferences.getBool(_pushEnabledKey) ?? true;
+      _modoSilencioso = preferences.getBool(_silentModeKey) ?? false;
+      _inicioSilencio = _timeFromMinutes(
+        preferences.getInt(_silentStartKey) ?? 22 * 60,
+      );
+      _finSilencio = _timeFromMinutes(
+        preferences.getInt(_silentEndKey) ?? 7 * 60,
+      );
     });
   }
 
-  void _alternarCategoria(void Function(bool) setter, bool valorActual) {
-    if (!_todasActivas) return; // bloqueado hasta activar el maestro
-    setState(() => setter(!valorActual));
-    // TODO: persistir el cambio.
+  Future<void> _alternarTodas(bool valor) async {
+    if (_guardando) return;
+    final previous = _todasActivas;
+    setState(() {
+      _todasActivas = valor;
+      _guardando = true;
+    });
+    try {
+      if (valor) {
+        final enabled = await PushNotificationsService.instance
+            .enableForCurrentUser();
+        if (!enabled) {
+          throw Exception('No se concedió el permiso de notificaciones.');
+        }
+      } else {
+        await PushNotificationsService.instance.disableForCurrentUser();
+      }
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setBool(_pushEnabledKey, valor);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _todasActivas = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo cambiar el permiso: $error'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _guardando = false);
+    }
   }
 
   Future<void> _elegirHora({required bool esInicio}) async {
@@ -58,7 +96,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _finSilencio = seleccionada;
       }
     });
-    // TODO: persistir el cambio.
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setInt(
+      esInicio ? _silentStartKey : _silentEndKey,
+      seleccionada.hour * 60 + seleccionada.minute,
+    );
+  }
+
+  TimeOfDay _timeFromMinutes(int minutes) =>
+      TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
+
+  Future<void> _alternarModoSilencioso(bool valor) async {
+    setState(() => _modoSilencioso = valor);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool(_silentModeKey, valor);
   }
 
   String _formatearHora(TimeOfDay hora) {
@@ -107,69 +158,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            _buildSeccionTitulo('Tipos de notificación'),
-            const SizedBox(height: 10),
-            _buildTarjeta(
-              child: Column(
-                children: [
-                  _buildFilaSwitch(
-                    icono: Icons.event_available_rounded,
-                    titulo: 'Jornadas y citas médicas',
-                    subtitulo: 'Recordatorios antes de una jornada agendada',
-                    valor: _jornadas,
-                    onChanged: (_) => _alternarCategoria(
-                      (v) => _jornadas = v,
-                      _jornadas,
-                    ),
-                  ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
-                  _buildFilaSwitch(
-                    icono: Icons.medication_liquid_rounded,
-                    titulo: 'Recordatorio de medicamentos',
-                    subtitulo: 'Aviso a la hora de tomar tus dosis',
-                    valor: _medicamentos,
-                    onChanged: (_) => _alternarCategoria(
-                      (v) => _medicamentos = v,
-                      _medicamentos,
-                    ),
-                  ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
-                  _buildFilaSwitch(
-                    icono: Icons.psychology_alt_rounded,
-                    titulo: 'Recomendaciones de Biomark AI',
-                    subtitulo: 'Consejos de salud según tus antecedentes',
-                    valor: _recomendacionesIA,
-                    onChanged: (_) => _alternarCategoria(
-                      (v) => _recomendacionesIA = v,
-                      _recomendacionesIA,
-                    ),
-                  ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
-                  _buildFilaSwitch(
-                    icono: Icons.folder_shared_outlined,
-                    titulo: 'Actualizaciones de antecedentes',
-                    subtitulo: 'Cuando tú o un familiar edita información médica',
-                    valor: _actualizacionesAntecedentes,
-                    onChanged: (_) => _alternarCategoria(
-                      (v) => _actualizacionesAntecedentes = v,
-                      _actualizacionesAntecedentes,
-                    ),
-                  ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
-                  _buildFilaSwitch(
-                    icono: Icons.support_agent_rounded,
-                    titulo: 'Mensajes de soporte',
-                    subtitulo: 'Respuestas del centro de ayuda',
-                    valor: _soporte,
-                    onChanged: (_) => _alternarCategoria(
-                      (v) => _soporte = v,
-                      _soporte,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
             _buildSeccionTitulo('Horario'),
             const SizedBox(height: 10),
             _buildTarjeta(
@@ -180,11 +168,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     titulo: 'Modo silencioso',
                     subtitulo: 'No recibir notificaciones en un rango de horas',
                     valor: _modoSilencioso,
-                    onChanged: (v) {
-                      if (!_todasActivas) return;
-                      setState(() => _modoSilencioso = v);
-                      // TODO: persistir.
-                    },
+                    onChanged: _todasActivas ? _alternarModoSilencioso : null,
                   ),
                   if (_modoSilencioso) ...[
                     const Divider(height: 24, color: Color(0xFFEFEFF3)),
@@ -222,7 +206,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     required String titulo,
     required String subtitulo,
     required bool valor,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
     bool destacado = false,
   }) {
     final habilitado = destacado || _todasActivas;
@@ -253,7 +237,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
-                  color: habilitado ? BiomarkColors.black : const Color(0xFF9C9CA6),
+                  color: habilitado
+                      ? BiomarkColors.black
+                      : const Color(0xFF9C9CA6),
                 ),
               ),
               const SizedBox(height: 2),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'biomark_brand.dart';
 import 'core/auth/auth_session.dart';
+import 'core/config/app_config.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
 import 'survey_service.dart';
@@ -10,6 +11,7 @@ import 'features/gis/presentation/gis_map_screen.dart';
 import 'features/progress/presentation/progress_screen.dart';
 import 'features/progress/data/progress_api.dart';
 import 'features/reminders/presentation/reminders_screen.dart';
+import 'features/reminders/data/reminders_service.dart';
 import 'features/community/promoter_screens.dart';
 
 /// Transición personalizada para navegación entre pantallas
@@ -48,7 +50,13 @@ class _AppShellState extends State<AppShell> {
   final ValueNotifier<int> _remindersRefresh = ValueNotifier(0);
   final ValueNotifier<int> _progressRefresh = ValueNotifier(0);
 
-  final _userNavLabels = const ['Inicio', 'Mejoría', 'Mapa', 'Recordatorio', 'Perfil'];
+  final _userNavLabels = const [
+    'Inicio',
+    'Mejoría',
+    'Mapa',
+    'Recordatorio',
+    'Perfil',
+  ];
   final _userNavIcons = const [
     Icons.home_rounded,
     Icons.insights_rounded,
@@ -56,8 +64,20 @@ class _AppShellState extends State<AppShell> {
     Icons.notifications_rounded,
     Icons.person_outline_rounded,
   ];
-  final _promoterNavLabels = const ['Panel', 'Mapa', 'Jornadas', 'Reportes', 'Perfil'];
-  final _promoterNavIcons = const [Icons.dashboard_rounded, Icons.location_on_rounded, Icons.event_available_rounded, Icons.fact_check_rounded, Icons.person_outline_rounded];
+  final _promoterNavLabels = const [
+    'Panel',
+    'Mapa',
+    'Jornadas',
+    'Reportes',
+    'Perfil',
+  ];
+  final _promoterNavIcons = const [
+    Icons.dashboard_rounded,
+    Icons.location_on_rounded,
+    Icons.event_available_rounded,
+    Icons.fact_check_rounded,
+    Icons.person_outline_rounded,
+  ];
 
   @override
   void dispose() {
@@ -88,17 +108,21 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final promoter = AuthSession.instance.isPromoter;
-    final pages = promoter ? <Widget>[
-      PromoterDashboardScreen(onOpenMap: () => setState(() => _navIndex = 1)),
-      const GisMapScreen(),
-      const PromoterEventsScreen(),
-      const PromoterReportsScreen(),
-    ] : <Widget>[
-      HomeScreen(onOpenMap: () => setState(() => _navIndex = 2)),
-      ProgressScreen(refreshSignal: _progressRefresh),
-      const GisMapScreen(),
-      RemindersScreen(refreshSignal: _remindersRefresh),
-    ];
+    final pages = promoter
+        ? <Widget>[
+            PromoterDashboardScreen(
+              onOpenMap: () => setState(() => _navIndex = 1),
+            ),
+            const GisMapScreen(),
+            const PromoterEventsScreen(),
+            const PromoterReportsScreen(),
+          ]
+        : <Widget>[
+            HomeScreen(onOpenMap: () => setState(() => _navIndex = 2)),
+            ProgressScreen(refreshSignal: _progressRefresh),
+            const GisMapScreen(),
+            RemindersScreen(refreshSignal: _remindersRefresh),
+          ];
     pages.add(
       const _PlaceholderBody(
         title: 'Perfil',
@@ -132,11 +156,11 @@ class _AppShellState extends State<AppShell> {
         ),
       ),
       bottomNavigationBar: _buildBottomNav(),
-          floatingActionButton: !promoter && _navIndex == 3
+      floatingActionButton: !promoter && _navIndex == 3
           ? _buildAddReminderFAB()
-            : !promoter && _navIndex == 1
-            ? _buildAddGoalFAB()
-            : null,
+          : !promoter && _navIndex == 1
+          ? _buildAddGoalFAB()
+          : null,
     );
   }
 
@@ -201,7 +225,13 @@ class _AppShellState extends State<AppShell> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => const _AddReminderModal(),
     );
-    if (created == true) _remindersRefresh.value++;
+    if (created == true) {
+      _remindersRefresh.value++;
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recordatorio creado correctamente')),
+      );
+    }
   }
 
   Future<void> _showAddGoalModal(BuildContext context) async {
@@ -316,7 +346,9 @@ class _AppShellState extends State<AppShell> {
                   labels[index],
                   maxLines: 1,
                   style: TextStyle(
-                    color: selected ? BiomarkColors.green : const Color(0xFF3F4A3B),
+                    color: selected
+                        ? BiomarkColors.green
+                        : const Color(0xFF3F4A3B),
                     fontSize: 10.5,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
@@ -372,7 +404,9 @@ class _AddGoalModalState extends State<_AddGoalModal> {
 
   Future<void> _save() async {
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Escribe un objetivo')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Escribe un objetivo')));
       return;
     }
     try {
@@ -387,11 +421,20 @@ class _AddGoalModalState extends State<_AddGoalModal> {
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          icon: const Icon(Icons.flag_circle, color: BiomarkColors.green, size: 44),
+          icon: const Icon(
+            Icons.flag_circle,
+            color: BiomarkColors.green,
+            size: 44,
+          ),
           title: const Text('Objetivo creado'),
-          content: const Text('Tus hitos fueron programados y aparecerán en Mejoría.'),
+          content: const Text(
+            'Tus hitos fueron programados y aparecerán en Mejoría.',
+          ),
           actions: [
-            FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Entendido')),
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Entendido'),
+            ),
           ],
         ),
       );
@@ -399,7 +442,9 @@ class _AddGoalModalState extends State<_AddGoalModal> {
       Navigator.pop(context, true);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$error'), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -421,47 +466,84 @@ class _AddGoalModalState extends State<_AddGoalModal> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Nuevo objetivo', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
+                const Text(
+                  'Nuevo objetivo',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
+                ),
               ],
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _titleController,
-              decoration: InputDecoration(labelText: '¿Qué quieres mejorar? *', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              decoration: InputDecoration(
+                labelText: '¿Qué quieres mejorar? *',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
             const SizedBox(height: 14),
             TextField(
               controller: _descriptionController,
               maxLines: 2,
-              decoration: InputDecoration(labelText: 'Descripción (opcional)', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              decoration: InputDecoration(
+                labelText: 'Descripción (opcional)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
               initialValue: _periodicity,
-              decoration: InputDecoration(labelText: 'Frecuencia de hitos', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+              decoration: InputDecoration(
+                labelText: 'Frecuencia de hitos',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               items: const [
                 DropdownMenuItem(value: 'SEMANAL', child: Text('Semanal')),
                 DropdownMenuItem(value: 'QUINCENAL', child: Text('Quincenal')),
                 DropdownMenuItem(value: 'MENSUAL', child: Text('Mensual')),
-                DropdownMenuItem(value: 'TRIMESTRAL', child: Text('Trimestral')),
+                DropdownMenuItem(
+                  value: 'TRIMESTRAL',
+                  child: Text('Trimestral'),
+                ),
                 DropdownMenuItem(value: 'SEMESTRAL', child: Text('Semestral')),
                 DropdownMenuItem(value: 'ANUAL', child: Text('Anual')),
               ],
-              onChanged: (value) => setState(() => _periodicity = value ?? _periodicity),
+              onChanged: (value) =>
+                  setState(() => _periodicity = value ?? _periodicity),
             ),
             const SizedBox(height: 14),
             Row(
               children: [
-                Expanded(child: _dateButton('Desde', _startDate, () => _pickDate(true))),
+                Expanded(
+                  child: _dateButton(
+                    'Desde',
+                    _startDate,
+                    () => _pickDate(true),
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Expanded(child: _dateButton('Hasta', _endDate, () => _pickDate(false))),
+                Expanded(
+                  child: _dateButton('Hasta', _endDate, () => _pickDate(false)),
+                ),
               ],
             ),
             const SizedBox(height: 22),
             SizedBox(
               height: 50,
-              child: FilledButton.icon(onPressed: _save, icon: const Icon(Icons.flag_rounded), label: const Text('Crear objetivo')),
+              child: FilledButton.icon(
+                onPressed: _save,
+                icon: const Icon(Icons.flag_rounded),
+                label: const Text('Crear objetivo'),
+              ),
             ),
           ],
         ),
@@ -472,8 +554,13 @@ class _AddGoalModalState extends State<_AddGoalModal> {
   Widget _dateButton(String label, DateTime date, VoidCallback onTap) {
     return OutlinedButton(
       onPressed: onTap,
-      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-      child: Text('$label\n${date.day}/${date.month}/${date.year}', textAlign: TextAlign.center),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+      child: Text(
+        '$label\n${date.day}/${date.month}/${date.year}',
+        textAlign: TextAlign.center,
+      ),
     );
   }
 }
@@ -491,6 +578,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
   late TextEditingController _hourController;
   String _selectedType = 'MEDICAMENTO';
   DateTime _selectedDate = DateTime.now();
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -532,7 +620,8 @@ class _AddReminderModalState extends State<_AddReminderModal> {
   }
 
   Future<void> _createReminder() async {
-    if (_titleController.text.isEmpty) {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Por favor ingresa un título'),
@@ -542,28 +631,52 @@ class _AddReminderModalState extends State<_AddReminderModal> {
       return;
     }
 
-    // TODO: Descomentar para conectar al backend
-    // final reminder = Reminder(
-    //   id: DateTime.now().millisecondsSinceEpoch.toString(),
-    //   usuarioId: 'user123',
-    //   tipo: _selectedType,
-    //   titulo: _titleController.text,
-    //   descripcion: _descriptionController.text,
-    //   fechaRecordatorio: _selectedDate,
-    //   hora: _hourController.text,
-    //   estado: 'PENDIENTE',
-    //   fechaCreacion: DateTime.now(),
-    // );
-    // await _remindersService.createReminder(reminder);
+    final accessToken = AuthSession.instance.accessToken;
+    if (accessToken == null || accessToken.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tu sesión expiró. Inicia sesión nuevamente.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-    // Visualización solo - Confirma la creación
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Recordatorio "${_titleController.text}" creado (visualización)'),
-        backgroundColor: BiomarkColors.green,
-      ),
-    );
-    Navigator.pop(context);
+    setState(() => _isSaving = true);
+    try {
+      await RemindersService(
+        baseUrl: AppConfig.apiUrl,
+        accessToken: accessToken,
+      ).createReminder(
+        tipo: _selectedType,
+        titulo: title,
+        descripcion: _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
+        fechaRecordatorio: _selectedDate,
+        hora: _hourController.text,
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } on ReminderException catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo crear: ${error.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo conectar con el servidor.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
@@ -616,9 +729,14 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                     children: [
                       _buildTypeButton('MEDICAMENTO', Icons.medication_rounded),
                       const SizedBox(width: 10),
-                      _buildTypeButton('CITA_MEDICA', Icons.medical_services_outlined),
+                      _buildTypeButton('CITA', Icons.medical_services_outlined),
                       const SizedBox(width: 10),
                       _buildTypeButton('VACUNA', Icons.vaccines_rounded),
+                      const SizedBox(width: 10),
+                      _buildTypeButton(
+                        'CONTROL',
+                        Icons.health_and_safety_outlined,
+                      ),
                     ],
                   ),
                 ),
@@ -729,14 +847,23 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: _createReminder,
-                    child: const Text(
-                      'Crear Recordatorio',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    onPressed: _isSaving ? null : _createReminder,
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Crear Recordatorio',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -755,7 +882,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-            color: isSelected
+          color: isSelected
               ? BiomarkColors.green
               : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
@@ -770,7 +897,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
             Icon(
               icon,
               size: 16,
-                color: isSelected
+              color: isSelected
                   ? Colors.white
                   : Theme.of(context).colorScheme.onSurface,
             ),
@@ -779,8 +906,8 @@ class _AddReminderModalState extends State<_AddReminderModal> {
               typeLabel,
               style: TextStyle(
                 color: isSelected
-                  ? Colors.white
-                  : Theme.of(context).colorScheme.onSurface,
+                    ? Colors.white
+                    : Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
               ),

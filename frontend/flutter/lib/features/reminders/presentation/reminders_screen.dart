@@ -42,12 +42,22 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 
   Future<void> _completeReminder(String reminderId) async {
-    if (!await _confirmStatusChange('¿Completar recordatorio?', 'Ya no aparecerá como pendiente.')) return;
+    if (!await _confirmStatusChange(
+      '¿Completar recordatorio?',
+      'Ya no aparecerá como pendiente.',
+    )) {
+      return;
+    }
     await _updateReminder(reminderId, 'COMPLETADO', 'Recordatorio completado');
   }
 
   Future<void> _archiveReminder(String reminderId) async {
-    if (!await _confirmStatusChange('¿Cancelar recordatorio?', 'Dejará de aparecer entre tus recordatorios pendientes.')) return;
+    if (!await _confirmStatusChange(
+      '¿Cancelar recordatorio?',
+      'Dejará de aparecer entre tus recordatorios pendientes.',
+    )) {
+      return;
+    }
     await _updateReminder(reminderId, 'CANCELADO', 'Recordatorio cancelado');
   }
 
@@ -58,24 +68,54 @@ class _RemindersScreenState extends State<RemindersScreen> {
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Volver')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirmar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Volver'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirmar'),
+          ),
         ],
       ),
     );
     return result ?? false;
   }
 
-  Future<void> _updateReminder(String reminderId, String estado, String message) async {
+  Future<void> _updateReminder(
+    String reminderId,
+    String estado,
+    String message,
+  ) async {
     try {
-      await _remindersService.updateReminderStatus(reminderId: reminderId, estado: estado);
+      await _remindersService.updateReminderStatus(
+        reminderId: reminderId,
+        estado: estado,
+      );
       if (!mounted) return;
       setState(() => _remindersFuture = _remindersService.getReminders());
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } on ReminderException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _reloadReminders() async {
+    setState(() => _remindersFuture = _remindersService.getReminders());
+    try {
+      await _remindersFuture;
+    } on ReminderException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al actualizar: $error'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -129,9 +169,14 @@ class _RemindersScreenState extends State<RemindersScreen> {
         }
 
         final reminders = snapshot.data ?? [];
-        final todayReminders = reminders
-          .where((r) => _sameDay(r.fechaRecordatorio, _selectedDate) && r.estado == 'PENDIENTE')
-            .toList();
+        final todayReminders =
+            reminders
+                .where(
+                  (r) => _sameDay(r.fechaRecordatorio.toLocal(), _selectedDate),
+                )
+                .where((r) => r.estado != 'CANCELADO')
+                .toList()
+              ..sort((a, b) => (a.hora ?? '').compareTo(b.hora ?? ''));
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -223,7 +268,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
     }
     for (int i = 1; i <= daysInMonth; i++) {
       final date = DateTime(_selectedDate.year, _selectedDate.month, i);
-            final isSelected = _sameDay(date, _selectedDate);
+      final isSelected = _sameDay(date, _selectedDate);
       days.add(_buildCalendarDay(i, isSelected));
     }
 
@@ -260,8 +305,8 @@ class _RemindersScreenState extends State<RemindersScreen> {
             color: isSelected
                 ? Colors.white
                 : isSunday
-                    ? const Color(0xFFBA1A1A)
-                    : const Color(0xFF1A1C1E),
+                ? const Color(0xFFBA1A1A)
+                : const Color(0xFF1A1C1E),
           ),
         ),
       ),
@@ -284,7 +329,13 @@ class _RemindersScreenState extends State<RemindersScreen> {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
+        IconButton(
+          tooltip: 'Actualizar recordatorios',
+          onPressed: _reloadReminders,
+          icon: const Icon(Icons.refresh_rounded, color: BiomarkColors.blue),
+        ),
+        const SizedBox(width: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
@@ -432,7 +483,11 @@ class _RemindersScreenState extends State<RemindersScreen> {
       child: Center(
         child: Column(
           children: const [
-            Icon(Icons.notifications_off_outlined, size: 48, color: Colors.grey),
+            Icon(
+              Icons.notifications_off_outlined,
+              size: 48,
+              color: Colors.grey,
+            ),
             SizedBox(height: 12),
             Text(
               'No tienes recordatorios hoy',
@@ -449,15 +504,47 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 
   String _formatDate(DateTime date) {
-    final days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-    final months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    final days = [
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+      'Domingo',
+    ];
+    final months = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
     return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]}';
   }
 
   String _getMonthName(int month) {
-    const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const months = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
     return months[month - 1];
   }
 

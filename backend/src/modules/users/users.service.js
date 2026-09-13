@@ -15,7 +15,10 @@ const conUrlFoto = async (data) => {
   const { data: signed, error } = await supabase.storage
     .from(BUCKET_FOTOS_PERFIL)
     .createSignedUrl(fotoPath, FOTO_URL_SEGUNDOS);
-  if (error) throw new AppError('No se pudo obtener la foto de perfil', 500);
+  if (error) {
+    console.error('[Users] No se pudo generar URL firmada de foto:', error.message);
+    return data;
+  }
 
   return {
     ...data,

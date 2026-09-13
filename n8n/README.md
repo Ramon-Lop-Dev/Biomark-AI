@@ -55,7 +55,7 @@ El backend ya publica el evento `recordatorio.creado` hacia `N8N_WEBHOOK_URL` us
 
 El flujo de n8n que debes importar debe seguir este patrón:
 
-1. Webhook trigger (`POST /webhook/biomark-events`)
+1. Webhook trigger (`POST /webhook/eventos-backend`)
 2. Validar cabecera `X-Webhook-Secret`
 3. Comprobar que `body.evento === 'recordatorio.creado'`
 4. Extraer `recordatorio.id` y `usuario_id`

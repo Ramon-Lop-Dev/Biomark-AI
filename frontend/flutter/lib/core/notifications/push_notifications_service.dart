@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../auth/auth_api.dart';
 import '../auth/auth_session.dart';
@@ -19,12 +20,53 @@ class PushNotificationsService {
   static final PushNotificationsService instance = PushNotificationsService._();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
   final AuthApi _authApi = AuthApi(baseUrl: AppConfig.apiUrl);
   bool _initialized = false;
   String? _currentToken;
-  final StreamController<String> _tokenController = StreamController<String>.broadcast();
+  final StreamController<String> _tokenController =
+      StreamController<String>.broadcast();
 
   Stream<String> get tokenStream => _tokenController.stream;
+  String? get currentToken => _currentToken;
+
+  Future<bool> enableForCurrentUser() async {
+    final settings = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      return false;
+    }
+
+    final token = _currentToken ?? await registerToken();
+    final accessToken = AuthSession.instance.accessToken;
+    if (token == null ||
+        token.isEmpty ||
+        accessToken == null ||
+        accessToken.isEmpty) {
+      return false;
+    }
+
+    await _registerTokenInBackend(token);
+    _currentToken = token;
+    _tokenController.add(token);
+    return true;
+  }
+
+  Future<void> disableForCurrentUser() async {
+    final token = _currentToken ?? await registerToken();
+    final accessToken = AuthSession.instance.accessToken;
+    if (token == null ||
+        token.isEmpty ||
+        accessToken == null ||
+        accessToken.isEmpty) {
+      return;
+    }
+    await _authApi.deletePushToken(accessToken: accessToken, token: token);
+  }
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -32,12 +74,26 @@ class PushNotificationsService {
     AuthSession.instance.addListener(_syncTokenWithAuthenticatedUser);
 
     if (kIsWeb && !FirebaseConfig.webIsConfigured) {
-      debugPrint('Firebase Web no está configurado. Push deshabilitado hasta completar variables.');
+      debugPrint(
+        'Firebase Web no está configurado. Push deshabilitado hasta completar variables.',
+      );
       _initialized = true;
       return;
     }
 
     try {
+      if (!kIsWeb) {
+        const initializationSettings = InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        );
+        await _localNotifications.initialize(initializationSettings);
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.requestNotificationsPermission();
+      }
+
       final settings = await _messaging.requestPermission(
         alert: true,
         announcement: false,
@@ -56,6 +112,7 @@ class PushNotificationsService {
 
       FirebaseMessaging.onMessage.listen((message) {
         debugPrint('FCM foreground message: ${message.notification?.title}');
+        _showForegroundNotification(message);
       });
 
       FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -63,7 +120,9 @@ class PushNotificationsService {
       });
 
       if (!kIsWeb) {
-        FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+        FirebaseMessaging.onBackgroundMessage(
+          firebaseMessagingBackgroundHandler,
+        );
       }
 
       final token = await registerToken();
@@ -79,6 +138,26 @@ class PushNotificationsService {
       debugPrint('No fue posible inicializar FCM: $error');
       _initialized = true;
     }
+  }
+
+  Future<void> _showForegroundNotification(RemoteMessage message) async {
+    if (kIsWeb) return;
+    final notification = message.notification;
+    if (notification == null) return;
+    await _localNotifications.show(
+      message.hashCode,
+      notification.title ?? 'Biomark AI',
+      notification.body ?? '',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'biomark_notifications',
+          'Notificaciones de Biomark AI',
+          channelDescription: 'Recordatorios y alertas de Biomark AI',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+      ),
+    );
   }
 
   Future<String?> registerToken() async {

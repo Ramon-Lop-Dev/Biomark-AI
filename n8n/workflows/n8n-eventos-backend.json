@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Biomark AI · Webhook unico de eventos\n\nConfirmado con el codigo real del backend:\n\n- `n8nClient.js` -> `publicarEvento(evento, payload)` hace:\n  `axios.post(N8N_WEBHOOK_URL, { evento, ...payload }, { headers: { 'X-Webhook-Secret': N8N_WEBHOOK_SECRET } })`\n- Por eso este es UN SOLO webhook para los 3 tipos de evento, diferenciados por `body.evento`.\n\n### Eventos confirmados\n- `recordatorio.creado` -> body: `{ evento, recordatorio: {...}, usuario_id }`  [CONFIRMADO 100%]\n\n### Eventos PENDIENTES de confirmar\n- Alertas epidemiologicas: nombre de evento y payload real -> pendiente ver `epidemiology/*.service.js`\n- Eventos comunitarios: nombre de evento y payload real -> pendiente ver `community/*.service.js`\n\nMientras tanto esas 2 ramas son placeholders (NoOp) para no romper el Switch.\n\n### Variables de entorno necesarias en n8n\n- `N8N_WEBHOOK_SECRET` (igual que el backend)\n- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`\n- `FCM_PROJECT_ID`\n- `BACKEND_INTERNAL_URL` (ASUNCION: `http://backend:3000` segun docker-compose -> CONFIRMAR)\n\n### Credencial necesaria\nGoogle API (Service Account) con scope `https://www.googleapis.com/auth/firebase.messaging`, cargada en n8n (NO en este archivo).",
+        "content": "## Biomark AI · Webhook unico de eventos\n\nEste workflow recibe los tres eventos que el backend publica mediante `n8nClient.js`:\n\n- `recordatorio.creado` -> `{ evento, recordatorio: {...}, usuario_id }`\n- `alerta.epidemiologica.creada` -> `{ evento, alerta: {...} }`\n- `evento_comunitario.creado` -> `{ evento, evento_comunitario: {...} }`\n\n### Variables de entorno necesarias en n8n\n- `N8N_WEBHOOK_SECRET` (igual que el backend)\n- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`\n- `FCM_PROJECT_ID`\n- `BACKEND_INTERNAL_URL=http://backend:3000`\n\n### Credencial necesaria\nCada nodo FCM debe tener seleccionada en n8n una credencial Google API con scope `https://www.googleapis.com/auth/firebase.messaging`. La credencial no se guarda en este archivo.\n\nLos nodos FCM no ignoran errores: si Firebase rechaza el envio, la ejecucion falla y el recordatorio no se marca como enviado.",
         "height": 560,
         "width": 480
       },
@@ -130,7 +130,7 @@
                 "combinator": "and"
               },
               "renameOutput": true,
-              "outputKey": "alerta.epidemiologica (PLACEHOLDER)"
+              "outputKey": "alerta.epidemiologica"
             },
             {
               "conditions": {
@@ -153,7 +153,7 @@
                 "combinator": "and"
               },
               "renameOutput": true,
-              "outputKey": "evento_comunitario (PLACEHOLDER)"
+              "outputKey": "evento_comunitario"
             }
           ]
         },
@@ -368,7 +368,7 @@
         "nodeCredentialType": "googleApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"message\": {\n    \"token\": $json.fcm_token,\n    \"notification\": {\n      \"title\": $('Consolidar tokens').first().json.titulo,\n      \"body\": $('Consolidar tokens').first().json.descripcion || $('Consolidar tokens').first().json.titulo\n    },\n    \"data\": {\n      \"recordatorio_id\": $('Consolidar tokens').first().json.recordatorio_id,\n      \"tipo\": $('Consolidar tokens').first().json.tipo\n    }\n  }\n} }}",
+        "jsonBody": "{\n  \"message\": {\n    \"token\": \"={{$json.fcm_token}}\",\n    \"notification\": {\n      \"title\": \"={{$('Consolidar tokens').first().json.titulo}}\",\n      \"body\": \"={{$('Consolidar tokens').first().json.descripcion || $('Consolidar tokens').first().json.titulo}}\"\n    },\n    \"data\": {\n      \"recordatorio_id\": \"={{String($('Consolidar tokens').first().json.recordatorio_id)}}\",\n      \"tipo\": \"={{String($('Consolidar tokens').first().json.tipo)}}\"\n    }\n  }\n}",
         "options": {
           "timeout": 10000
         }
@@ -383,9 +383,7 @@
       ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "continueOnFail": true,
-      "onError": "continueRegularOutput"
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -786,7 +784,7 @@
         "nodeCredentialType": "googleApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"message\": {\n    \"token\": $json.fcm_token,\n    \"notification\": {\n      \"title\": \"Alerta epidemiologica (\" + $('Consolidar tokens alerta').first().json.nivel_alerta + \")\",\n      \"body\": $('Consolidar tokens alerta').first().json.mensaje\n    },\n    \"data\": {\n      \"alerta_id\": $('Consolidar tokens alerta').first().json.alerta_id,\n      \"zona_riesgo_id\": $('Consolidar tokens alerta').first().json.zona_riesgo_id,\n      \"nivel_alerta\": $('Consolidar tokens alerta').first().json.nivel_alerta\n    }\n  }\n} }}",
+        "jsonBody": "{\n  \"message\": {\n    \"token\": \"={{$json.fcm_token}}\",\n    \"notification\": {\n      \"title\": \"=Alerta epidemiologica ({{$('Consolidar tokens alerta').first().json.nivel_alerta}})\",\n      \"body\": \"={{$('Consolidar tokens alerta').first().json.mensaje}}\"\n    },\n    \"data\": {\n      \"alerta_id\": \"={{String($('Consolidar tokens alerta').first().json.alerta_id)}}\",\n      \"zona_riesgo_id\": \"={{String($('Consolidar tokens alerta').first().json.zona_riesgo_id)}}\",\n      \"nivel_alerta\": \"={{String($('Consolidar tokens alerta').first().json.nivel_alerta)}}\"\n    }\n  }\n}",
         "options": {
           "timeout": 10000
         }
@@ -801,9 +799,7 @@
       ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "continueOnFail": true,
-      "onError": "continueRegularOutput"
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
@@ -1022,7 +1018,7 @@
         "nodeCredentialType": "googleApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"message\": {\n    \"token\": $json.fcm_token,\n    \"notification\": {\n      \"title\": $('Consolidar tokens comunidad').first().json.titulo,\n      \"body\": $('Consolidar tokens comunidad').first().json.descripcion || 'Nueva jornada comunitaria disponible'\n    },\n    \"data\": {\n      \"evento_id\": $('Consolidar tokens comunidad').first().json.evento_id,\n      \"fecha_evento\": $('Consolidar tokens comunidad').first().json.fecha_evento\n    }\n  }\n} }}",
+        "jsonBody": "{\n  \"message\": {\n    \"token\": \"={{$json.fcm_token}}\",\n    \"notification\": {\n      \"title\": \"={{$('Consolidar tokens comunidad').first().json.titulo}}\",\n      \"body\": \"={{$('Consolidar tokens comunidad').first().json.descripcion || 'Nueva jornada comunitaria disponible'}}\"\n    },\n    \"data\": {\n      \"evento_id\": \"={{String($('Consolidar tokens comunidad').first().json.evento_id)}}\",\n      \"fecha_evento\": \"={{String($('Consolidar tokens comunidad').first().json.fecha_evento)}}\"\n    }\n  }\n}",
         "options": {
           "timeout": 10000
         }
@@ -1037,9 +1033,7 @@
       ],
       "retryOnFail": true,
       "maxTries": 3,
-      "waitBetweenTries": 2000,
-      "continueOnFail": true,
-      "onError": "continueRegularOutput"
+      "waitBetweenTries": 2000
     },
     {
       "parameters": {
