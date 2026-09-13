@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 
 // Inicializar la aplicación Express
 const app = express();
+app.set('trust proxy', 1);
 
 // 1. Middlewares de Seguridad Globales
 app.use(helmet({
