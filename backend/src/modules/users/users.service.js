@@ -47,7 +47,22 @@ const updateProfile = async (usuarioId, cambios) => {
   // usuarios en el registro), pero si la fila de perfiles no existe,
   // el UPDATE no afecta ninguna fila y Supabase devuelve data = null.
   if (!data) {
-    throw new AppError('No se encontró un perfil asociado a este usuario', 404);
+    const { data: usuario, error: usuarioError } = await supabase
+      .from('usuarios')
+      .select('correo')
+      .eq('id', usuarioId)
+      .single();
+    if (usuarioError || !usuario) {
+      throw new AppError('No se encontró el usuario', 404);
+    }
+    const { error: crearError } = await usersRepo.crearPerfil(
+      usuarioId,
+      { ...cambios, nombre_completo: cambios.nombre_completo || usuario.correo },
+    );
+    if (crearError) {
+      throw new AppError('No se pudo crear el perfil del usuario', 500);
+    }
+    return getProfile(usuarioId);
   }
 
   await auditService.registrar({

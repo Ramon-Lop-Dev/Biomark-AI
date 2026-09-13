@@ -8,6 +8,7 @@ import 'biomark_brand.dart';
 import 'features/gis/presentation/gis_map_screen.dart';
 import 'core/auth/auth_session.dart';
 import 'core/config/app_config.dart';
+import 'core/profile/user_profile_api.dart';
 
 /// Transición personalizada (duplicada para evitar circular imports)
 class _FadeSlidePageRoute<T> extends MaterialPageRoute<T> {
@@ -67,22 +68,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _cargarNombreUsuario() async {
-    final token = AuthSession.instance.accessToken;
-    if (token == null || token.isEmpty) return;
     try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.apiUrl}/api/users/profile'),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      if (response.statusCode < 200 || response.statusCode >= 300) return;
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final profile = body['perfiles'] as Map<String, dynamic>?;
-      final name = (profile?['nombre_completo'] as String?)?.trim();
-      final email = body['correo'] as String?;
+      final profile = await UserProfileApi.fetch();
       if (!mounted) return;
-      setState(() => _nombreUsuario = name?.isNotEmpty == true
-          ? name!.split(' ').first
-          : (email?.split('@').first ?? 'usuario'));
+      if (profile != null) {
+        final firstName = profile.displayName.split(' ').first;
+        setState(() => _nombreUsuario = firstName);
+      }
     } catch (_) {}
   }
 

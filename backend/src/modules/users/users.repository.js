@@ -21,6 +21,13 @@ const actualizarPerfil = (usuarioId, cambios) =>
     .select('nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio')
     .maybeSingle();
 
+const crearPerfil = (usuarioId, cambios) =>
+  supabase
+    .from('perfiles')
+    .upsert({ usuario_id: usuarioId, ...cambios }, { onConflict: 'usuario_id' })
+    .select('nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio')
+    .single();
+
 const actualizarFotoPath = (usuarioId, fotoPath) =>
   supabase
     .from('perfiles')
@@ -29,4 +36,4 @@ const actualizarFotoPath = (usuarioId, fotoPath) =>
     .select('foto_path')
     .single();
 
-module.exports = { findUsuarioConPerfil, actualizarPerfil, actualizarFotoPath };
+module.exports = { findUsuarioConPerfil, actualizarPerfil, crearPerfil, actualizarFotoPath };

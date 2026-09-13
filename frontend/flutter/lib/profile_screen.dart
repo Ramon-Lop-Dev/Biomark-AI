@@ -19,6 +19,7 @@ import 'core/auth/auth_api.dart';
 import 'core/auth/auth_session.dart';
 import 'core/config/app_config.dart';
 import 'features/community/promoter_screens.dart';
+import 'core/profile/user_profile_api.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -30,8 +31,8 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   // Antes eran "static const". Ahora son variables de instancia para
   // poder actualizarlas con setState al volver de EditarPerfilScreen.
-  String _nombreUsuario = 'Familia';
-  String _correoUsuario = 'usuario@correo.com';
+  String _nombreUsuario = 'Cargando...';
+  String _correoUsuario = 'Cargando...';
   int? _edadUsuario; // viene de la encuesta hecha en el chat
   String? _fotoUrl;
   String? _generoUsuario;
@@ -43,27 +44,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _cargarPerfil() async {
-    final token = AuthSession.instance.accessToken;
-    if (token == null || token.isEmpty) return;
     try {
-      final response = await http.get(
-        Uri.parse(
-          '${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/profile',
-        ),
-        headers: {'Authorization': 'Bearer $token'},
-      );
-      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted) {
-        return;
-      }
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      final profile = body['perfiles'] as Map<String, dynamic>? ?? const {};
-      final birth = DateTime.tryParse('${profile['fecha_nacimiento'] ?? ''}');
+      final profile = await UserProfileApi.fetch();
+      if (profile == null || !mounted) return;
       setState(() {
-        _nombreUsuario = '${profile['nombre_completo'] ?? _nombreUsuario}';
-        _correoUsuario = '${body['correo'] ?? _correoUsuario}';
-        _generoUsuario = profile['sexo'] as String?;
-        _fotoUrl = profile['foto_url'] as String?;
-        _edadUsuario = birth == null ? null : _calculateAge(birth);
+        _nombreUsuario = profile.displayName;
+        _correoUsuario = profile.email;
+        _generoUsuario = profile.gender;
+        _fotoUrl = profile.photoUrl;
+        _edadUsuario = profile.birthDate == null
+            ? null
+            : _calculateAge(profile.birthDate!);
       });
       await SurveyService.cargarDesdeBackend();
     } catch (_) {}
