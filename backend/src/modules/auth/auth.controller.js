@@ -35,6 +35,11 @@ const logout = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
+const deleteAccount = asyncHandler(async (req, res) => {
+  const result = await authService.deleteAccount(req.usuarioId);
+  return res.status(200).json(result);
+});
+
 // POST /api/auth/refresh
 const refresh = asyncHandler(async (req, res) => {
   const { refresh_token } = req.body;
@@ -81,6 +86,7 @@ module.exports = {
   login,
   loginGoogle,
   logout,
+  deleteAccount,
   refresh,
   forgotPassword,
   resetPassword,

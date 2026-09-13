@@ -1,6 +1,6 @@
 // Define las rutas públicas y protegidas del módulo de autenticación.
 const express = require('express');
-const { register, login, loginGoogle, logout, refresh, forgotPassword, resetPassword, requestPromoterRole, getMyPromoterRequest, listPromoterRequests, reviewPromoterRequest } = require('./auth.controller');
+const { register, login, loginGoogle, logout, deleteAccount, refresh, forgotPassword, resetPassword, requestPromoterRole, getMyPromoterRequest, listPromoterRequests, reviewPromoterRequest } = require('./auth.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
 const { validate } = require('../../middleware/validate.middleware');
 const {
@@ -49,5 +49,6 @@ router.patch('/promotor/solicitudes/:id', verifyToken, requireRole('ADMIN'), val
 // Logout SÍ requiere sesión vigente: se necesita el access_token actual
 // para revocarlo (ver auth.service.logoutUser).
 router.post('/logout', verifyToken, logout);
+router.delete('/account', verifyToken, deleteAccount);
 
 module.exports = router;

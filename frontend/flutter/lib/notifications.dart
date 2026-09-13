@@ -23,7 +23,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   TimeOfDay _finSilencio = const TimeOfDay(hour: 7, minute: 0);
   bool _guardando = false;
 
-  static const _pushEnabledKey = 'notifications_push_enabled';
+  static const _pushEnabledKey = PushNotificationsService.pushEnabledKey;
   static const _silentModeKey = 'notifications_silent_mode';
   static const _silentStartKey = 'notifications_silent_start';
   static const _silentEndKey = 'notifications_silent_end';

@@ -277,6 +277,21 @@ const reviewPromoterRequest = async (adminId, requestId, estado) => {
   return data;
 };
 
+const deleteAccount = async (usuarioId) => {
+  const { data: authId, error } = await supabase.rpc('eliminar_cuenta_usuario', {
+    p_usuario_id: usuarioId
+  });
+  if (error || !authId) {
+    throw new AppError('No se pudo eliminar la cuenta y sus datos', 500);
+  }
+
+  const { error: authError } = await authRepo.deleteAuthUser(authId);
+  if (authError) {
+    throw new AppError('Los datos fueron eliminados, pero no se pudo cerrar la cuenta de acceso', 500);
+  }
+  return { message: 'Cuenta y datos eliminados correctamente' };
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -288,5 +303,6 @@ module.exports = {
   requestPromoterRole,
   getMyPromoterRequest,
   listPromoterRequests,
-  reviewPromoterRequest
+  reviewPromoterRequest,
+  deleteAccount
 };

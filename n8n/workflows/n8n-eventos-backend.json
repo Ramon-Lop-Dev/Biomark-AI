@@ -418,7 +418,7 @@
         "nodeCredentialType": "googleApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"message\": {\n    \"token\": \"{{$json.fcm_token}}\",\n    \"notification\": {\n      \"title\": \"{{$('Extraer recordatorio').first().json.titulo}}\",\n      \"body\": \"{{$('Extraer recordatorio').first().json.descripcion || $('Extraer recordatorio').first().json.titulo}}\"\n    },\n    \"data\": {\n      \"recordatorio_id\": \"{{String($('Extraer recordatorio').first().json.recordatorio_id)}}\",\n      \"tipo\": \"{{String($('Extraer recordatorio').first().json.tipo)}}\"\n    }\n  }\n}",
+        "jsonBody": "={\n  \"message\": {\n    \"token\": \"{{$json.fcm_token}}\",\n    \"notification\": {\n      \"title\": \"Hola, Biomark AI\",\n      \"body\": \"Te recuerda que: {{$('Extraer recordatorio').first().json.titulo}}{{$('Extraer recordatorio').first().json.descripcion ? ' - ' + $('Extraer recordatorio').first().json.descripcion : ''}}\"\n    },\n    \"data\": {\n      \"recordatorio_id\": \"{{String($('Extraer recordatorio').first().json.recordatorio_id)}}\",\n      \"tipo\": \"{{String($('Extraer recordatorio').first().json.tipo)}}\"\n    }\n  }\n}",
         "options": {
           "timeout": 10000
         }
@@ -431,9 +431,7 @@
         8256,
         5648
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
+      "retryOnFail": false,
       "credentials": {
         "googleApi": {
           "id": "wXCbH6dfPBcbLUyj",
@@ -927,9 +925,7 @@
         9904,
         6048
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
+      "retryOnFail": false,
       "credentials": {
         "googleApi": {
           "id": "wXCbH6dfPBcbLUyj",
@@ -1168,9 +1164,7 @@
         8704,
         6544
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
+      "retryOnFail": false,
       "credentials": {
         "googleApi": {
           "id": "wXCbH6dfPBcbLUyj",

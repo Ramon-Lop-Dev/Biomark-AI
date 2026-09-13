@@ -5,7 +5,9 @@ import 'biomark_brand.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'core/auth/auth_session.dart';
+import 'core/auth/auth_api.dart';
 import 'core/config/app_config.dart';
+import 'main.dart';
 
 class PrivacidadScreen extends StatefulWidget {
   const PrivacidadScreen({super.key});
@@ -15,24 +17,80 @@ class PrivacidadScreen extends StatefulWidget {
 }
 
 class _PrivacidadScreenState extends State<PrivacidadScreen> {
-  // TODO: cargar estos valores reales desde tu backend/SharedPreferences
-  // en initState, y guardarlos cada vez que cambien.
-  // ignore: unused_field
-  final bool _compartirConFamiliares = true;
   bool _usoDatosIA = true;
   bool _bloqueoBiometrico = false;
 
   bool _exportando = false;
+  bool _guardandoConsentimiento = false;
+  bool _eliminandoCuenta = false;
 
-  void _alternar(void Function(bool) setter, bool valorActual) {
-    setState(() => setter(!valorActual));
+  @override
+  void initState() {
+    super.initState();
+    _cargarConsentimiento();
+  }
+
+  Future<void> _cargarConsentimiento() async {
     final token = AuthSession.instance.accessToken;
-    if (token != null && token.isNotEmpty) {
-      http.put(
-        Uri.parse('${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/consent'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-        body: jsonEncode({'tipo_consentimiento': 'CONTEXTO_MEDICO_IA', 'otorgado': !valorActual}),
+    if (token == null || token.isEmpty) return;
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/consent',
+        ),
+        headers: {'Authorization': 'Bearer $token'},
       );
+      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted)
+        return;
+      final items = jsonDecode(response.body);
+      if (items is! List) return;
+      final consent = items
+          .whereType<Map<String, dynamic>>()
+          .cast<Map<String, dynamic>?>()
+          .firstWhere(
+            (item) => item?['tipo_consentimiento'] == 'CONTEXTO_MEDICO_IA',
+            orElse: () => null,
+          );
+      if (consent != null)
+        setState(() => _usoDatosIA = consent['otorgado'] != false);
+    } catch (_) {}
+  }
+
+  Future<void> _alternarUsoDatosIA() async {
+    if (_guardandoConsentimiento) return;
+    final nuevoValor = !_usoDatosIA;
+    setState(() {
+      _usoDatosIA = nuevoValor;
+      _guardandoConsentimiento = true;
+    });
+    final token = AuthSession.instance.accessToken;
+    try {
+      if (token == null || token.isEmpty) throw Exception('Sesión expirada.');
+      final response = await http.put(
+        Uri.parse(
+          '${AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/users/consent',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'tipo_consentimiento': 'CONTEXTO_MEDICO_IA',
+          'otorgado': nuevoValor,
+        }),
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('El servidor rechazó el consentimiento.');
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _usoDatosIA = !nuevoValor);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('No se pudo guardar: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => _guardandoConsentimiento = false);
     }
   }
 
@@ -74,10 +132,9 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () {
-              // TODO: llamar al endpoint real de eliminación de cuenta.
-              Navigator.pop(dialogContext);
-            },
+            onPressed: _eliminandoCuenta
+                ? null
+                : () => _eliminarCuenta(dialogContext),
             child: const Text(
               'Eliminar',
               style: TextStyle(color: Colors.white),
@@ -88,10 +145,37 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
     );
   }
 
+  Future<void> _eliminarCuenta(BuildContext dialogContext) async {
+    setState(() => _eliminandoCuenta = true);
+    try {
+      final token = AuthSession.instance.accessToken;
+      if (token == null || token.isEmpty) throw Exception('Sesión expirada.');
+      await AuthApi(
+        baseUrl: AppConfig.apiUrl,
+      ).deleteAccount(accessToken: token);
+      await AuthSession.instance.clear();
+      if (!mounted) return;
+      Navigator.of(dialogContext).pop();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _eliminandoCuenta = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo eliminar la cuenta: $error'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
@@ -128,8 +212,9 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                     subtitulo:
                         'Permite que la IA use tu historial para personalizar consejos',
                     valor: _usoDatosIA,
-                    onChanged: (_) =>
-                        _alternar((v) => _usoDatosIA = v, _usoDatosIA),
+                    onChanged: _guardandoConsentimiento
+                        ? null
+                        : (_) => _alternarUsoDatosIA(),
                   ),
                   const Divider(height: 24, color: Color(0xFFEFEFF3)),
                   _buildFilaSwitch(
@@ -138,10 +223,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                     subtitulo:
                         'Pide huella o Face ID antes de mostrar tus datos médicos',
                     valor: _bloqueoBiometrico,
-                    onChanged: (_) => _alternar(
-                      (v) => _bloqueoBiometrico = v,
-                      _bloqueoBiometrico,
-                    ),
+                    onChanged: null,
                   ),
                 ],
               ),
@@ -228,7 +310,7 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
     required String titulo,
     required String subtitulo,
     required bool valor,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
   }) {
     return Row(
       children: [

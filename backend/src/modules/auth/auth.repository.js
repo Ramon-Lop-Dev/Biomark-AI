@@ -54,6 +54,8 @@ const resetPasswordForEmail = (email, redirectTo) => supabaseAuth.auth.resetPass
 const updateUserPasswordById = (authUserId, newPassword) =>
   supabase.auth.admin.updateUserById(authUserId, { password: newPassword });
 
+const deleteAuthUser = (authUserId) => supabase.auth.admin.deleteUser(authUserId);
+
 // --- Tablas de dominio (siempre con el cliente service_role) ---
 
 const findUsuarioByAuthId = (authId) =>
@@ -102,6 +104,7 @@ module.exports = {
   refreshSession,
   resetPasswordForEmail,
   updateUserPasswordById,
+  deleteAuthUser,
   findUsuarioByAuthId,
   createUsuario,
   createPerfil,

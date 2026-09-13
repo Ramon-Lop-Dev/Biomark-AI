@@ -565,7 +565,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
     switch (tipo) {
       case 'VACUNA':
         return Icons.vaccines_rounded;
-      case 'CITA_MEDICA':
+      case 'CITA':
         return Icons.medical_services_outlined;
       case 'MEDICAMENTO':
       default:

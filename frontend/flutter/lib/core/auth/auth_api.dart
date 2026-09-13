@@ -216,6 +216,21 @@ class AuthApi {
     await _post('/api/auth/logout', const {}, bearerToken: accessToken);
   }
 
+  Future<void> deleteAccount({required String accessToken}) async {
+    final response = await _client
+        .delete(
+          Uri.parse('$_base/api/auth/account'),
+          headers: {'Authorization': 'Bearer $accessToken'},
+        )
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw AuthApiException(
+        'No se pudo eliminar la cuenta.',
+        statusCode: response.statusCode,
+      );
+    }
+  }
+
   Future<void> registerPushToken({
     required String accessToken,
     required String token,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../auth/auth_api.dart';
 import '../auth/auth_session.dart';
@@ -18,6 +19,7 @@ class PushNotificationsService {
   PushNotificationsService._();
 
   static final PushNotificationsService instance = PushNotificationsService._();
+  static const pushEnabledKey = 'notifications_push_enabled';
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
@@ -50,7 +52,12 @@ class PushNotificationsService {
       return false;
     }
 
-    await _registerTokenInBackend(token);
+    final registered = await _registerTokenInBackend(token);
+    if (!registered) {
+      throw Exception('No se pudo registrar el dispositivo en el servidor.');
+    }
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool(pushEnabledKey, true);
     _currentToken = token;
     _tokenController.add(token);
     return true;
@@ -59,13 +66,16 @@ class PushNotificationsService {
   Future<void> disableForCurrentUser() async {
     final token = _currentToken ?? await registerToken();
     final accessToken = AuthSession.instance.accessToken;
+    final preferences = await SharedPreferences.getInstance();
     if (token == null ||
         token.isEmpty ||
         accessToken == null ||
         accessToken.isEmpty) {
+      await preferences.setBool(pushEnabledKey, false);
       return;
     }
     await _authApi.deletePushToken(accessToken: accessToken, token: token);
+    await preferences.setBool(pushEnabledKey, false);
   }
 
   Future<void> initialize() async {
@@ -92,6 +102,22 @@ class PushNotificationsService {
               AndroidFlutterLocalNotificationsPlugin
             >()
             ?.requestNotificationsPermission();
+      }
+
+      final preferences = await SharedPreferences.getInstance();
+      final pushEnabled = preferences.getBool(pushEnabledKey) ?? true;
+      if (!pushEnabled) {
+        final token = await registerToken();
+        final accessToken = AuthSession.instance.accessToken;
+        if (token != null && accessToken != null && accessToken.isNotEmpty) {
+          await _authApi.deletePushToken(
+            accessToken: accessToken,
+            token: token,
+          );
+        }
+        _initialized = true;
+        debugPrint('Notificaciones push desactivadas por el usuario.');
+        return;
       }
 
       final settings = await _messaging.requestPermission(
@@ -190,21 +216,35 @@ class PushNotificationsService {
     final token = await registerToken();
     if (token != null) {
       _currentToken = token;
-      await _registerTokenInBackend(token);
+      final preferences = await SharedPreferences.getInstance();
+      final pushEnabled = preferences.getBool(pushEnabledKey) ?? true;
+      if (pushEnabled) {
+        await _registerTokenInBackend(token);
+      } else {
+        final accessToken = AuthSession.instance.accessToken;
+        if (accessToken != null && accessToken.isNotEmpty) {
+          await _authApi.deletePushToken(
+            accessToken: accessToken,
+            token: token,
+          );
+        }
+      }
       _tokenController.add(token);
     }
   }
 
   Future<void> _syncTokenWithAuthenticatedUser() async {
     final token = _currentToken;
-    if (_initialized && token != null && token.isNotEmpty) {
+    final preferences = await SharedPreferences.getInstance();
+    final pushEnabled = preferences.getBool(pushEnabledKey) ?? true;
+    if (_initialized && pushEnabled && token != null && token.isNotEmpty) {
       await _registerTokenInBackend(token);
     }
   }
 
-  Future<void> _registerTokenInBackend(String token) async {
+  Future<bool> _registerTokenInBackend(String token) async {
     final accessToken = AuthSession.instance.accessToken;
-    if (accessToken == null || accessToken.isEmpty) return;
+    if (accessToken == null || accessToken.isEmpty) return false;
 
     try {
       await _authApi.registerPushToken(
@@ -213,8 +253,10 @@ class PushNotificationsService {
         platform: kIsWeb ? 'WEB' : 'ANDROID',
       );
       debugPrint('Token FCM registrado en el backend.');
+      return true;
     } catch (error) {
       debugPrint('No se pudo registrar el token FCM en el backend: $error');
+      return false;
     }
   }
 
