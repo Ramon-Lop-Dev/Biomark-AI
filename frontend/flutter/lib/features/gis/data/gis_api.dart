@@ -30,7 +30,7 @@ class GisViewportData {
 class GisApi {
   GisApi({http.Client? client}) : _client = client ?? http.Client();
 
-  static const _apiUrl = AppConfig.apiUrl;
+  static final _apiUrl = AppConfig.apiUrl;
   static String get _accessToken => AuthSession.instance.accessToken ?? '';
   final http.Client _client;
 
@@ -57,7 +57,12 @@ class GisApi {
     );
     final response = await _client.get(uri, headers: _headers);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw GisApiException('No se pudieron cargar los centros de salud.', statusCode: response.statusCode);
+      throw GisApiException(
+        response.statusCode == 429
+            ? 'Demasiadas peticiones. Espera unos minutos.'
+            : 'No se pudieron cargar los centros de salud.',
+        statusCode: response.statusCode,
+      );
     }
     final body = jsonDecode(response.body);
     if (body is! List) throw const GisApiException('Respuesta GIS inválida.');
@@ -120,6 +125,9 @@ class GisApi {
       reports: const [],
     );
   }
+
+  Future<GisMapData> fetchLayers({required double latitude, required double longitude}) =>
+      fetchNearby(latitude: latitude, longitude: longitude);
 
   Future<List<CommunityReportPoint>> fetchValidatedReports() async {
     final response = await _client.get(

@@ -9,6 +9,7 @@ class HealthCenter {
   final double distanceKm;
   final int level;
   final bool approximateLocation;
+  final List<String> specialties;
 
   const HealthCenter({
     required this.id,
@@ -21,6 +22,7 @@ class HealthCenter {
     required this.distanceKm,
     this.level = 2,
     this.approximateLocation = true,
+    this.specialties = const [],
   });
 
   factory HealthCenter.fromJson(Map<String, dynamic> json) {
@@ -36,12 +38,32 @@ class HealthCenter {
       address: '${json['direccion'] ?? 'Dirección no disponible'}',
       phone: '${json['telefono'] ?? ''}',
       distanceKm: number(json['distancia_km']),
-        level: (json['nivel'] ?? json['nivel_atencion'] ?? 2) is num
+      level: (json['nivel'] ?? json['nivel_atencion'] ?? 2) is num
           ? ((json['nivel'] ?? json['nivel_atencion'] ?? 2) as num).toInt()
-          : int.tryParse('${json['nivel'] ?? json['nivel_atencion'] ?? 2}') ?? 2,
-      approximateLocation: json['ubicacion_aproximada'] == true ||
+          : int.tryParse('${json['nivel'] ?? json['nivel_atencion'] ?? 2}') ??
+                2,
+      approximateLocation:
+          json['ubicacion_aproximada'] == true ||
           '${json['fuente_coordenada'] ?? ''}' == 'aproximada',
+      specialties: _specialties(json),
     );
+  }
+
+  static List<String> _specialties(Map<String, dynamic> json) {
+    final legacy = json['especialidades'];
+    final values = <String>[];
+    if (legacy is List) values.addAll(legacy.whereType<String>());
+    final relations = json['centro_servicios'];
+    if (relations is List) {
+      for (final relation in relations.whereType<Map<String, dynamic>>()) {
+        final catalog = relation['catalogo_servicios'];
+        if (catalog is Map<String, dynamic>) {
+          final label = catalog['etiqueta'];
+          if (label is String) values.add(label);
+        }
+      }
+    }
+    return values.toSet().toList();
   }
 }
 
@@ -100,7 +122,8 @@ class CommunityEvent {
       id: '${json['id'] ?? ''}',
       title: '${json['titulo'] ?? 'Jornada comunitaria'}',
       description: '${json['descripcion'] ?? ''}',
-      date: DateTime.tryParse('${json['fecha_evento'] ?? ''}') ?? DateTime.now(),
+      date:
+          DateTime.tryParse('${json['fecha_evento'] ?? ''}') ?? DateTime.now(),
       location: '${json['ubicacion'] ?? 'Ubicación no disponible'}',
       latitude: number(json['latitud']),
       longitude: number(json['longitud']),
