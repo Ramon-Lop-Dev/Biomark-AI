@@ -22,4 +22,39 @@ const listarEventosComunitariosConCoordenadas = () =>
     .gte('fecha_evento', new Date().toISOString())
     .order('fecha_evento', { ascending: true });
 
-module.exports = { listarCentrosSalud, listarEventosComunitariosConCoordenadas };
+const listarCentrosEnBbox = ({ min_lon, min_lat, max_lon, max_lat, nivel_min, zoom }) =>
+  supabase.rpc('centros_en_bbox', {
+    p_min_lon: min_lon,
+    p_min_lat: min_lat,
+    p_max_lon: max_lon,
+    p_max_lat: max_lat,
+    p_nivel_min: nivel_min,
+    p_zoom: zoom
+  });
+
+const listarCentrosCercanos = ({ lat, lon, servicio, edad, nivel_min, radio_m, limite }) =>
+  supabase.rpc('centros_cercanos', {
+    p_lat: lat,
+    p_lon: lon,
+    p_servicio: servicio || null,
+    p_edad: edad ?? null,
+    p_nivel_min: nivel_min,
+    p_radio_m: radio_m,
+    p_limite: limite
+  });
+
+const obtenerCentro = (id) =>
+  supabase
+    .from('centros_salud')
+    .select('*, centro_servicios(codigo, edad_min, edad_max, catalogo_servicios(codigo, etiqueta, sinonimos)), centro_horarios(id, dia_semana, hora_apertura, hora_cierre, cerrado)')
+    .eq('id', id)
+    .eq('activo', true)
+    .maybeSingle();
+
+module.exports = {
+  listarCentrosSalud,
+  listarEventosComunitariosConCoordenadas,
+  listarCentrosEnBbox,
+  listarCentrosCercanos,
+  obtenerCentro
+};

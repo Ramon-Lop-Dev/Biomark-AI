@@ -1,6 +1,5 @@
--- BIOMARK AI — Esquema de base de datos (Supabase PostgreSQL)
--- Ya creado y aplicado en el proyecto real de Supabase.
--- Este archivo queda como fuente de verdad versionada del esquema.
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
 CREATE TABLE public.usuarios (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -13,7 +12,6 @@ CREATE TABLE public.usuarios (
   CONSTRAINT usuarios_pkey PRIMARY KEY (id),
   CONSTRAINT usuarios_auth_id_fkey FOREIGN KEY (auth_id) REFERENCES auth.users(id)
 );
-
 CREATE TABLE public.perfiles (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL UNIQUE,
@@ -23,13 +21,12 @@ CREATE TABLE public.perfiles (
   telefono text,
   direccion text,
   municipio text,
-  foto_path text,
   fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
   fecha_actualizacion timestamp with time zone NOT NULL DEFAULT now(),
+  foto_path text,
   CONSTRAINT perfiles_pkey PRIMARY KEY (id),
   CONSTRAINT perfiles_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.historial_medico (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL,
@@ -40,7 +37,6 @@ CREATE TABLE public.historial_medico (
   CONSTRAINT historial_medico_pkey PRIMARY KEY (id),
   CONSTRAINT historial_medico_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.alergias (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL,
@@ -51,7 +47,6 @@ CREATE TABLE public.alergias (
   CONSTRAINT alergias_pkey PRIMARY KEY (id),
   CONSTRAINT alergias_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.medicamentos (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL,
@@ -64,7 +59,6 @@ CREATE TABLE public.medicamentos (
   CONSTRAINT medicamentos_pkey PRIMARY KEY (id),
   CONSTRAINT medicamentos_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.antecedentes_familiares (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL,
@@ -75,19 +69,17 @@ CREATE TABLE public.antecedentes_familiares (
   CONSTRAINT antecedentes_familiares_pkey PRIMARY KEY (id),
   CONSTRAINT antecedentes_familiares_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.vacunas (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL,
   nombre_vacuna text NOT NULL,
-  numero_dosis integer NOT NULL DEFAULT 1,
+  numero_dosis integer NOT NULL DEFAULT 1 CHECK (numero_dosis > 0),
   fecha_aplicacion date NOT NULL,
   fecha_proxima_dosis date,
   fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT vacunas_pkey PRIMARY KEY (id),
   CONSTRAINT vacunas_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.sintomas (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL,
@@ -96,33 +88,6 @@ CREATE TABLE public.sintomas (
   CONSTRAINT sintomas_pkey PRIMARY KEY (id),
   CONSTRAINT sintomas_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
-
-CREATE TABLE public.objetivos_mejoria (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  usuario_id uuid NOT NULL REFERENCES public.usuarios(id),
-  titulo text NOT NULL,
-  descripcion text,
-  periodicidad text NOT NULL CHECK (periodicidad IN ('SEMANAL', 'QUINCENAL', 'MENSUAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL')),
-  fecha_inicio date NOT NULL,
-  fecha_fin date NOT NULL,
-  estado text NOT NULL DEFAULT 'ACTIVO' CHECK (estado IN ('ACTIVO', 'COMPLETADO', 'CANCELADO')),
-  fecha_creacion timestamptz NOT NULL DEFAULT now(),
-  fecha_actualizacion timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT objetivos_mejoria_pkey PRIMARY KEY (id),
-  CONSTRAINT objetivos_mejoria_fechas_validas CHECK (fecha_fin >= fecha_inicio)
-);
-
-CREATE TABLE public.hitos_mejoria (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  objetivo_id uuid NOT NULL REFERENCES public.objetivos_mejoria(id) ON DELETE CASCADE,
-  titulo text NOT NULL,
-  fecha_objetivo date NOT NULL,
-  completado boolean NOT NULL DEFAULT false,
-  fecha_completado timestamptz,
-  fecha_creacion timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT hitos_mejoria_pkey PRIMARY KEY (id)
-);
-
 CREATE TABLE public.registros_sintomas (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   sintoma_id uuid NOT NULL,
@@ -134,7 +99,6 @@ CREATE TABLE public.registros_sintomas (
   CONSTRAINT registros_sintomas_pkey PRIMARY KEY (id),
   CONSTRAINT registros_sintomas_sintoma_id_fkey FOREIGN KEY (sintoma_id) REFERENCES public.sintomas(id)
 );
-
 CREATE TABLE public.eventos_medicos (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL,
@@ -144,18 +108,16 @@ CREATE TABLE public.eventos_medicos (
   CONSTRAINT eventos_medicos_pkey PRIMARY KEY (id),
   CONSTRAINT eventos_medicos_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.imagenes_medicas (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   evento_medico_id uuid NOT NULL,
   url_imagen text NOT NULL,
   clasificacion text,
-  confianza numeric,
+  confianza numeric CHECK (confianza IS NULL OR confianza >= 0::numeric AND confianza <= 100::numeric),
   fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT imagenes_medicas_pkey PRIMARY KEY (id),
   CONSTRAINT imagenes_medicas_evento_medico_id_fkey FOREIGN KEY (evento_medico_id) REFERENCES public.eventos_medicos(id)
 );
-
 CREATE TABLE public.recordatorios (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL,
@@ -168,7 +130,6 @@ CREATE TABLE public.recordatorios (
   CONSTRAINT recordatorios_pkey PRIMARY KEY (id),
   CONSTRAINT recordatorios_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.notificaciones (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL,
@@ -180,7 +141,6 @@ CREATE TABLE public.notificaciones (
   CONSTRAINT notificaciones_pkey PRIMARY KEY (id),
   CONSTRAINT notificaciones_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.sesiones_chat (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL,
@@ -189,7 +149,6 @@ CREATE TABLE public.sesiones_chat (
   CONSTRAINT sesiones_chat_pkey PRIMARY KEY (id),
   CONSTRAINT sesiones_chat_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.mensajes_chat (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   sesion_chat_id uuid NOT NULL,
@@ -200,7 +159,6 @@ CREATE TABLE public.mensajes_chat (
   CONSTRAINT mensajes_chat_pkey PRIMARY KEY (id),
   CONSTRAINT mensajes_chat_sesion_chat_id_fkey FOREIGN KEY (sesion_chat_id) REFERENCES public.sesiones_chat(id)
 );
-
 CREATE TABLE public.centros_salud (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   nombre text NOT NULL,
@@ -210,9 +168,16 @@ CREATE TABLE public.centros_salud (
   direccion text,
   telefono text,
   fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
+  tipo_unidad text,
+  silais text,
+  distrito text,
+  municipio text,
+  localidad text,
+  zona text,
+  especialidades ARRAY,
+  coordenadas_verificadas boolean NOT NULL DEFAULT false,
   CONSTRAINT centros_salud_pkey PRIMARY KEY (id)
 );
-
 CREATE TABLE public.eventos_comunitarios (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   organizador_id uuid NOT NULL,
@@ -221,10 +186,15 @@ CREATE TABLE public.eventos_comunitarios (
   fecha_evento timestamp with time zone NOT NULL,
   ubicacion text,
   fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
+  latitud numeric,
+  longitud numeric,
+  tipo_evento USER-DEFINED,
+  ubicacion_geografica USER-DEFINED,
+  radio_notificacion_km numeric DEFAULT 5,
+  tipo text,
   CONSTRAINT eventos_comunitarios_pkey PRIMARY KEY (id),
   CONSTRAINT eventos_comunitarios_organizador_id_fkey FOREIGN KEY (organizador_id) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.zonas_riesgo (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   municipio text NOT NULL,
@@ -235,7 +205,6 @@ CREATE TABLE public.zonas_riesgo (
   fecha_actualizacion timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT zonas_riesgo_pkey PRIMARY KEY (id)
 );
-
 CREATE TABLE public.reportes_epidemiologicos (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   cargado_por uuid,
@@ -247,7 +216,6 @@ CREATE TABLE public.reportes_epidemiologicos (
   CONSTRAINT reportes_epidemiologicos_pkey PRIMARY KEY (id),
   CONSTRAINT reportes_epidemiologicos_cargado_por_fkey FOREIGN KEY (cargado_por) REFERENCES public.usuarios(id)
 );
-
 CREATE TABLE public.alertas_epidemiologicas (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   reporte_epidemiologico_id uuid NOT NULL,
@@ -255,11 +223,11 @@ CREATE TABLE public.alertas_epidemiologicas (
   nivel_alerta USER-DEFINED NOT NULL,
   mensaje text NOT NULL,
   fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
+  fecha_expiracion timestamp with time zone,
   CONSTRAINT alertas_epidemiologicas_pkey PRIMARY KEY (id),
   CONSTRAINT alertas_epidemiologicas_reporte_epidemiologico_id_fkey FOREIGN KEY (reporte_epidemiologico_id) REFERENCES public.reportes_epidemiologicos(id),
   CONSTRAINT alertas_epidemiologicas_zona_riesgo_id_fkey FOREIGN KEY (zona_riesgo_id) REFERENCES public.zonas_riesgo(id)
 );
-
 CREATE TABLE public.reportes_comunitarios (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid NOT NULL,
@@ -274,7 +242,6 @@ CREATE TABLE public.reportes_comunitarios (
   CONSTRAINT reportes_comunitarios_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id),
   CONSTRAINT reportes_comunitarios_zona_riesgo_id_fkey FOREIGN KEY (zona_riesgo_id) REFERENCES public.zonas_riesgo(id)
 );
-
 CREATE TABLE public.registros_auditoria (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   usuario_id uuid,
@@ -285,4 +252,91 @@ CREATE TABLE public.registros_auditoria (
   fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT registros_auditoria_pkey PRIMARY KEY (id),
   CONSTRAINT registros_auditoria_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
+);
+CREATE TABLE public.spatial_ref_sys (
+  srid integer NOT NULL CHECK (srid > 0 AND srid <= 998999),
+  auth_name character varying,
+  auth_srid integer,
+  srtext character varying,
+  proj4text character varying,
+  CONSTRAINT spatial_ref_sys_pkey PRIMARY KEY (srid)
+);
+CREATE TABLE public.consentimientos (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  usuario_id uuid,
+  tipo_consentimiento text NOT NULL,
+  otorgado boolean DEFAULT false,
+  CONSTRAINT consentimientos_pkey PRIMARY KEY (id),
+  CONSTRAINT consentimientos_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
+);
+CREATE TABLE public.dispositivos_push (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  usuario_id uuid,
+  fcm_token text NOT NULL UNIQUE,
+  plataforma text,
+  activo boolean NOT NULL DEFAULT true,
+  fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT dispositivos_push_pkey PRIMARY KEY (id),
+  CONSTRAINT dispositivos_push_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
+);
+CREATE TABLE public.seguimiento_salud (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  usuario_id uuid NOT NULL,
+  sintoma text NOT NULL,
+  estado text NOT NULL CHECK (estado = ANY (ARRAY['MEJORO'::text, 'IGUAL'::text, 'EMPEORO'::text, 'NO_SEGURO'::text])),
+  intensidad integer CHECK (intensidad >= 0 AND intensidad <= 10),
+  notas text,
+  fecha_registro timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT seguimiento_salud_pkey PRIMARY KEY (id),
+  CONSTRAINT seguimiento_salud_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
+);
+CREATE TABLE public.objetivos_mejoria (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  usuario_id uuid NOT NULL,
+  titulo text NOT NULL,
+  descripcion text,
+  periodicidad text NOT NULL CHECK (periodicidad = ANY (ARRAY['SEMANAL'::text, 'QUINCENAL'::text, 'MENSUAL'::text, 'TRIMESTRAL'::text, 'SEMESTRAL'::text, 'ANUAL'::text])),
+  fecha_inicio date NOT NULL,
+  fecha_fin date NOT NULL,
+  estado text NOT NULL DEFAULT 'ACTIVO'::text CHECK (estado = ANY (ARRAY['ACTIVO'::text, 'COMPLETADO'::text, 'CANCELADO'::text])),
+  fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
+  fecha_actualizacion timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT objetivos_mejoria_pkey PRIMARY KEY (id),
+  CONSTRAINT objetivos_mejoria_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
+);
+CREATE TABLE public.hitos_mejoria (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  objetivo_id uuid NOT NULL,
+  titulo text NOT NULL,
+  fecha_objetivo date NOT NULL,
+  completado boolean NOT NULL DEFAULT false,
+  fecha_completado timestamp with time zone,
+  fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT hitos_mejoria_pkey PRIMARY KEY (id),
+  CONSTRAINT hitos_mejoria_objetivo_id_fkey FOREIGN KEY (objetivo_id) REFERENCES public.objetivos_mejoria(id)
+);
+CREATE TABLE public.solicitudes_roles (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  usuario_id uuid NOT NULL,
+  rol_solicitado text NOT NULL CHECK (rol_solicitado = 'PROMOTOR'::text),
+  estado text NOT NULL DEFAULT 'PENDIENTE'::text CHECK (estado = ANY (ARRAY['PENDIENTE'::text, 'APROBADA'::text, 'RECHAZADA'::text])),
+  revisado_por uuid,
+  fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
+  fecha_revision timestamp with time zone,
+  CONSTRAINT solicitudes_roles_pkey PRIMARY KEY (id),
+  CONSTRAINT solicitudes_roles_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id),
+  CONSTRAINT solicitudes_roles_revisado_por_fkey FOREIGN KEY (revisado_por) REFERENCES public.usuarios(id)
+);
+CREATE TABLE public.perfiles_backup_20260912 (
+  id uuid,
+  usuario_id uuid,
+  nombre_completo text,
+  fecha_nacimiento date,
+  sexo USER-DEFINED,
+  telefono text,
+  direccion text,
+  municipio text,
+  fecha_creacion timestamp with time zone,
+  fecha_actualizacion timestamp with time zone,
+  foto_path text
 );

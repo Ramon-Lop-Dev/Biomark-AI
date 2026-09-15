@@ -13,6 +13,9 @@ class FakeSupabase:
     def __init__(self, centers):
         self.centers = centers
 
+    def rpc(self, _name, _params):
+        return self
+
     def table(self, _name):
         return self
 
@@ -29,15 +32,11 @@ class GisTests(unittest.TestCase):
         self.assertEqual(especialidades_sugeridas("emergencia de la mujer")[0], "Gineco-obstetricia")
         self.assertEqual(especialidades_sugeridas("dolor de pecho en un niño")[0], "Pediatría")
 
-    def test_prioriza_especialidad_y_omite_fila_invalida(self):
+    def test_prioriza_especialidad_con_rpc_espacial(self):
         locator = HealthCenterLocator(
             FakeSupabase(
                 [
-                    {"nombre": "Puesto cercano", "latitud": 12.0, "longitud": -86.0,
-                     "tipo_unidad": "Puesto de Salud", "especialidades": ["Pediatría"]},
-                    {"nombre": "Hospital pediátrico", "latitud": 12.1, "longitud": -86.1,
-                     "tipo_unidad": "Hospital", "especialidades": ["Pediatría"]},
-                    {"nombre": "Fila inválida", "especialidades": ["Pediatría"]},
+                    {"nombre": "Hospital pediátrico", "nivel_atencion": 3, "metros": 1200},
                 ]
             )
         )
@@ -49,6 +48,7 @@ class GisTests(unittest.TestCase):
         )
         self.assertEqual(result["nombre"], "Hospital pediátrico")
         self.assertEqual(result["especialidad_coincidente"], "Pediatría")
+        self.assertEqual(result["distancia_km"], 1.2)
 
 
 if __name__ == "__main__":

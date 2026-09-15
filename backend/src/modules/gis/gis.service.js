@@ -13,6 +13,28 @@ const getHealthCenters = async () => {
   return data;
 };
 
+const getCentersByViewport = async (params) => {
+  const { data, error } = await gisRepo.listarCentrosEnBbox(params);
+  if (error) throw new AppError('Error al obtener centros del viewport', 500);
+  return data || [];
+};
+
+const getCentersNearby = async (params) => {
+  const { data, error } = await gisRepo.listarCentrosCercanos(params);
+  if (error) throw new AppError('Error al obtener centros cercanos', 500);
+  return (data || []).map((center) => ({
+    ...center,
+    distancia_km: Math.round((Number(center.metros || 0) / 1000) * 10) / 10
+  }));
+};
+
+const getCenterDetails = async (id) => {
+  const { data, error } = await gisRepo.obtenerCentro(id);
+  if (error) throw new AppError('Error al obtener el centro de salud', 500);
+  if (!data) throw new AppError('Centro de salud no encontrado', 404);
+  return data;
+};
+
 /**
  * Devuelve los centros de salud reales ordenados por cercanía a una
  * coordenada, filtrados a un radio máximo (por defecto 15 km).
@@ -23,18 +45,20 @@ const getHealthCenters = async () => {
  * miles de filas, esto debe migrarse a una consulta con ST_DWithin.
  */
 const getNearbyHealthCenters = async (latitude, longitude, radiusKm = 15) => {
-  const { data, error } = await gisRepo.listarCentrosSalud();
+  const { data, error } = await gisRepo.listarCentrosCercanos({
+    lat: latitude,
+    lon: longitude,
+    servicio: null,
+    edad: null,
+    nivel_min: 1,
+    radio_m: Math.round(radiusKm * 1000),
+    limite: 100
+  });
   if (error) throw new AppError('Error al obtener centros de salud', 500);
-
-  if (!data || data.length === 0) return [];
-
-  return data
-    .map((centro) => ({
-      ...centro,
-      distancia_km: Math.round(distanciaKm(latitude, longitude, centro.latitud, centro.longitud) * 10) / 10
-    }))
-    .filter((centro) => centro.distancia_km <= radiusKm)
-    .sort((a, b) => a.distancia_km - b.distancia_km);
+  return (data || []).map((center) => ({
+    ...center,
+    distancia_km: Math.round((Number(center.metros || 0) / 1000) * 10) / 10
+  }));
 };
 
 /**
@@ -125,6 +149,9 @@ const getClosestHealthCenter = async (latitude, longitude, radiusKm = 15) => {
 
 module.exports = {
   getHealthCenters,
+  getCentersByViewport,
+  getCentersNearby,
+  getCenterDetails,
   getNearbyHealthCenters,
   getNearbyCommunityEvents,
   getNearbyRiskZones,

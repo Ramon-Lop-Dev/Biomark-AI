@@ -21,6 +21,18 @@ const getSmartMap = asyncHandler(async (req, res) => {
     return res.status(200).json(data);
 });
 
+const getCentersByViewport = asyncHandler(async (req, res) => {
+    return res.status(200).json(await gisService.getCentersByViewport(req.query));
+});
+
+const getCentersNearby = asyncHandler(async (req, res) => {
+    return res.status(200).json(await gisService.getCentersNearby(req.query));
+});
+
+const getCenterDetails = asyncHandler(async (req, res) => {
+    return res.status(200).json(await gisService.getCenterDetails(req.params.id));
+});
+
 const getClosestHealthCenter = asyncHandler(async (req, res) => {
     const { latitude, longitude, radius_km } = req.query;
     const data = await gisService.getClosestHealthCenter(latitude, longitude, radius_km);
@@ -32,4 +44,13 @@ const recommendNavigation = asyncHandler(async (req, res) => {
     return res.status(200).json(await gisService.recommendNavigation(latitude, longitude, radius_km));
 });
 
-module.exports = { getHealthCenters, getNearbyHealthCenters, getSmartMap, getClosestHealthCenter, recommendNavigation };
+module.exports = {
+    getHealthCenters,
+    getNearbyHealthCenters,
+    getSmartMap,
+    getCentersByViewport,
+    getCentersNearby,
+    getCenterDetails,
+    getClosestHealthCenter,
+    recommendNavigation
+};

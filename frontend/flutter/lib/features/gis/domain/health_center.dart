@@ -7,6 +7,8 @@ class HealthCenter {
   final String address;
   final String phone;
   final double distanceKm;
+  final int level;
+  final bool approximateLocation;
 
   const HealthCenter({
     required this.id,
@@ -17,6 +19,8 @@ class HealthCenter {
     required this.address,
     required this.phone,
     required this.distanceKm,
+    this.level = 2,
+    this.approximateLocation = true,
   });
 
   factory HealthCenter.fromJson(Map<String, dynamic> json) {
@@ -32,6 +36,11 @@ class HealthCenter {
       address: '${json['direccion'] ?? 'Dirección no disponible'}',
       phone: '${json['telefono'] ?? ''}',
       distanceKm: number(json['distancia_km']),
+        level: (json['nivel'] ?? json['nivel_atencion'] ?? 2) is num
+          ? ((json['nivel'] ?? json['nivel_atencion'] ?? 2) as num).toInt()
+          : int.tryParse('${json['nivel'] ?? json['nivel_atencion'] ?? 2}') ?? 2,
+      approximateLocation: json['ubicacion_aproximada'] == true ||
+          '${json['fuente_coordenada'] ?? ''}' == 'aproximada',
     );
   }
 }

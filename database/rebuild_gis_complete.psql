@@ -1,0 +1,14 @@
+-- Biomark AI GIS: ejecucion completa con psql.
+-- Requiere una conexion PostgreSQL/Supabase y el directorio database como cwd.
+-- Supabase SQL Editor: ejecutar los tres archivos .sql en este mismo orden.
+
+\set ON_ERROR_STOP on
+\ir rebuild_gis_01_structure.sql
+\ir centros_salud_rows.sql
+\ir rebuild_gis_02_finalize.sql
+\ir rebuild_gis_03_map_contract.sql
+
+select 'centros_salud' as tabla, count(*) as filas from public.centros_salud;
+select 'centros_sin_geog' as verificacion, count(*) as filas from public.centros_salud where geog is null;
+select 'servicios_asignados' as verificacion, count(*) as filas from public.centro_servicios;
+select nombre, count(*) from public.centros_salud group by nombre having count(*) > 1 order by count(*) desc, nombre;

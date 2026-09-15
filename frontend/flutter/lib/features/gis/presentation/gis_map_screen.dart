@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -17,467 +20,223 @@ class GisMapScreen extends StatefulWidget {
 }
 
 class _GisMapScreenState extends State<GisMapScreen> {
-  static const _defaultLocation = LatLng(12.1364, -86.2514);
+  static const _managua = LatLng(12.1364, -86.2514);
   final _mapController = MapController();
   final _searchController = TextEditingController();
   final _gisApi = GisApi();
+  Timer? _viewportTimer;
 
   List<HealthCenter> _centers = const [];
-  List<RiskZone> _riskZones = const [];
-  List<CommunityEvent> _events = const [];
-  List<CommunityReportPoint> _reports = const [];
-  LatLng _userLocation = _defaultLocation;
-  bool _showRiskZones = false;
-  bool _showEvents = true;
-  bool _showReports = true;
-  bool _showPlacesPanel = true;
+  LatLng _mapCenter = _managua;
+  double _zoom = 12;
   bool _loading = true;
-  String? _errorMessage;
+  bool _locating = false;
+  String? _error;
+  HealthCenter? _selected;
 
   @override
   void initState() {
     super.initState();
     if (widget.initialCenter != null) {
-      setState(() {
-        _userLocation = LatLng(widget.initialCenter!.latitude, widget.initialCenter!.longitude);
-        _centers = [widget.initialCenter!];
-        _loading = false;
-      });
-      _mapController.move(_userLocation, 15);
+      _mapCenter = LatLng(widget.initialCenter!.latitude, widget.initialCenter!.longitude);
+      _zoom = 15;
     }
-    _loadMap();
+    _loadViewport();
   }
 
-  Future<void> _loadMap() async {
-    setState(() {
-      _loading = true;
-      _errorMessage = null;
-    });
+  Future<void> _loadViewport([LatLngBounds? bounds]) async {
+    final visible = bounds ?? _boundsAround(_mapCenter, _zoom);
+    if (mounted) setState(() => _loading = true);
     try {
-      LatLng location;
-      try {
-        final position = await _findUserLocation();
-        location = LatLng(position.latitude, position.longitude);
-      } catch (_) {
-        if (widget.initialCenter == null) rethrow;
-        location = LatLng(widget.initialCenter!.latitude, widget.initialCenter!.longitude);
-      }
-      final data = await _gisApi.fetchNearby(
-        latitude: location.latitude,
-        longitude: location.longitude,
+      final data = await _gisApi.fetchViewport(
+        minLon: visible.west,
+        minLat: visible.south,
+        maxLon: visible.east,
+        maxLat: visible.north,
+        zoom: _zoom,
       );
-      List<CommunityReportPoint> reports = const [];
-      try {
-        reports = await _gisApi.fetchValidatedReports();
-      } catch (_) {
-        // Un fallo del heatmap no debe ocultar centros ni jornadas.
-      }
       if (!mounted) return;
       setState(() {
-        _userLocation = location;
-        _centers = widget.initialCenter == null
-            ? data.centers
-            : [widget.initialCenter!, ...data.centers.where((center) => center.id != widget.initialCenter!.id)];
-        _riskZones = data.riskZones;
-        _events = data.events;
-        _reports = reports;
-        _loading = false;
-      });
-      if (widget.initialCenter == null) {
-        _mapController.move(location, 13.2);
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _centers = _fallbackCenters;
-        _loading = false;
-        _errorMessage =
-            'Mostrando centros de referencia. Conecta tu sesión para ver datos reales.';
-      });
-    }
-  }
-
-  Future<Position> _findUserLocation() async {
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      throw const LocationServiceDisabledException();
-    }
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      throw const PermissionDeniedException('Permiso de ubicación denegado.');
-    }
-    return Geolocator.getCurrentPosition();
-  }
-
-  Future<void> _refreshUserLocation() async {
-    setState(() {
-      _loading = true;
-      _errorMessage = null;
-    });
-    try {
-      final position = await _findUserLocation();
-      final location = LatLng(position.latitude, position.longitude);
-      final data = await _gisApi.fetchNearby(
-        latitude: location.latitude,
-        longitude: location.longitude,
-      );
-      List<CommunityReportPoint> reports = const [];
-      try {
-        reports = await _gisApi.fetchValidatedReports();
-      } catch (_) {}
-      if (!mounted) return;
-      setState(() {
-        _userLocation = location;
         _centers = data.centers;
-        _riskZones = data.riskZones;
-        _events = data.events;
-        _reports = reports;
         _loading = false;
+        _error = null;
       });
-      _mapController.move(location, 14.5);
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _errorMessage = 'No se pudo actualizar tu ubicación. Revisa el GPS y los permisos.';
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'No se pudieron cargar los centros. Revisa tu conexión.';
+      });
     }
   }
 
-  Future<void> _showReportDialog() async {
-    if (_userLocation == _defaultLocation) {
-      _showStatus('Activa tu ubicación para registrar un reporte comunitario.');
-      return;
-    }
-    final report = await showDialog<_CommunityReportDraft>(
-      context: context,
-      builder: (_) => const _CommunityReportDialog(),
+  LatLngBounds _boundsAround(LatLng center, double zoom) {
+    final span = (18 / zoom).clamp(0.04, 2.0).toDouble();
+    return LatLngBounds(
+      LatLng(center.latitude - span, center.longitude - span),
+      LatLng(center.latitude + span, center.longitude + span),
     );
-    if (report == null || !mounted) return;
-    if (report.description.trim().isEmpty) {
-      _showStatus('Describe brevemente la situación antes de enviar.');
-      return;
-    }
+  }
+
+  void _onMapEvent(MapEvent event) {
+    if (event is! MapEventMoveEnd && event is! MapEventFlingAnimationEnd) return;
+    _mapCenter = event.camera.center;
+    _zoom = event.camera.zoom;
+    _viewportTimer?.cancel();
+    _viewportTimer = Timer(const Duration(milliseconds: 250), () {
+      _loadViewport(event.camera.visibleBounds);
+    });
+  }
+
+  Future<void> _locate() async {
+    setState(() => _locating = true);
     try {
-      await _gisApi.createCommunityReport(
-        latitude: _userLocation.latitude,
-        longitude: _userLocation.longitude,
-        description: report.description.trim(),
-        caseCount: report.caseCount,
-      );
-      if (mounted) _showStatus('Reporte enviado. Quedará pendiente de validación.');
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw const LocationServiceDisabledException();
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        throw const PermissionDeniedException('Ubicación denegada');
+      }
+      final position = await Geolocator.getCurrentPosition();
+      _mapController.move(LatLng(position.latitude, position.longitude), 14);
     } catch (_) {
-      if (mounted) _showStatus('No se pudo enviar el reporte comunitario.');
+      _mapController.move(_managua, 12);
+      if (mounted) setState(() => _error = 'Mostrando Managua. Puedes activar la ubicación cuando quieras.');
+    } finally {
+      if (mounted) setState(() => _locating = false);
     }
   }
 
-  void _showStatus(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  void _showReportDetails(CommunityReportPoint report) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Zona con reportes', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text(
-              '${report.caseCount} ${report.caseCount == 1 ? 'caso reportado' : 'casos reportados'} en esta zona.',
-              style: const TextStyle(fontSize: 15),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'La ubicación está aproximada para proteger la privacidad de la comunidad.',
-              style: TextStyle(color: Colors.black54),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<HealthCenter> get _fallbackCenters => const [
-    HealthCenter(
-      id: 'demo-1',
-      name: 'CS. Pedro Altamirano',
-      type: 'VACUNACION',
-      latitude: 12.145,
-      longitude: -86.265,
-      address: 'Managua, Nicaragua',
-      phone: '',
-      distanceKm: 0.8,
-    ),
-    HealthCenter(
-      id: 'demo-2',
-      name: 'Hospital Militar',
-      type: 'HOSPITAL',
-      latitude: 12.126,
-      longitude: -86.24,
-      address: 'Managua, Nicaragua',
-      phone: '',
-      distanceKm: 2.5,
-    ),
-    HealthCenter(
-      id: 'demo-3',
-      name: 'Clínica San Carlos',
-      type: 'CLINICA',
-      latitude: 12.115,
-      longitude: -86.255,
-      address: 'Managua, Nicaragua',
-      phone: '',
-      distanceKm: 3.1,
-    ),
-  ];
-
-  List<HealthCenter> get _filteredCenters {
+  List<HealthCenter> get _visibleCenters {
     final query = _searchController.text.trim().toLowerCase();
-    return _centers.where((center) {
-      final matchesSearch =
-          query.isEmpty ||
-          center.name.toLowerCase().contains(query) ||
-          center.address.toLowerCase().contains(query);
-        return matchesSearch;
-    }).toList();
+    if (query.isEmpty) return _centers;
+    return _centers.where((center) => center.name.toLowerCase().contains(query)).toList();
   }
 
-  void _focusCenter(HealthCenter center) {
+  void _selectCenter(HealthCenter center) {
+    setState(() => _selected = center);
     _mapController.move(LatLng(center.latitude, center.longitude), 15);
   }
 
-  void _showCenterDetails(HealthCenter center) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              center.name,
-              style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${_labelForType(center.type)} · ${_formatDistance(center.distanceKm)}',
-              style: const TextStyle(color: Colors.black54),
-            ),
-            const SizedBox(height: 12),
-            Text(center.address, style: const TextStyle(fontSize: 15)),
-            if (center.phone.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(center.phone),
-            ],
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _focusCenter(center);
-                },
-                icon: const Icon(Icons.near_me_rounded),
-                label: const Text('Ver en el mapa'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> _openDetails(HealthCenter center) async {
+    try {
+      final details = await _gisApi.fetchCenterDetails(center.id);
+      if (mounted) setState(() => _selected = details);
+    } catch (_) {
+      if (mounted) setState(() => _selected = center);
+    }
   }
-
-  String _labelForType(String type) {
-    final normalized = type.toLowerCase();
-    if (normalized.contains('hospital')) return 'Hospital';
-    if (normalized.contains('clinica')) return 'Clínica';
-    if (normalized.contains('vacun')) return 'Vacunación';
-    return 'Centro de salud';
-  }
-
-  String _formatDistance(double distance) =>
-      distance == 0 ? 'Ubicación actual' : '${distance.toStringAsFixed(1)} km';
 
   @override
   Widget build(BuildContext context) {
-    final centers = _filteredCenters;
-    final markers = <Marker>[
-      Marker(
-        point: _userLocation,
-        width: 46,
-        height: 46,
-        child: const _UserMarker(),
-      ),
-      ...centers.map(
-        (center) => Marker(
-          point: LatLng(center.latitude, center.longitude),
-          width: 48,
-          height: 48,
-          child: GestureDetector(
-            onTap: () => _showCenterDetails(center),
-            child: _CenterMarker(center: center),
-          ),
+    final centers = _visibleCenters;
+    final markers = centers.map((center) => Marker(
+      point: LatLng(center.latitude, center.longitude),
+      width: 48,
+      height: 48,
+      child: Semantics(
+        label: center.name,
+        button: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            _selectCenter(center);
+            _openDetails(center);
+          },
+          child: Center(child: _CenterDot(center: center, selected: _selected?.id == center.id)),
         ),
       ),
-      if (_showEvents)
-        ..._events.map((event) => Marker(
-              point: LatLng(event.latitude, event.longitude),
-              width: 46,
-              height: 46,
-              child: GestureDetector(
-                onTap: () => _showStatus('${event.title} · ${event.location}'),
-                child: const _EventMarker(),
-              ),
-            )),
-      if (_showReports)
-        ..._reports.map((report) => Marker(
-              point: LatLng(report.latitude, report.longitude),
-              width: 52,
-              height: 52,
-              child: GestureDetector(
-                onTap: () => _showReportDetails(report),
-                child: _ReportMarker(caseCount: report.caseCount),
-              ),
-            )),
-    ];
+    )).toList();
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: _userLocation,
-              initialZoom: 13.2,
+              initialCenter: _mapCenter,
+              initialZoom: _zoom,
+              onMapEvent: _onMapEvent,
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.biomark.ai',
               ),
-              if (_showRiskZones)
-                CircleLayer(
-                  circles: _riskZones
-                      .map(
-                        (zone) => CircleMarker(
-                          point: LatLng(zone.latitude, zone.longitude),
-                          radius: zone.radiusKm * 1000,
-                          useRadiusInMeter: true,
-                          color: Colors.red.withValues(alpha: .18),
-                          borderColor: Colors.red.withValues(alpha: .55),
-                          borderStrokeWidth: 2,
-                        ),
-                      )
-                      .toList(),
+              MarkerClusterLayerWidget(
+                options: MarkerClusterLayerOptions(
+                  markers: markers,
+                  maxClusterRadius: 55,
+                  size: const Size(42, 42),
+                  builder: (context, markers) => _ClusterDot(count: markers.length),
                 ),
-              if (_showReports)
-                CircleLayer(
-                  circles: _reports.map((report) => CircleMarker(
-                    point: LatLng(report.latitude, report.longitude),
-                    radius: 180 + report.caseCount * 35,
-                    useRadiusInMeter: true,
-                    color: Colors.red.withValues(alpha: .24),
-                    borderColor: Colors.red.withValues(alpha: .75),
-                    borderStrokeWidth: 2,
-                  )).toList(),
-                ),
-              MarkerLayer(markers: markers),
+              ),
+              RichAttributionWidget(
+                alignment: AttributionAlignment.bottomLeft,
+                attributions: [
+                  TextSourceAttribution('OpenStreetMap contributors'),
+                  TextSourceAttribution('CARTO'),
+                ],
+              ),
             ],
           ),
-          Positioned(
-            top: 12,
-            left: 16,
-            right: 16,
-            child: _SearchHeader(
-              controller: _searchController,
-              onChanged: (_) => setState(() {}),
-              onRefresh: _loadMap,
-              loading: _loading,
-            ),
-          ),
-          if (_errorMessage != null)
-            Positioned(
-              top: 66,
-              left: 16,
-              right: 16,
-              child: _StatusBanner(message: _errorMessage!),
-            ),
-          Positioned(
-            left: 16,
-            top: 116,
-            child: Column(
-              children: [
-                _MapControl(
-                  icon: Icons.my_location_rounded,
-                  tooltip: 'Mi ubicación',
-                  label: 'Ubicación',
-                  onTap: _refreshUserLocation,
-                ),
-                const SizedBox(height: 12),
-                _MapControl(
-                  icon: Icons.event_available_rounded,
-                  tooltip: 'Jornadas comunitarias',
-                  label: 'Jornadas',
-                  active: _showEvents,
-                  onTap: () => setState(() => _showEvents = !_showEvents),
-                ),
-                const SizedBox(height: 12),
-                _MapControl(
-                  icon: Icons.report_problem_outlined,
-                  tooltip: 'Reportes comunitarios',
-                  label: 'Reportes',
-                  active: _showReports,
-                  onTap: () => setState(() => _showReports = !_showReports),
-                ),
-                const SizedBox(height: 12),
-                _MapControl(
-                  icon: Icons.warning_amber_rounded,
-                  tooltip: 'Capas de riesgo',
-                  label: 'Riesgo',
-                  active: _showRiskZones,
-                  onTap: () => setState(() => _showRiskZones = !_showRiskZones),
-                ),
-                const SizedBox(height: 12),
-                _MapControl(
-                  icon: _showPlacesPanel ? Icons.keyboard_arrow_down_rounded : Icons.keyboard_arrow_up_rounded,
-                  tooltip: _showPlacesPanel ? 'Ocultar centros cercanos' : 'Mostrar centros cercanos',
-                  label: 'Centros',
-                  active: _showPlacesPanel,
-                  onTap: () => setState(() => _showPlacesPanel = !_showPlacesPanel),
-                ),
-                const SizedBox(height: 12),
-                _MapControl(
-                  icon: Icons.add_location_alt_rounded,
-                  tooltip: 'Reportar situación',
-                  label: 'Reportar',
-                  onTap: _showReportDialog,
-                ),
-              ],
-            ),
-          ),
-          if (_showPlacesPanel)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _CenterCarousel(
-                centers: centers,
-                onTap: _showCenterDetails,
-                onFocus: _focusCenter,
-                onClose: () => setState(() => _showPlacesPanel = false),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Material(
+                      elevation: 3,
+                      borderRadius: BorderRadius.circular(14),
+                      color: Colors.white.withValues(alpha: .96),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (_) => setState(() {}),
+                        decoration: const InputDecoration(
+                          hintText: 'Buscar centro',
+                          prefixIcon: Icon(Icons.search_rounded),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _RoundControl(
+                    icon: _locating ? Icons.sync_rounded : Icons.my_location_rounded,
+                    tooltip: 'Mi ubicación',
+                    onTap: _locate,
+                  ),
+                ],
               ),
             ),
+          ),
+          if (_error != null)
+            Positioned(
+              top: 82,
+              left: 16,
+              right: 16,
+              child: Material(
+                color: Colors.white.withValues(alpha: .94),
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(_error!, style: const TextStyle(fontSize: 12)),
+                ),
+              ),
+            ),
+          if (_loading)
+            const Positioned(top: 0, left: 0, right: 0, child: LinearProgressIndicator(minHeight: 2)),
+          _CenterSheet(
+            centers: centers,
+            selected: _selected,
+            onSelected: _selectCenter,
+            onClose: () => setState(() => _selected = null),
+          ),
         ],
       ),
     );
@@ -485,458 +244,135 @@ class _GisMapScreenState extends State<GisMapScreen> {
 
   @override
   void dispose() {
+    _viewportTimer?.cancel();
     _searchController.dispose();
     _gisApi.dispose();
     super.dispose();
   }
 }
 
-class _CommunityReportDraft {
-  final String description;
-  final int caseCount;
-
-  const _CommunityReportDraft({required this.description, required this.caseCount});
-}
-
-class _CommunityReportDialog extends StatefulWidget {
-  const _CommunityReportDialog();
-
-  @override
-  State<_CommunityReportDialog> createState() => _CommunityReportDialogState();
-}
-
-class _CommunityReportDialogState extends State<_CommunityReportDialog> {
-  final _descriptionController = TextEditingController();
-  int _caseCount = 1;
-
-  @override
-  void dispose() {
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    Navigator.of(context).pop(
-      _CommunityReportDraft(
-        description: _descriptionController.text,
-        caseCount: _caseCount,
-      ),
-    );
-  }
+class _CenterSheet extends StatelessWidget {
+  const _CenterSheet({required this.centers, required this.selected, required this.onSelected, required this.onClose});
+  final List<HealthCenter> centers;
+  final HealthCenter? selected;
+  final ValueChanged<HealthCenter> onSelected;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-      actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-      title: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Image.asset('assets/branding/Icono.png', width: 42, height: 42),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              'Reportar situación',
-              style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
-            ),
-          ),
-        ],
-      ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return DraggableScrollableSheet(
+      initialChildSize: selected == null ? .12 : .42,
+      minChildSize: .12,
+      maxChildSize: .86,
+      snap: true,
+      snapSizes: const [.12, .42, .86],
+      builder: (context, controller) => Material(
+        color: Colors.white,
+        elevation: 12,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        child: ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: [
-            const Text(
-              'Ayúdanos a identificar zonas con posibles casos. Tu reporte será revisado antes de aparecer en el mapa comunitario.',
-              textAlign: TextAlign.justify,
-              style: TextStyle(fontSize: 13, height: 1.35, color: Colors.black87),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _descriptionController,
-              maxLines: 3,
-              textInputAction: TextInputAction.newline,
-              decoration: InputDecoration(
-                labelText: '¿Qué está ocurriendo?',
-                hintText: 'Ej. posibles casos de dengue',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            Center(child: Container(width: 42, height: 4, decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(4)))),
+            const SizedBox(height: 10),
+            if (selected != null) ...[
+              Row(
+                children: [
+                  Expanded(child: Text(selected!.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
+                  IconButton(onPressed: onClose, icon: const Icon(Icons.close)),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
-              initialValue: _caseCount,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: 'Cantidad aproximada de casos',
-                helperText: 'Selecciona cuántos casos observaste.',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              items: List.generate(
-                10,
-                (index) => DropdownMenuItem(value: index + 1, child: Text('${index + 1} casos')),
-              ),
-              onChanged: (value) => setState(() => _caseCount = value ?? 1),
-            ),
+              Text('${_levelLabel(selected!.level)} · ${selected!.distanceKm.toStringAsFixed(1)} km', style: const TextStyle(color: BiomarkColors.blue)),
+              const SizedBox(height: 10),
+              Text(selected!.address, style: const TextStyle(color: Colors.black54)),
+              if (selected!.approximateLocation)
+                const Padding(
+                  padding: EdgeInsets.only(top: 10),
+                  child: Text('Ubicación aproximada. Confirma la dirección antes de ir.', style: TextStyle(color: Colors.deepOrange, fontSize: 12)),
+                ),
+              const SizedBox(height: 14),
+              FilledButton.icon(onPressed: () {}, icon: const Icon(Icons.directions_rounded), label: const Text('Cómo llegar')),
+              const SizedBox(height: 18),
+              const Divider(),
+            ],
+            Text('${centers.length} centros en esta zona', style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            ...centers.take(8).map((center) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: _CenterDot(center: center),
+              title: Text(center.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text(_levelLabel(center.level)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => onSelected(center),
+            )),
           ],
         ),
       ),
-      actions: [
-        SizedBox(
-          width: double.infinity,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              FilledButton.icon(
-                onPressed: _submit,
-                style: FilledButton.styleFrom(
-                  backgroundColor: BiomarkColors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                ),
-                icon: const Icon(Icons.send_rounded),
-                label: const Text('Agregar reporte'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).pop(),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.red.shade700,
-                  side: BorderSide(color: Colors.red.shade300),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                icon: const Icon(Icons.close_rounded),
-                label: const Text('Cancelar'),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
 
-class _SearchHeader extends StatelessWidget {
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onRefresh;
-  final bool loading;
-
-  const _SearchHeader({
-    required this.controller,
-    required this.onChanged,
-    required this.onRefresh,
-    required this.loading,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Material(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              height: 44,
-              child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .88),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 12),
-                ],
-              ),
-              child: TextField(
-                controller: controller,
-                onChanged: onChanged,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search_rounded, size: 20),
-                  hintText: 'Buscar centro de salud',
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        _MapControl(
-          icon: loading ? Icons.sync_rounded : Icons.refresh_rounded,
-          tooltip: 'Actualizar capas del mapa',
-          onTap: onRefresh,
-        ),
-      ],
-    );
-  }
-}
-
-class _CenterCarousel extends StatelessWidget {
-  final List<HealthCenter> centers;
-  final ValueChanged<HealthCenter> onTap;
-  final ValueChanged<HealthCenter> onFocus;
-  final VoidCallback onClose;
-  const _CenterCarousel({
-    required this.centers,
-    required this.onTap,
-    required this.onFocus,
-    required this.onClose,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 148,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
-              children: [
-                Text(
-                  'Centros cercanos (${centers.length})',
-                  style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
-                ),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Ocultar centros cercanos',
-                  onPressed: onClose,
-                  icon: const Icon(Icons.close_rounded, color: Colors.white),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        scrollDirection: Axis.horizontal,
-        itemCount: centers.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final center = centers[index];
-          return GestureDetector(
-            onTap: () => onTap(center),
-            child: SizedBox(
-              width: MediaQuery.sizeOf(context).width * .72,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .88),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 14,
-                      offset: Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            center.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          _formatDistance(center.distanceKm),
-                          style: const TextStyle(
-                            color: BiomarkColors.green,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${_labelForType(center.type)} · Abierto 24h',
-                      style: const TextStyle(color: Colors.black54),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      center.address,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _labelForType(String type) {
-    final normalized = type.toLowerCase();
-    if (normalized.contains('hospital')) return 'Hospital';
-    if (normalized.contains('clinica')) return 'Clínica';
-    if (normalized.contains('vacun')) return 'Vacunación';
-    return 'Centro de salud';
-  }
-
-  String _formatDistance(double distance) =>
-      distance == 0 ? 'Aquí' : '${distance.toStringAsFixed(1)} km';
-}
-
-class _MapControl extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final String? label;
-  final bool active;
-  final VoidCallback onTap;
-  const _MapControl({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.label,
-    this.active = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final foreground = active ? Colors.white : BiomarkColors.black;
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: active ? BiomarkColors.green : Colors.white.withValues(alpha: .92),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(label == null ? 40 : 14)),
-        elevation: 4,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(label == null ? 40 : 14),
-          child: SizedBox(
-            width: label == null ? 48 : 68,
-            height: label == null ? 48 : 52,
-            child: label == null
-                ? Icon(icon, color: foreground)
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(icon, color: foreground, size: 20),
-                      const SizedBox(height: 2),
-                      Text(
-                        label!,
-                        style: TextStyle(color: foreground, fontSize: 9, fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _UserMarker extends StatelessWidget {
-  const _UserMarker();
-  @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      color: BiomarkColors.blue,
-      shape: BoxShape.circle,
-      border: Border.all(color: Colors.white, width: 4),
-      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
-    ),
-    child: const Icon(
-      Icons.person_pin_circle_rounded,
-      color: Colors.white,
-      size: 24,
-    ),
-  );
-}
-
-class _CenterMarker extends StatelessWidget {
+class _CenterDot extends StatelessWidget {
+  const _CenterDot({required this.center, this.selected = false});
   final HealthCenter center;
-  const _CenterMarker({required this.center});
-  @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      color: Colors.white,
-      shape: BoxShape.circle,
-      border: Border.all(color: BiomarkColors.green, width: 2),
-      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
-    ),
-    child: Icon(
-      center.type.toLowerCase().contains('hospital')
-          ? Icons.local_hospital_rounded
-          : Icons.medical_services_rounded,
-      color: BiomarkColors.green,
-      size: 24,
-    ),
-  );
-}
-
-class _EventMarker extends StatelessWidget {
-  const _EventMarker();
+  final bool selected;
 
   @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: BiomarkColors.blue, width: 2),
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
-        ),
-        child: const Icon(Icons.campaign_rounded, color: BiomarkColors.blue, size: 24),
-      );
+  Widget build(BuildContext context) {
+    final size = center.level == 3 ? 16.0 : center.level == 2 ? 12.0 : 8.0;
+    final filled = center.level != 1;
+    final color = center.level == 3 ? BiomarkColors.blue : BiomarkColors.green;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      width: selected ? size * 1.3 : size,
+      height: selected ? size * 1.3 : size,
+      decoration: BoxDecoration(
+        color: filled ? color : Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: filled ? Colors.white : color, width: center.level == 3 ? 2 : 1.5),
+        boxShadow: selected ? [BoxShadow(color: color.withValues(alpha: .25), blurRadius: 0, spreadRadius: 5)] : null,
+      ),
+    );
+  }
 }
 
-class _ReportMarker extends StatelessWidget {
-  final int caseCount;
-
-  const _ReportMarker({required this.caseCount});
+class _ClusterDot extends StatelessWidget {
+  const _ClusterDot({required this.count});
+  final int count;
 
   @override
   Widget build(BuildContext context) => Container(
         alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.redAccent,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 3),
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
-        ),
-        child: Text(
-          '$caseCount',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+        decoration: const BoxDecoration(color: Color(0xffe8e8e8), shape: BoxShape.circle),
+        child: Text('$count', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+      );
+}
+
+class _RoundControl extends StatelessWidget {
+  const _RoundControl({required this.icon, required this.tooltip, required this.onTap});
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.white.withValues(alpha: .96),
+          shape: const CircleBorder(),
+          elevation: 3,
+          child: InkWell(
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+            child: SizedBox(width: 48, height: 48, child: Icon(icon, color: BiomarkColors.blue)),
+          ),
         ),
       );
 }
 
-class _StatusBanner extends StatelessWidget {
-  final String message;
-  const _StatusBanner({required this.message});
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: .92),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Text(
-      message,
-      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-    ),
-  );
-}
+String _levelLabel(int level) => switch (level) {
+      3 => 'Hospital / referencia',
+      2 => 'Centro de salud',
+      _ => 'Puesto de salud',
+    };

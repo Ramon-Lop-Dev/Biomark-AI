@@ -61,6 +61,61 @@ _COMPILADAS = [
 ESPECIALIDADES_FALLBACK = ["Atención general", "Atención general básica", "Multiespecialidad"]
 TIPOS_NO_APTOS_PARA_EMERGENCIA = {"Puesto de Salud"}
 
+SERVICIO_A_CODIGO = {
+    "atención general": "atencion_general",
+    "atención general básica": "atencion_general",
+    "medicina general": "atencion_general",
+    "pediatría": "pediatria",
+    "neonatología": "neonatologia",
+    "cirugía": "cirugia",
+    "cirugía pediátrica": "cirugia_pediatrica",
+    "gineco-obstetricia": "gineco_obstetricia",
+    "salud de la mujer": "salud_mujer",
+    "maternidad": "salud_mujer",
+    "cardiología": "cardiologia",
+    "cardiología pediátrica": "cardiologia",
+    "cardiocirugía": "cardiologia",
+    "hemodinamia": "cardiologia",
+    "dermatología": "dermatologia",
+    "oftalmología": "oftalmologia",
+    "cirugía ocular": "oftalmologia",
+    "audiología": "audiologia",
+    "logopedia": "logopedia",
+    "psiquiatría": "salud_mental",
+    "salud mental": "salud_mental",
+    "adicciones": "adicciones",
+    "endocrinología": "endocrinologia",
+    "diabetes": "endocrinologia",
+    "oncología": "oncologia",
+    "quimioterapia": "oncologia",
+    "radioterapia": "oncologia",
+    "gastroenterología": "gastroenterologia",
+    "endoscopía": "gastroenterologia",
+    "urología": "urologia",
+    "neurología": "neurologia",
+    "rehabilitación física": "rehabilitacion",
+    "medicina física": "rehabilitacion",
+    "gerontología": "gerontologia",
+    "vacunación": "vacunacion",
+    "curaciones": "curaciones",
+    "diagnóstico por imagen": "diagnostico_imagen",
+    "alta tecnología": "diagnostico_imagen",
+    "radiología": "diagnostico_imagen",
+    "tomografía": "diagnostico_imagen",
+    "resonancia magnética": "diagnostico_imagen",
+    "laboratorio": "laboratorio",
+    "citología": "laboratorio",
+    "patología": "laboratorio",
+    "cuidados paliativos": "cuidados_paliativos",
+    "medicina interna": "medicina_interna",
+    "salud del hombre": "salud_hombre",
+    "multiespecialidad": "multiespecialidad",
+}
+
+
+def codigo_servicio(especialidad: str) -> str:
+    return SERVICIO_A_CODIGO.get(especialidad.casefold(), "atencion_general")
+
 
 def _normalizar(texto: str) -> str:
     return "".join(

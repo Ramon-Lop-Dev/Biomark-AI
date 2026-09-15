@@ -3,7 +3,7 @@
 import math
 from typing import TYPE_CHECKING, List, Optional
 
-from gis.specialty_mapper import TIPOS_NO_APTOS_PARA_EMERGENCIA
+from gis.specialty_mapper import codigo_servicio
 
 if TYPE_CHECKING:
     from supabase import Client
@@ -26,29 +26,6 @@ class HealthCenterLocator:
     def __init__(self, supabase_client: "Client"):
         self.supabase = supabase_client
 
-    def _todos_los_centros(self) -> list:
-        try:
-            respuesta = self.supabase.table("centros_salud").select("*").execute()
-            return respuesta.data or []
-        except Exception as error:
-            print(f"[GIS] Error consultando centros_salud: {error}")
-            return []
-
-    def _mas_cercano_de(self, centros: list, latitude: float, longitude: float) -> Optional[dict]:
-        mas_cercano = None
-        distancia_minima = float("inf")
-        for centro in centros:
-            try:
-                distancia = _distancia_km(
-                    latitude, longitude, float(centro["latitud"]), float(centro["longitud"])
-                )
-            except (KeyError, TypeError, ValueError):
-                continue
-            if distancia < distancia_minima:
-                distancia_minima = distancia
-                mas_cercano = {**centro, "distancia_km": round(distancia, 1)}
-        return mas_cercano
-
     def buscar_mas_cercano(
         self,
         latitude: float,
@@ -56,40 +33,31 @@ class HealthCenterLocator:
         especialidades_preferidas: Optional[List[str]] = None,
         excluir_no_aptos_para_emergencia: bool = False,
     ) -> Optional[dict]:
-        centros = self._todos_los_centros()
-        if not centros:
-            return None
+        nivel_minimo = 2 if excluir_no_aptos_para_emergencia else 1
+        servicios = especialidades_preferidas or ["Atención general"]
+        for especialidad in servicios:
+            try:
+                respuesta = self.supabase.rpc(
+                    "centros_cercanos",
+                    {
+                        "p_lat": latitude,
+                        "p_lon": longitude,
+                        "p_servicio": codigo_servicio(especialidad),
+                        "p_edad": None,
+                        "p_nivel_min": nivel_minimo,
+                        "p_radio_m": 50000,
+                        "p_limite": 1,
+                    },
+                ).execute()
+            except Exception as error:
+                print(f"[GIS] Error consultando centros_cercanos: {error}")
+                return None
 
-        candidatos = centros
-        if excluir_no_aptos_para_emergencia:
-            centros_aptos = [
-                centro
-                for centro in centros
-                if centro.get("tipo_unidad") not in TIPOS_NO_APTOS_PARA_EMERGENCIA
-            ]
-            if centros_aptos:
-                candidatos = centros_aptos
+            if respuesta.data:
+                centro = dict(respuesta.data[0])
+                centro["distancia_km"] = round(float(centro.pop("metros", 0)) / 1000, 1)
+                centro["especialidad_coincidente"] = especialidad
+                centro["tipo_unidad"] = "NIVEL_" + str(centro.get("nivel_atencion", ""))
+                return centro
 
-        if especialidades_preferidas:
-            for especialidad in especialidades_preferidas:
-                coincidencias = [
-                    centro
-                    for centro in candidatos
-                    if any(
-                        str(disponible).casefold() == especialidad.casefold()
-                        for disponible in (centro.get("especialidades") or [])
-                    )
-                ]
-                resultado = self._mas_cercano_de(coincidencias, latitude, longitude)
-                if resultado:
-                    resultado["especialidad_coincidente"] = especialidad
-                    return resultado
-
-        # Sin coincidencia de especialidad: se devuelve el centro general más
-        # cercano, pero manteniendo la misma forma de respuesta (con la clave
-        # presente y en null) para que el cliente no tenga que manejar dos
-        # esquemas JSON distintos según hubo match o no.
-        resultado = self._mas_cercano_de(candidatos, latitude, longitude)
-        if resultado is not None:
-            resultado.setdefault("especialidad_coincidente", None)
-        return resultado
+        return None

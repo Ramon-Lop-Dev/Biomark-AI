@@ -18,7 +18,7 @@ class PrivacidadScreen extends StatefulWidget {
 
 class _PrivacidadScreenState extends State<PrivacidadScreen> {
   bool _usoDatosIA = true;
-  bool _bloqueoBiometrico = false;
+  final bool _bloqueoBiometrico = false;
 
   bool _exportando = false;
   bool _guardandoConsentimiento = false;
@@ -40,8 +40,9 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
         ),
         headers: {'Authorization': 'Bearer $token'},
       );
-      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted)
+      if (response.statusCode < 200 || response.statusCode >= 300 || !mounted) {
         return;
+      }
       final items = jsonDecode(response.body);
       if (items is! List) return;
       final consent = items
@@ -51,8 +52,9 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
             (item) => item?['tipo_consentimiento'] == 'CONTEXTO_MEDICO_IA',
             orElse: () => null,
           );
-      if (consent != null)
+      if (consent != null) {
         setState(() => _usoDatosIA = consent['otorgado'] != false);
+      }
     } catch (_) {}
   }
 
