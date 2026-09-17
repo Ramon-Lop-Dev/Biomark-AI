@@ -177,34 +177,39 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTopBar(),
-              const SizedBox(height: 18),
-              _buildProgreso(),
-              const SizedBox(height: 22),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    transitionBuilder: (child, anim) => FadeTransition(
-                      opacity: anim,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0.05, 0),
-                          end: Offset.zero,
-                        ).animate(anim),
-                        child: child,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 750),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTopBar(),
+                  const SizedBox(height: 18),
+                  _buildProgreso(),
+                  const SizedBox(height: 22),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        transitionBuilder: (child, anim) => FadeTransition(
+                          opacity: anim,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0.05, 0),
+                              end: Offset.zero,
+                            ).animate(anim),
+                            child: child,
+                          ),
+                        ),
+                        child: _buildContenidoPaso(),
                       ),
                     ),
-                    child: _buildContenidoPaso(),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  _buildBotonSiguiente(),
+                ],
               ),
-              const SizedBox(height: 16),
-              _buildBotonSiguiente(),
-            ],
+            ),
           ),
         ),
       ),
@@ -224,19 +229,23 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
             height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               boxShadow: [
                 BoxShadow(color: Colors.black.withValues(alpha: .06), blurRadius: 8, offset: const Offset(3, 3)),
               ],
             ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: BiomarkColors.black),
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Theme.of(context).colorScheme.onSurface),
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             widget.editing ? 'Editar encuesta clínica' : 'Antes de conversar con Biomark AI',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
         ),
       ],
@@ -357,7 +366,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
       children: [
         _buildIconoCabecera(icono),
         const SizedBox(height: 18),
-        Text(titulo, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: BiomarkColors.black)),
+        Text(titulo, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface)),
         const SizedBox(height: 6),
         Text(subtitulo, style: const TextStyle(fontSize: 13, color: Color(0xFF7A7A85))),
         const SizedBox(height: 20),
@@ -388,7 +397,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: activo ? BiomarkColors.green.withValues(alpha: .12) : Colors.white,
+                  color: activo ? BiomarkColors.green.withValues(alpha: .12) : Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: activo ? BiomarkColors.green : Colors.transparent,
@@ -405,7 +414,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
-                    color: activo ? BiomarkColors.green : BiomarkColors.black,
+                    color: activo ? BiomarkColors.green : Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -423,9 +432,9 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
       children: [
         _buildIconoCabecera(Icons.medication_liquid_rounded),
         const SizedBox(height: 18),
-        const Text(
+        Text(
           '¿Tomas algún medicamento actualmente?',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface),
         ),
         const SizedBox(height: 6),
         const Text(
@@ -435,7 +444,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
         const SizedBox(height: 20),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 8, offset: const Offset(2, 3)),
@@ -444,6 +453,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
           child: TextField(
             controller: _medicamentosController,
             maxLines: 4,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
             decoration: const InputDecoration(
               hintText: 'Ej. Metformina 500mg, Losartán 50mg...',
               hintStyle: TextStyle(color: Color(0xFF9C9CA6), fontSize: 13.5),
@@ -463,9 +473,9 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
       children: [
         _buildIconoCabecera(Icons.person_outline_rounded),
         const SizedBox(height: 18),
-        const Text(
+        Text(
           'Cuéntanos un poco sobre ti',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface),
         ),
         const SizedBox(height: 6),
         const Text(
@@ -476,6 +486,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
         TextField(
           controller: _edadController,
           keyboardType: TextInputType.number,
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
           decoration: const InputDecoration(
             labelText: 'Edad',
             suffixText: 'años',
@@ -508,9 +519,9 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
       children: [
         _buildIconoCabecera(Icons.fact_check_rounded, color: BiomarkColors.green),
         const SizedBox(height: 18),
-        const Text(
+        Text(
           '¡Listo! Esto es lo que registramos',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface),
         ),
         const SizedBox(height: 6),
         const Text(
@@ -544,7 +555,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 8, offset: const Offset(2, 3)),
@@ -559,7 +570,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(titulo, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: BiomarkColors.black)),
+                Text(titulo, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
                 const SizedBox(height: 3),
                 Text(
                   valores.isEmpty ? 'Sin información' : valores.join(', '),

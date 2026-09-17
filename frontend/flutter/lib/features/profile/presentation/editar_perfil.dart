@@ -83,81 +83,86 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              Stack(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: BiomarkColors.blue.withValues(alpha: .12),
-                    backgroundImage: _fotoSeleccionada != null
-                      ? FileImage(_fotoSeleccionada!)
-                      : widget.fotoUrl != null
-                        ? NetworkImage(widget.fotoUrl!)
-                        : null,
-                    child: _fotoSeleccionada == null && widget.fotoUrl == null
-                        ? const Icon(
-                            Icons.person_rounded,
-                            size: 50,
-                            color: BiomarkColors.blue,
-                          )
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: _cambiarFoto,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: BiomarkColors.blue,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt,
-                          size: 18,
-                          color: Colors.white,
+                  Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: BiomarkColors.blue.withValues(alpha: .12),
+                        backgroundImage: _fotoSeleccionada != null
+                          ? FileImage(_fotoSeleccionada!)
+                          : widget.fotoUrl != null
+                            ? NetworkImage(widget.fotoUrl!)
+                            : null,
+                        child: _fotoSeleccionada == null && widget.fotoUrl == null
+                            ? const Icon(
+                                Icons.person_rounded,
+                                size: 50,
+                                color: BiomarkColors.blue,
+                              )
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _cambiarFoto,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: BiomarkColors.blue,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: _nombreController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre que se muestra en Inicio',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.badge_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    enabled: false,
+                    controller: TextEditingController(text: widget.correo),
+                    decoration: const InputDecoration(
+                      labelText: 'Correo',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    enabled: false,
+                    controller: TextEditingController(
+                      text: widget.edad != null ? widget.edad.toString() : '—',
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Edad (según tu encuesta)',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.cake_outlined),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: _nombreController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre que se muestra en Inicio',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.badge_outlined),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                enabled: false,
-                controller: TextEditingController(text: widget.correo),
-                decoration: const InputDecoration(
-                  labelText: 'Correo',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email_outlined),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                enabled: false,
-                controller: TextEditingController(
-                  text: widget.edad != null ? widget.edad.toString() : '—',
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Edad (según tu encuesta)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.cake_outlined),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

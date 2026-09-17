@@ -687,46 +687,51 @@ class _ChatScreenState extends State<ChatScreen>
               ],
             ),
           ),
-          body: Column(
-            children: [
-              //InfoBar(),
-              Expanded(
-                child: ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                  itemCount: _messages.length + (_isSending ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == _messages.length) return const _TypingBubble();
-                    return _MessageBubble(
-                      message: _messages[index],
-                      onPlayAudio: _messages[index].audioPath == null
-                          ? null
-                          : () => _playAudioFile(_messages[index].audioPath!),
-                    );
-                  },
-                ),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 850),
+              child: Column(
+                children: [
+                  //InfoBar(),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                      itemCount: _messages.length + (_isSending ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == _messages.length) return const _TypingBubble();
+                        return _MessageBubble(
+                          message: _messages[index],
+                          onPlayAudio: _messages[index].audioPath == null
+                              ? null
+                              : () => _playAudioFile(_messages[index].audioPath!),
+                        );
+                      },
+                    ),
+                  ),
+                  if (_errorMessage != null) _ErrorBanner(message: _errorMessage!),
+                  _ChatInput(
+                    controller: _controller,
+                    enabled: !_isSending,
+                    isRecording: _isRecording,
+                    isAudioDraftReady: _audioDraftReady,
+                    audioDraftPaused: _audioDraftPaused,
+                    audioLevel: _audioLevel,
+                    onSend: _sendMessage,
+                    onVoice: _toggleRecording,
+                    onOpenImagePicker: _chooseImageSource,
+                    onLogEvolution: () => _showProgressDialog(),
+                    onSendAudio: _audioDraftPath == null
+                        ? null
+                        : () => _sendRecording(_audioDraftPath!),
+                    onDeleteAudio: _clearAudioDraft,
+                    onPauseAudio: () {
+                      setState(() => _audioDraftPaused = !_audioDraftPaused);
+                    },
+                  ),
+                ],
               ),
-              if (_errorMessage != null) _ErrorBanner(message: _errorMessage!),
-              _ChatInput(
-                controller: _controller,
-                enabled: !_isSending,
-                isRecording: _isRecording,
-                isAudioDraftReady: _audioDraftReady,
-                audioDraftPaused: _audioDraftPaused,
-                audioLevel: _audioLevel,
-                onSend: _sendMessage,
-                onVoice: _toggleRecording,
-                onOpenImagePicker: _chooseImageSource,
-                onLogEvolution: () => _showProgressDialog(),
-                onSendAudio: _audioDraftPath == null
-                    ? null
-                    : () => _sendRecording(_audioDraftPath!),
-                onDeleteAudio: _clearAudioDraft,
-                onPauseAudio: () {
-                  setState(() => _audioDraftPaused = !_audioDraftPaused);
-                },
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -781,7 +786,7 @@ class _MessageBubble extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(top: 4, bottom: 10),
         child: BiomarkClaySurface(
-          color: message.isUser ? BiomarkColors.blue : BiomarkColors.white,
+          color: message.isUser ? BiomarkColors.blue : Theme.of(context).cardColor,
           radius: 18,
           padding: message.imagePath != null
               ? EdgeInsets.zero
@@ -835,7 +840,7 @@ class _MessageBubble extends StatelessWidget {
                       style: textTheme.bodyMedium?.copyWith(
                         color: message.isUser
                             ? BiomarkColors.white
-                            : BiomarkColors.black,
+                            : Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -957,7 +962,7 @@ class _FollowUpActionCard extends StatelessWidget {
       width: MediaQuery.sizeOf(context).width * 0.84,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
@@ -970,26 +975,33 @@ class _FollowUpActionCard extends StatelessWidget {
       child: Column(
         children: [
           if (isRegisterProgress) ...[
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
+                const Icon(
                   Icons.insights_rounded,
                   size: 20,
                   color: Color(0xFF1B8E44),
                 ),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
                   'Seguimiento de Evolución',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               '¿Cómo ha evolucionado tu síntoma hoy?',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Color(0xFF556257)),
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -1042,10 +1054,14 @@ class _FollowUpActionCard extends StatelessWidget {
               color: BiomarkColors.blue,
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Biomark AI detectó una acción para tu seguimiento.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ],
         ],
@@ -1441,19 +1457,20 @@ class _ChatInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
+          constraints: const BoxConstraints(maxWidth: 850),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -1488,23 +1505,27 @@ class _ChatInput extends StatelessWidget {
                           enabled: enabled,
                           textInputAction: TextInputAction.send,
                           onSubmitted: (_) => onSend(),
-                          decoration: const InputDecoration(
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                          decoration: InputDecoration(
                             hintText: 'Describe cómo te sientes...',
+                            hintStyle: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                            ),
                             filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
+                            fillColor: Theme.of(context).cardColor,
+                            border: const OutlineInputBorder(
                               borderRadius: BorderRadius.all(
                                 Radius.circular(30),
                               ),
                               borderSide: BorderSide.none,
                             ),
-                            enabledBorder: OutlineInputBorder(
+                            enabledBorder: const OutlineInputBorder(
                               borderRadius: BorderRadius.all(
                                 Radius.circular(30),
                               ),
                               borderSide: BorderSide.none,
                             ),
-                            focusedBorder: OutlineInputBorder(
+                            focusedBorder: const OutlineInputBorder(
                               borderRadius: BorderRadius.all(
                                 Radius.circular(30),
                               ),
@@ -1514,17 +1535,22 @@ class _ChatInput extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      IconButton.filledTonal(
-                        tooltip: 'Grabar audio',
-                        onPressed: enabled ? onVoice : null,
-                        icon: const Icon(Icons.mic_none_rounded),
-                      ),
-                      const SizedBox(width: 6),
                       IconButton.filled(
                         tooltip: 'Enviar mensaje',
                         onPressed: enabled ? onSend : null,
-                        icon: const Icon(Icons.send_rounded),
+                        style: IconButton.styleFrom(
+                          backgroundColor: BiomarkColors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        icon: const Icon(Icons.send_rounded, size: 20),
                       ),
+                      const SizedBox(width: 4),
+                      IconButton.filledTonal(
+                        tooltip: 'Grabar audio',
+                        onPressed: enabled ? onVoice : null,
+                        icon: const Icon(Icons.mic_rounded, size: 20),
+                      ),
+                      const SizedBox(width: 6),
                     ],
                   ),
           ),
@@ -1538,7 +1564,10 @@ class _VoiceRecordingPanel extends StatefulWidget {
   final VoidCallback onVoice;
   final double audioLevel;
 
-  const _VoiceRecordingPanel({required this.onVoice, required this.audioLevel});
+  const _VoiceRecordingPanel({
+    required this.onVoice,
+    required this.audioLevel,
+  });
 
   @override
   State<_VoiceRecordingPanel> createState() => _VoiceRecordingPanelState();
@@ -1548,12 +1577,12 @@ class _VoiceRecordingPanelState extends State<_VoiceRecordingPanel>
     with TickerProviderStateMixin {
   late final AnimationController _pulseController = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  )..repeat();
+    duration: const Duration(milliseconds: 700),
+  )..repeat(reverse: true);
 
   late final AnimationController _barsController = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 800),
+    duration: const Duration(milliseconds: 900),
   )..repeat();
 
   double _getBarHeight(int index, double time) {
@@ -1573,11 +1602,12 @@ class _VoiceRecordingPanelState extends State<_VoiceRecordingPanel>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 62,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFDCF8C6),
+        color: isDark ? const Color(0xFF1B3822) : const Color(0xFFDCF8C6),
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
@@ -1603,11 +1633,11 @@ class _VoiceRecordingPanelState extends State<_VoiceRecordingPanel>
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
               'Grabando audio...',
               style: TextStyle(
-                color: Color(0xFF1F2A1F),
+                color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF1F2A1F),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1665,11 +1695,12 @@ class _VoiceDraftPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 62,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFDCF8C6),
+        color: isDark ? const Color(0xFF1B3822) : const Color(0xFFDCF8C6),
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
@@ -1686,11 +1717,11 @@ class _VoiceDraftPreview extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 4),
-          const Expanded(
+          Expanded(
             child: Text(
               'Audio listo',
               style: TextStyle(
-                color: Color(0xFF1F2A1F),
+                color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF1F2A1F),
                 fontWeight: FontWeight.w700,
               ),
             ),

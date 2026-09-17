@@ -5,6 +5,7 @@ import '../domain/progress_snapshot.dart';
 import '../../vitals/domain/vital_measurement.dart';
 import '../../vitals/data/vitals_storage.dart';
 import '../../vitals/presentation/scg_screen.dart';
+import '../../../core/design/responsive_layout.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key, this.refreshSignal});
@@ -60,21 +61,26 @@ class _ProgressScreenState extends State<ProgressScreen> {
       future: _progressFuture,
       builder: (context, snapshot) {
         final data = snapshot.data ?? ProgressApi.defaultSnapshot();
-        return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSummary(data),
-              const SizedBox(height: 18),
-              _buildVitalsPulseSummary(),
-              const SizedBox(height: 20),
-              _buildEvolutionSection(),
-              const SizedBox(height: 20),
-              _buildGoalsSection(),
-              const SizedBox(height: 20),
-              _buildRecentMilestones(),
-            ],
+        return Center(
+          child: ResponsiveContainer(
+            maxWidth: 950,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSummary(data),
+                  const SizedBox(height: 18),
+                  _buildVitalsPulseSummary(),
+                  const SizedBox(height: 20),
+                  _buildEvolutionSection(),
+                  const SizedBox(height: 20),
+                  _buildGoalsSection(),
+                  const SizedBox(height: 20),
+                  _buildRecentMilestones(),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -88,12 +94,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Evolución de síntomas',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1B1F1C),
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             TextButton.icon(
@@ -127,9 +133,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE5EBE6)),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                 ),
                 child: Column(
                   children: [
@@ -208,8 +214,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -248,7 +255,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ),
               Text(
                 _formatRecordDate(record.fechaRegistro),
-                style: const TextStyle(fontSize: 11, color: Color(0xFF859388)),
+                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -258,10 +265,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
               Expanded(
                 child: Text(
                   record.sintoma,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1B1F1C),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -269,15 +276,15 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF1F4F1),
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     'Intensidad: ${record.intensidad}/10',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF48564B),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -287,9 +294,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
             const SizedBox(height: 6),
             Text(
               record.notas!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: Color(0xFF5D6B60),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -308,48 +315,51 @@ class _ProgressScreenState extends State<ProgressScreen> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).cardColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (modalContext) => StatefulBuilder(
         builder: (context, setModalState) {
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              20,
-              18,
-              20,
-              MediaQuery.viewInsetsOf(context).bottom + 24,
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  18,
+                  20,
+                  MediaQuery.viewInsetsOf(context).bottom + 24,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'Registrar Evolución de Síntoma',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1B1F1C),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Indica cómo ha progresado tu salud para actualizar tus estadísticas.',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF6C796E)),
-                  ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'Registrar Evolución de Síntoma',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Indica cómo ha progresado tu salud para actualizar tus estadísticas.',
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: symptomController,
@@ -485,10 +495,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 ],
               ),
             ),
-          );
-        },
-      ),
-    );
+          ),
+        ),
+      );
+    },
+  ),
+);
 
     symptomController.dispose();
     notesController.dispose();
@@ -570,7 +582,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Hitos recientes', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1B1F1C))),
+            Text('Hitos recientes', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface)),
             const SizedBox(height: 12),
             if (recent.isEmpty)
               _buildNoGoals()
@@ -593,9 +605,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Mis objetivos',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1B1F1C)),
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface),
             ),
             const SizedBox(height: 12),
             if (snapshot.connectionState == ConnectionState.waiting)
@@ -614,8 +626,15 @@ class _ProgressScreenState extends State<ProgressScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-      child: const Text('Crea un objetivo para comenzar a medir tu mejoría.'),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
+      ),
+      child: Text(
+        'Crea un objetivo para comenzar a medir tu mejoría.',
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
     );
   }
 
@@ -626,7 +645,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.5)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -688,12 +711,15 @@ class _ProgressScreenState extends State<ProgressScreen> {
   String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
   Widget _buildSummary(ProgressSnapshot data) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFEBF9EE), Color(0xFFEAF3FF)],
+        gradient: LinearGradient(
+          colors: isDark
+              ? const [Color(0xFF152A1C), Color(0xFF142436)]
+              : const [Color(0xFFEBF9EE), Color(0xFFEAF3FF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -705,12 +731,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Tu Evolución',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2D20),
+                  color: isDark ? Colors.white : const Color(0xFF1E2D20),
                 ),
               ),
               Container(
@@ -719,13 +745,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.white,
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Text(
+                child: Text(
                   'Esta semana',
                   style: TextStyle(
-                    color: Color(0xFF2C7A32),
+                    color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF2C7A32),
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -739,23 +765,25 @@ class _ProgressScreenState extends State<ProgressScreen> {
             children: [
               Text(
                 '${data.progressPercent}%',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 38,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF0E3B22),
+                  color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF0E3B22),
                 ),
               ),
               const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDAF6E0),
+                  color: isDark
+                      ? const Color(0xFF1E8E3E).withValues(alpha: 0.3)
+                      : const Color(0xFFDAF6E0),
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text(
                   '+${data.deltaPercent}%',
-                  style: const TextStyle(
-                    color: Color(0xFF1E8E3E),
+                  style: TextStyle(
+                    color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF1E8E3E),
                     fontWeight: FontWeight.w700,
                     fontSize: 11,
                   ),
@@ -766,10 +794,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
           const SizedBox(height: 12),
           Text(
             'Día ${data.dayIndex} de 7',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF4E5A4F),
+              color: isDark ? Colors.white70 : const Color(0xFF4E5A4F),
             ),
           ),
           const SizedBox(height: 18),
@@ -787,8 +815,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       height: data.trendValues[index] / 100 * 110,
                       decoration: BoxDecoration(
                         color: index == data.trendValues.length - 1
-                            ? const Color(0xFF1B8E44)
-                            : const Color(0xFF9AD9A6),
+                            ? (isDark ? const Color(0xFF22C55E) : const Color(0xFF1B8E44))
+                            : (isDark ? const Color(0xFF166534) : const Color(0xFF9AD9A6)),
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(12),
                         ),
@@ -800,28 +828,28 @@ class _ProgressScreenState extends State<ProgressScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Lun',
-                style: TextStyle(fontSize: 11, color: Color(0xFF5C665E)),
+                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF5C665E)),
               ),
               Text(
                 'Mar',
-                style: TextStyle(fontSize: 11, color: Color(0xFF5C665E)),
+                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF5C665E)),
               ),
               Text(
                 'Mié',
-                style: TextStyle(fontSize: 11, color: Color(0xFF5C665E)),
+                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF5C665E)),
               ),
               Text(
                 'Jue',
-                style: TextStyle(fontSize: 11, color: Color(0xFF5C665E)),
+                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF5C665E)),
               ),
               Text(
                 'Hoy',
-                style: TextStyle(fontSize: 11, color: Color(0xFF5C665E)),
+                style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : const Color(0xFF5C665E)),
               ),
             ],
           ),
@@ -833,17 +861,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
   Widget _buildVitalsPulseSummary() {
     final vital = _latestVital;
     final isNormal = vital?.status == 'NORMAL';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.2)),
+        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.35 : 0.2)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFEF4444).withValues(alpha: 0.04),
+            color: isDark ? Colors.black26 : const Color(0xFFEF4444).withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -864,12 +893,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Frecuencia Cardíaca (PPG)',
+                Text(
+                  'Frecuencia Cardíaca (SCG)',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1B1F1C),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -896,9 +925,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     ],
                   ),
                 ] else ...[
-                  const Text(
+                  Text(
                     'Sin mediciones hoy · Medir en el pecho',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF6C736F)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
                 ],
               ],
@@ -931,17 +963,20 @@ class _MilestoneRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = milestone.completed
         ? milestone.color
-        : const Color(0xFF7A7F7A);
+        : (isDark ? Colors.white54 : const Color(0xFF7A7F7A));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: milestone.completed ? Colors.white : const Color(0xFFF4F6F4),
+        color: milestone.completed
+            ? Theme.of(context).cardColor
+            : (isDark ? Colors.white.withValues(alpha: 0.05) : const Color(0xFFF4F6F4)),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -955,7 +990,7 @@ class _MilestoneRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: milestone.completed
                   ? milestone.color.withValues(alpha: 0.12)
-                  : const Color(0xFFE4E7E4),
+                  : (isDark ? Colors.white.withValues(alpha: 0.08) : const Color(0xFFE4E7E4)),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -973,18 +1008,18 @@ class _MilestoneRow extends StatelessWidget {
               children: [
                 Text(
                   milestone.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1B1F1C),
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   milestone.subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF6C736F),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.65),
                   ),
                 ),
               ],

@@ -81,12 +81,14 @@ class _LoginScreenState extends State<LoginScreen>
       ? _contentSlide
       : const AlwaysStoppedAnimation<Offset>(Offset.zero);
 
-  static const Color bgTop = BiomarkColors.white;
-  static const Color bgMid = BiomarkColors.white;
-  static const Color bgBottom = BiomarkColors.white;
-  static const Color primaryGreen = BiomarkColors.blue;
-  static const Color textDark = BiomarkColors.black;
-  static const Color textGray = BiomarkColors.black;
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  Color get _bgTop => _isDark ? const Color(0xFF0B111E) : BiomarkColors.backgroundClaro;
+  Color get _bgMid => _isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9);
+  Color get _bgBottom => _isDark ? const Color(0xFF050811) : BiomarkColors.backgroundClaro;
+  Color get _primaryGreen => BiomarkColors.blue;
+  Color get _textDark => _isDark ? Colors.white : BiomarkColors.black;
+  Color get _textGray => _isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+  Color get _cardBg => _isDark ? const Color(0xFF1E293B) : BiomarkColors.white;
 
   @override
   void initState() {
@@ -128,22 +130,31 @@ class _LoginScreenState extends State<LoginScreen>
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: _cardBg,
+        surfaceTintColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        surfaceTintColor: Colors.white,
         icon: Icon(
           icon,
           size: 46,
-          color: isError ? Colors.redAccent : primaryGreen,
+          color: isError ? Colors.redAccent : _primaryGreen,
         ),
-        title: Text(title, textAlign: TextAlign.center),
-        content: Text(message, textAlign: TextAlign.center),
+        title: Text(
+          title,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _textDark, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _textGray),
+        ),
         actionsAlignment: MainAxisAlignment.center,
         actions: [
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
             style: FilledButton.styleFrom(
-              backgroundColor: isError ? Colors.redAccent : primaryGreen,
+              backgroundColor: isError ? Colors.redAccent : _primaryGreen,
             ),
             child: Text(actionLabel),
           ),
@@ -248,12 +259,12 @@ class _LoginScreenState extends State<LoginScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [bgTop, bgMid, bgBottom],
-            stops: [0.0, 0.55, 1.0],
+            colors: [_bgTop, _bgMid, _bgBottom],
+            stops: const [0.0, 0.55, 1.0],
           ),
         ),
         child: SafeArea(
@@ -267,45 +278,43 @@ class _LoginScreenState extends State<LoginScreen>
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: IntrinsicHeight(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 520),
-                          child: Column(
-                            children: [
-                              const SizedBox(height: 28),
-                              FadeTransition(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 28),
+                            FadeTransition(
+                              opacity: _safeContentFade,
+                              child: _buildLogo(),
+                            ),
+                            const SizedBox(height: 20),
+                            FadeTransition(
+                              opacity: _safeContentFade,
+                              child: _buildAuthTabs(),
+                            ),
+                            const SizedBox(height: 20),
+                            SlideTransition(
+                              position: _safeContentSlide,
+                              child: FadeTransition(
                                 opacity: _safeContentFade,
-                                child: _buildLogo(),
+                                child: _buildTitle(),
                               ),
-                              const SizedBox(height: 20),
-                              FadeTransition(
+                            ),
+                            const SizedBox(height: 28),
+                            SlideTransition(
+                              position: _safeContentSlide,
+                              child: FadeTransition(
                                 opacity: _safeContentFade,
-                                child: _buildAuthTabs(),
+                                child: _buildFormCard(),
                               ),
-                              const SizedBox(height: 20),
-                              SlideTransition(
-                                position: _safeContentSlide,
-                                child: FadeTransition(
-                                  opacity: _safeContentFade,
-                                  child: _buildTitle(),
-                                ),
-                              ),
-                              const SizedBox(height: 28),
-                              SlideTransition(
-                                position: _safeContentSlide,
-                                child: FadeTransition(
-                                  opacity: _safeContentFade,
-                                  child: _buildFormCard(),
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -326,10 +335,10 @@ class _LoginScreenState extends State<LoginScreen>
         child: Container(
           padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.18),
+            color: _isDark ? Colors.white.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.25),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.5),
+              color: _isDark ? Colors.white.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.5),
               width: 1,
             ),
           ),
@@ -376,19 +385,19 @@ class _LoginScreenState extends State<LoginScreen>
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: activo
-              ? primaryGreen.withValues(alpha: 0.12)
+              ? _primaryGreen.withValues(alpha: _isDark ? 0.25 : 0.12)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: activo
               ? Border.all(
-                  color: primaryGreen.withValues(alpha: 0.35),
+                  color: _primaryGreen.withValues(alpha: 0.35),
                   width: 1,
                 )
               : null,
           boxShadow: activo
               ? [
                   BoxShadow(
-                    color: primaryGreen.withValues(alpha: 0.08),
+                    color: _primaryGreen.withValues(alpha: 0.08),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
@@ -399,7 +408,7 @@ class _LoginScreenState extends State<LoginScreen>
           texto,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: activo ? primaryGreen : textDark,
+            color: activo ? (_isDark ? const Color(0xFF60A5FA) : _primaryGreen) : _textDark,
             fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
             fontSize: 14,
           ),
@@ -415,10 +424,10 @@ class _LoginScreenState extends State<LoginScreen>
       height: 96,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white,
+        color: _isDark ? const Color(0xFF1E293B) : Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.25),
+            color: Colors.black.withValues(alpha: _isDark ? 0.4 : 0.15),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -440,17 +449,17 @@ class _LoginScreenState extends State<LoginScreen>
     return Column(
       children: [
         Text(
-          'Iniciar Sesión ',
+          'Iniciar Sesión',
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w800,
-            color: textDark,
+            color: _textDark,
           ),
         ),
         const SizedBox(height: 6),
         Text(
           'Ingresa tus credenciales para continuar',
-          style: TextStyle(fontSize: 13, color: textGray),
+          style: TextStyle(fontSize: 13, color: _textGray),
         ),
       ],
     );
@@ -462,23 +471,24 @@ class _LoginScreenState extends State<LoginScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: BiomarkColors.white,
+        color: _cardBg,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
-          // sombra oscura abajo-derecha
           BoxShadow(
-            color: BiomarkColors.blue.withValues(alpha: 0.25),
+            color: _isDark ? Colors.black.withValues(alpha: 0.4) : _primaryGreen.withValues(alpha: 0.15),
             blurRadius: 24,
             offset: const Offset(0, 14),
           ),
-          // "luz" arriba-izquierda (lo que da el efecto clay)
-          const BoxShadow(
-            color: Colors.white,
-            blurRadius: 20,
-            offset: Offset(-6, -6),
-          ),
+          if (!_isDark)
+            const BoxShadow(
+              color: Colors.white,
+              blurRadius: 20,
+              offset: Offset(-6, -6),
+            ),
         ],
-        border: Border.all(color: Colors.white.withValues(alpha: 0.75)),
+        border: Border.all(
+          color: _isDark ? Colors.white.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.75),
+        ),
       ),
       child: Form(
         key: _formKey,
@@ -514,7 +524,7 @@ class _LoginScreenState extends State<LoginScreen>
                   _obscurePassword
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
-                  color: textGray,
+                  color: _textGray,
                 ),
                 onPressed: () {
                   setState(() => _obscurePassword = !_obscurePassword);
@@ -536,7 +546,7 @@ class _LoginScreenState extends State<LoginScreen>
                     context,
                     MaterialPageRoute(
                       builder: (context) => const ForgotPasswordScreen(),
-                    ), //
+                    ),
                   );
                 },
                 style: TextButton.styleFrom(
@@ -544,10 +554,10 @@ class _LoginScreenState extends State<LoginScreen>
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
+                child: Text(
                   '¿Olvidaste tu contraseña?',
                   style: TextStyle(
-                    color: BiomarkColors.blue,
+                    color: _isDark ? const Color(0xFF60A5FA) : _primaryGreen,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -569,10 +579,10 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w600,
-        color: textDark,
+        color: _textDark,
       ),
     );
   }
@@ -590,39 +600,44 @@ class _LoginScreenState extends State<LoginScreen>
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: BiomarkColors.white,
+        color: _isDark ? const Color(0xFF0F172A) : BiomarkColors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.15),
+            color: Colors.black.withValues(alpha: _isDark ? 0.3 : 0.08),
             blurRadius: 8,
             offset: const Offset(2, 2),
           ),
-          const BoxShadow(
-            color: Colors.white,
-            blurRadius: 8,
-            offset: Offset(-2, -2),
-          ),
+          if (!_isDark)
+            const BoxShadow(
+              color: Colors.white,
+              blurRadius: 8,
+              offset: Offset(-2, -2),
+            ),
         ],
-        border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
+        border: Border.all(
+          color: _isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.08),
+        ),
       ),
       child: TextFormField(
         controller: controller,
         obscureText: obscureText,
         keyboardType: keyboardType,
         validator: validator,
-        style: const TextStyle(color: textDark, fontSize: 14),
+        style: TextStyle(color: _textDark, fontSize: 14),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: textGray, size: 20),
+          prefixIcon: Icon(icon, color: _textGray, size: 20),
           suffixIcon: suffixIcon,
           hintText: floatingHint ? null : hint,
+          hintStyle: TextStyle(color: _textGray.withValues(alpha: 0.6)),
           floatingLabelBehavior: floatingHint
               ? FloatingLabelBehavior.auto
               : FloatingLabelBehavior.never,
           labelText: floatingHint ? hint : null,
           floatingLabelStyle: TextStyle(
-            color: primaryGreen.withValues(alpha: 0.9),
+            color: _isDark ? const Color(0xFF60A5FA) : _primaryGreen,
           ),
+          labelStyle: TextStyle(color: _textGray),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             vertical: 16,
@@ -641,10 +656,10 @@ class _LoginScreenState extends State<LoginScreen>
       child: ElevatedButton(
         onPressed: _isLoading ? null : _handleLogin,
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryGreen,
+          backgroundColor: _primaryGreen,
           foregroundColor: Colors.white,
           elevation: 6,
-          shadowColor: primaryGreen.withValues(alpha: 0.5),
+          shadowColor: _primaryGreen.withValues(alpha: _isDark ? 0.3 : 0.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -669,15 +684,15 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
+        Expanded(child: Divider(color: _isDark ? Colors.white24 : Colors.grey.withValues(alpha: 0.3))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
             'o continúa con',
-            style: TextStyle(color: textGray, fontSize: 12),
+            style: TextStyle(color: _textGray, fontSize: 12),
           ),
         ),
-        Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.3))),
+        Expanded(child: Divider(color: _isDark ? Colors.white24 : Colors.grey.withValues(alpha: 0.3))),
       ],
     );
   }
@@ -711,14 +726,14 @@ class _LoginScreenState extends State<LoginScreen>
   }) {
     return OutlinedButton.icon(
       onPressed: onTap,
-      icon: Icon(icon, size: 20, color: textDark),
+      icon: Icon(icon, size: 20, color: _textDark),
       label: Text(
         label,
-        style: const TextStyle(color: textDark, fontWeight: FontWeight.w600),
+        style: TextStyle(color: _textDark, fontWeight: FontWeight.w600),
       ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 14),
-        side: BorderSide(color: Colors.grey.withValues(alpha: 0.3)),
+        side: BorderSide(color: _isDark ? Colors.white24 : Colors.grey.withValues(alpha: 0.3)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );

@@ -618,7 +618,7 @@ class _CenterSheet extends StatelessWidget {
       snap: true,
       snapSizes: const [.085, .38, .86],
       builder: (context, controller) => Material(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         elevation: 12,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
         child: ListView(
@@ -630,7 +630,7 @@ class _CenterSheet extends StatelessWidget {
                 width: 42,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.black12,
+                  color: Theme.of(context).dividerColor,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -659,13 +659,18 @@ class _CenterSheet extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Especializado en: ${selected!.specialties.take(3).join(', ')}',
-                  style: const TextStyle(color: Colors.black87, fontSize: 13),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 13,
+                  ),
                 ),
               ],
               const SizedBox(height: 10),
               Text(
                 selected!.address,
-                style: const TextStyle(color: Colors.black54),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               if (selected!.approximateLocation)
                 const Padding(

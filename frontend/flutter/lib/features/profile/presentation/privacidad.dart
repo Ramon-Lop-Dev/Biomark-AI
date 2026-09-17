@@ -174,133 +174,142 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    final dividerColor = theme.dividerColor;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: BiomarkColors.black,
+            color: onSurface,
             size: 20,
           ),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
+        title: Text(
           'Privacidad y datos médicos',
           style: TextStyle(
-            color: BiomarkColors.black,
+            color: onSurface,
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
         ),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          children: [
-            _buildSeccionTitulo('Control de tus datos'),
-            const SizedBox(height: 10),
-            _buildTarjeta(
-              child: Column(
-                children: [
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
-                  _buildFilaSwitch(
-                    icono: Icons.psychology_alt_rounded,
-                    titulo: 'Uso de datos por Biomark AI',
-                    subtitulo:
-                        'Permite que la IA use tu historial para personalizar consejos',
-                    valor: _usoDatosIA,
-                    onChanged: _guardandoConsentimiento
-                        ? null
-                        : (_) => _alternarUsoDatosIA(),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              children: [
+                _buildSeccionTitulo('Control de tus datos'),
+                const SizedBox(height: 10),
+                _buildTarjeta(
+                  child: Column(
+                    children: [
+                      _buildFilaSwitch(
+                        icono: Icons.psychology_alt_rounded,
+                        titulo: 'Uso de datos por Biomark AI',
+                        subtitulo:
+                            'Permite que la IA use tu historial para personalizar consejos',
+                        valor: _usoDatosIA,
+                        onChanged: _guardandoConsentimiento
+                            ? null
+                            : (_) => _alternarUsoDatosIA(),
+                      ),
+                      Divider(height: 24, color: dividerColor),
+                      _buildFilaSwitch(
+                        icono: Icons.fingerprint_rounded,
+                        titulo: 'Bloqueo biométrico (PROXIMAMENTE)',
+                        subtitulo:
+                            'Pide huella o Face ID antes de mostrar tus datos médicos',
+                        valor: _bloqueoBiometrico,
+                        onChanged: null,
+                      ),
+                    ],
                   ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
-                  _buildFilaSwitch(
-                    icono: Icons.fingerprint_rounded,
-                    titulo: 'Bloqueo biométrico (PROXIMAMENTE)',
-                    subtitulo:
-                        'Pide huella o Face ID antes de mostrar tus datos médicos',
-                    valor: _bloqueoBiometrico,
-                    onChanged: null,
+                ),
+                const SizedBox(height: 22),
+                _buildSeccionTitulo('Tus datos'),
+                const SizedBox(height: 10),
+                _buildTarjeta(
+                  child: Column(
+                    children: [
+                      _buildFilaAccion(
+                        icono: Icons.download_outlined,
+                        titulo: 'Descargar mis datos',
+                        subtitulo: 'Recibe una copia de tu historial médico en PDF',
+                        accion: _exportando
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Icon(
+                                Icons.chevron_right_rounded,
+                                color: onSurface.withValues(alpha: .35),
+                              ),
+                        onTap: _exportando ? null : _exportarDatos,
+                      ),
+                      Divider(height: 24, color: dividerColor),
+                      _buildFilaAccion(
+                        icono: Icons.delete_outline_rounded,
+                        titulo: 'Eliminar mi cuenta y datos',
+                        subtitulo:
+                            'Elimina permanentemente tu perfil y antecedentes',
+                        colorIcono: Colors.redAccent,
+                        colorTitulo: Colors.redAccent,
+                        accion: Icon(
+                          Icons.chevron_right_rounded,
+                          color: onSurface.withValues(alpha: .35),
+                        ),
+                        onTap: _confirmarEliminarCuenta,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 22),
+                _buildSeccionTitulo('Legal'),
+                const SizedBox(height: 10),
+                _buildTarjeta(
+                  child: Column(
+                    children: [
+                      _buildFilaAccion(
+                        icono: Icons.privacy_tip_outlined,
+                        titulo: 'Política de privacidad',
+                        accion: Icon(
+                          Icons.chevron_right_rounded,
+                          color: onSurface.withValues(alpha: .35),
+                        ),
+                        onTap: () {
+                          // TODO: abrir la URL real, ej. con url_launcher.
+                        },
+                      ),
+                      Divider(height: 24, color: dividerColor),
+                      _buildFilaAccion(
+                        icono: Icons.description_outlined,
+                        titulo: 'Términos de servicio',
+                        accion: Icon(
+                          Icons.chevron_right_rounded,
+                          color: onSurface.withValues(alpha: .35),
+                        ),
+                        onTap: () {
+                          // TODO: abrir la URL real, ej. con url_launcher.
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 22),
-            _buildSeccionTitulo('Tus datos'),
-            const SizedBox(height: 10),
-            _buildTarjeta(
-              child: Column(
-                children: [
-                  _buildFilaAccion(
-                    icono: Icons.download_outlined,
-                    titulo: 'Descargar mis datos',
-                    subtitulo: 'Recibe una copia de tu historial médico en PDF',
-                    accion: _exportando
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(
-                            Icons.chevron_right_rounded,
-                            color: Color(0xFFBFBFC9),
-                          ),
-                    onTap: _exportando ? null : _exportarDatos,
-                  ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
-                  _buildFilaAccion(
-                    icono: Icons.delete_outline_rounded,
-                    titulo: 'Eliminar mi cuenta y datos',
-                    subtitulo:
-                        'Elimina permanentemente tu perfil y antecedentes',
-                    colorIcono: Colors.redAccent,
-                    colorTitulo: Colors.redAccent,
-                    accion: const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Color(0xFFBFBFC9),
-                    ),
-                    onTap: _confirmarEliminarCuenta,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-            _buildSeccionTitulo('Legal'),
-            const SizedBox(height: 10),
-            _buildTarjeta(
-              child: Column(
-                children: [
-                  _buildFilaAccion(
-                    icono: Icons.privacy_tip_outlined,
-                    titulo: 'Política de privacidad',
-                    accion: const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Color(0xFFBFBFC9),
-                    ),
-                    onTap: () {
-                      // TODO: abrir la URL real, ej. con url_launcher.
-                    },
-                  ),
-                  const Divider(height: 24, color: Color(0xFFEFEFF3)),
-                  _buildFilaAccion(
-                    icono: Icons.description_outlined,
-                    titulo: 'Términos de servicio',
-                    accion: const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Color(0xFFBFBFC9),
-                    ),
-                    onTap: () {
-                      // TODO: abrir la URL real, ej. con url_launcher.
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -313,6 +322,9 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
     required bool valor,
     required ValueChanged<bool>? onChanged,
   }) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+
     return Row(
       children: [
         Container(
@@ -331,16 +343,19 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
             children: [
               Text(
                 titulo,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
-                  color: BiomarkColors.black,
+                  color: onSurface,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitulo,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF9C9CA6)),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: onSurface.withValues(alpha: .5),
+                ),
               ),
             ],
           ),
@@ -361,8 +376,11 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
     required Widget accion,
     VoidCallback? onTap,
     Color colorIcono = BiomarkColors.blue,
-    Color colorTitulo = BiomarkColors.black,
+    Color? colorTitulo,
   }) {
+    final theme = Theme.of(context);
+    final effectiveTitleColor = colorTitulo ?? theme.colorScheme.onSurface;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -387,16 +405,16 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
-                    color: colorTitulo,
+                    color: effectiveTitleColor,
                   ),
                 ),
                 if (subtitulo != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     subtitulo,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF9C9CA6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: .5),
                     ),
                   ),
                 ],
@@ -412,23 +430,26 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
   Widget _buildSeccionTitulo(String texto) {
     return Text(
       texto,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 12.5,
         fontWeight: FontWeight.w700,
-        color: Color(0xFF7A7A85),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: .65),
       ),
     );
   }
 
   Widget _buildTarjeta({required Widget child}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: .05),
+            color: Colors.black.withValues(alpha: isDark ? .25 : .05),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),

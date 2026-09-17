@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
@@ -278,9 +279,14 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: _measurementFinished ? _buildResultsView() : _buildMeasuringView(),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: _measurementFinished ? _buildResultsView() : _buildMeasuringView(),
+            ),
+          ),
         ),
       ),
     );
@@ -289,6 +295,34 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
   Widget _buildMeasuringView() {
     return Column(
       children: [
+        if (kIsWeb)
+          Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: BiomarkColors.blue.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.35)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.devices_other, color: BiomarkColors.blue, size: 22),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'La sismocardiografía torácica mide las micro-vibraciones cardíacas con el celular apoyado sobre tu pecho. Para registrar tu pulso en vivo, abre Biomark AI desde tu dispositivo móvil.',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 11.5,
+                      color: Colors.white,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         // Selector de Postura
         _buildPostureSelector(),
         const SizedBox(height: 16),

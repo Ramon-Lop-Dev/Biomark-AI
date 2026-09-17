@@ -168,37 +168,78 @@ class _AppShellState extends State<AppShell> {
   }
 
   PreferredSizeWidget _buildAppBar() {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isWide = screenWidth > 650;
+
     return AppBar(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       elevation: 0,
-      titleSpacing: 16,
-      title: Image.asset(
-        'assets/branding/Logo_Horizontal.png',
-        width: 140,
-        height: 40,
-        fit: BoxFit.contain,
-        semanticLabel: 'Biomark AI',
-      ),
-      actions: [
-        IconButton(
-          tooltip: 'Mi perfil',
-          icon: Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: BiomarkColors.blue.withValues(alpha: .12),
+      titleSpacing: isWide ? 0 : 16,
+      centerTitle: isWide,
+      title: isWide
+          ? Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1050),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Image.asset(
+                      'assets/branding/Logo_Horizontal.png',
+                      width: 140,
+                      height: 40,
+                      fit: BoxFit.contain,
+                      semanticLabel: 'Biomark AI',
+                    ),
+                    IconButton(
+                      tooltip: 'Mi perfil',
+                      icon: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: BiomarkColors.blue.withValues(alpha: .12),
+                        ),
+                        child: const Icon(
+                          Icons.person_rounded,
+                          color: BiomarkColors.blue,
+                          size: 20,
+                        ),
+                      ),
+                      onPressed: _openProfile,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : Image.asset(
+              'assets/branding/Logo_Horizontal.png',
+              width: 140,
+              height: 40,
+              fit: BoxFit.contain,
+              semanticLabel: 'Biomark AI',
             ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: BiomarkColors.blue,
-              size: 20,
-            ),
-          ),
-          onPressed: _openProfile,
-        ),
-        const SizedBox(width: 6),
-      ],
+      actions: isWide
+          ? null
+          : [
+              IconButton(
+                tooltip: 'Mi perfil',
+                icon: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: BiomarkColors.blue.withValues(alpha: .12),
+                  ),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    color: BiomarkColors.blue,
+                    size: 20,
+                  ),
+                ),
+                onPressed: _openProfile,
+              ),
+              const SizedBox(width: 6),
+            ],
     );
   }
 
@@ -248,74 +289,80 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _buildBottomNav() {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isWide = screenWidth > 650;
+
     return SafeArea(
       top: false,
-      child: SizedBox(
-        height: 96,
-        child: Stack(
-          alignment: Alignment.topCenter,
-          children: [
-            Positioned(
-              left: 18,
-              right: 18,
-              top: 28,
-              bottom: 8,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(32),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .08),
-                      blurRadius: 12,
-                      offset: const Offset(4, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(child: _navItem(0)),
-                    Expanded(child: _navItem(1)),
-                    const SizedBox(width: 62),
-                    Expanded(child: _navItem(2)),
-                    Expanded(child: _navItem(3)),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              top: 0,
-              child: GestureDetector(
-                onTap: _openChat,
+      child: Center(
+        child: SizedBox(
+          width: isWide ? 620 : double.infinity,
+          height: 96,
+          child: Stack(
+            alignment: Alignment.topCenter,
+            children: [
+              Positioned(
+                left: isWide ? 20 : 18,
+                right: isWide ? 20 : 18,
+                top: 28,
+                bottom: 8,
                 child: Container(
-                  width: 64,
-                  height: 64,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF46AB39), Color(0xFF006E03)],
-                    ),
-                    border: Border.all(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      width: 4,
-                    ),
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(32),
                     boxShadow: [
                       BoxShadow(
-                        color: BiomarkColors.green.withValues(alpha: .45),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
+                        color: Colors.black.withValues(alpha: .08),
+                        blurRadius: 12,
+                        offset: const Offset(4, 6),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.chat_bubble_rounded,
-                    color: Colors.white,
-                    size: 26,
+                  child: Row(
+                    children: [
+                      Expanded(child: _navItem(0)),
+                      Expanded(child: _navItem(1)),
+                      const SizedBox(width: 62),
+                      Expanded(child: _navItem(2)),
+                      Expanded(child: _navItem(3)),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ],
+              Positioned(
+                top: 0,
+                child: GestureDetector(
+                  onTap: _openChat,
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF46AB39), Color(0xFF006E03)],
+                      ),
+                      border: Border.all(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                        width: 4,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: BiomarkColors.green.withValues(alpha: .45),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.chat_bubble_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

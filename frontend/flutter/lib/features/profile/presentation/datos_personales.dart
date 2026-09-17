@@ -108,99 +108,104 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
         ],
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          children: [
-            _buildSeccionTitulo('Información básica'),
-            const SizedBox(height: 10),
-            _buildTarjeta(
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _nombreController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre',
-                      border: InputBorder.none,
-                      prefixIcon: Icon(
-                        Icons.badge_outlined,
-                        color: BiomarkColors.blue,
-                      ),
-                    ),
-                  ),
-                  Divider(height: 1, color: Theme.of(context).dividerColor),
-                  DropdownButtonFormField<String>(
-                    initialValue: _generoSeleccionado,
-                    decoration: const InputDecoration(
-                      labelText: 'Género',
-                      border: InputBorder.none,
-                      prefixIcon: Icon(
-                        Icons.wc_rounded,
-                        color: BiomarkColors.blue,
-                      ),
-                    ),
-                    hint: const Text('Selecciona'),
-                    items: _opcionesGenero
-                        .map(
-                          (g) => DropdownMenuItem(value: g, child: Text(g)),
-                        )
-                        .toList(),
-                    onChanged: (valor) {
-                      setState(() => _generoSeleccionado = valor);
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
-                _buildSeccionTitulo('Mis antecedentes'),
-                TextButton.icon(
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AntecedentesScreen(),
+                _buildSeccionTitulo('Información básica'),
+                const SizedBox(height: 10),
+                _buildTarjeta(
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _nombreController,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre',
+                          border: InputBorder.none,
+                          prefixIcon: Icon(
+                            Icons.badge_outlined,
+                            color: BiomarkColors.blue,
+                          ),
+                        ),
                       ),
-                    );
-                    // Al volver, refrescamos por si se editó algo.
-                    if (mounted) setState(() {});
-                  },
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  label: const Text('Editar'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: BiomarkColors.blue,
-                    padding: EdgeInsets.zero,
+                      Divider(height: 1, color: Theme.of(context).dividerColor),
+                      DropdownButtonFormField<String>(
+                        initialValue: _generoSeleccionado,
+                        decoration: const InputDecoration(
+                          labelText: 'Género',
+                          border: InputBorder.none,
+                          prefixIcon: Icon(
+                            Icons.wc_rounded,
+                            color: BiomarkColors.blue,
+                          ),
+                        ),
+                        hint: const Text('Selecciona'),
+                        items: _opcionesGenero
+                            .map(
+                              (g) => DropdownMenuItem(value: g, child: Text(g)),
+                            )
+                            .toList(),
+                        onChanged: (valor) {
+                          setState(() => _generoSeleccionado = valor);
+                        },
+                      ),
+                    ],
                   ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildSeccionTitulo('Mis antecedentes'),
+                    TextButton.icon(
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AntecedentesScreen(),
+                          ),
+                        );
+                        // Al volver, refrescamos por si se editó algo.
+                        if (mounted) setState(() {});
+                      },
+                      icon: const Icon(Icons.edit_outlined, size: 16),
+                      label: const Text('Editar'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: BiomarkColors.blue,
+                        padding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _buildResumenAntecedentes(
+                  icono: Icons.medical_information_outlined,
+                  titulo: 'Enfermedades crónicas',
+                  valores: cronicas,
+                ),
+                const SizedBox(height: 12),
+                _buildResumenAntecedentes(
+                  icono: Icons.family_restroom_rounded,
+                  titulo: 'Antecedentes hereditarios',
+                  valores: hereditarios,
+                ),
+                const SizedBox(height: 12),
+                _buildResumenAntecedentes(
+                  icono: Icons.warning_amber_rounded,
+                  titulo: 'Alergias',
+                  valores: alergias,
+                ),
+                const SizedBox(height: 12),
+                _buildResumenAntecedentes(
+                  icono: Icons.medication_liquid_rounded,
+                  titulo: 'Medicamentos actuales',
+                  valores: medicamentos.trim().isEmpty ? [] : [medicamentos],
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            _buildResumenAntecedentes(
-              icono: Icons.medical_information_outlined,
-              titulo: 'Enfermedades crónicas',
-              valores: cronicas,
-            ),
-            const SizedBox(height: 12),
-            _buildResumenAntecedentes(
-              icono: Icons.family_restroom_rounded,
-              titulo: 'Antecedentes hereditarios',
-              valores: hereditarios,
-            ),
-            const SizedBox(height: 12),
-            _buildResumenAntecedentes(
-              icono: Icons.warning_amber_rounded,
-              titulo: 'Alergias',
-              valores: alergias,
-            ),
-            const SizedBox(height: 12),
-            _buildResumenAntecedentes(
-              icono: Icons.medication_liquid_rounded,
-              titulo: 'Medicamentos actuales',
-              valores: medicamentos.trim().isEmpty ? [] : [medicamentos],
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -129,15 +129,21 @@ class _PromoterDashboardScreenState extends State<PromoterDashboardScreen> {
     final breakdown = (_stats['por_estado'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
     return RefreshIndicator(
       onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-        children: [
-          const Text('Panel comunitario', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          const Text('Coordina jornadas y revisa las señales de salud del territorio.', style: TextStyle(color: Colors.black54)),
-          const SizedBox(height: 18),
-          if (_error != null) _PanelMessage(message: _error!, icon: Icons.cloud_off_rounded),
-          if (_loading) const LinearProgressIndicator(),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 950),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+            children: [
+              const Text('Panel comunitario', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 4),
+              Text(
+                'Coordina jornadas y revisa las señales de salud del territorio.',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 18),
+              if (_error != null) _PanelMessage(message: _error!, icon: Icons.cloud_off_rounded),
+              if (_loading) const LinearProgressIndicator(),
           Row(children: [
             Expanded(child: _MetricCard(label: 'Pendientes', value: '${breakdown['PENDIENTE_VALIDACION'] ?? _pending.length}', color: Colors.orange, icon: Icons.pending_actions_rounded)),
             const SizedBox(width: 10),
@@ -162,7 +168,9 @@ class _PromoterDashboardScreenState extends State<PromoterDashboardScreen> {
           ..._events.take(4).map((event) => _EventTile(event: event)),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 
   List<Widget> _sectorSummary() {
@@ -197,20 +205,28 @@ class _PromoterEventsScreenState extends State<PromoterEventsScreen> {
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            Row(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 950),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
-                const Expanded(child: Text('Jornadas', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800))),
-                IconButton(onPressed: _create, tooltip: 'Crear jornada', icon: const Icon(Icons.add_circle_rounded, color: BiomarkColors.green)),
+                Row(
+                  children: [
+                    const Expanded(child: Text('Jornadas', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800))),
+                    IconButton(onPressed: _create, tooltip: 'Crear jornada', icon: const Icon(Icons.add_circle_rounded, color: BiomarkColors.green)),
+                  ],
+                ),
+                Text(
+                  'Organiza actividades de salud para tu comunidad.',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 18),
+                if (_loading) const LinearProgressIndicator(),
+                ..._events.map((event) => _EventTile(event: event)),
               ],
             ),
-            const Text('Organiza actividades de salud para tu comunidad.', style: TextStyle(color: Colors.black54)),
-            const SizedBox(height: 18),
-            if (_loading) const LinearProgressIndicator(),
-            ..._events.map((event) => _EventTile(event: event)),
-          ],
+          ),
         ),
       ),
     );
@@ -343,7 +359,7 @@ class _CreateEventSheetState extends State<_CreateEventSheet> {
   Future<void> _pickLocation() async { final point = await showDialog<LatLng>(context: context, builder: (_) => const _EventLocationPicker()); if (point != null && mounted) { setState(() { _selectedLocation = point; _latitude.text = point.latitude.toStringAsFixed(6); _longitude.text = point.longitude.toStringAsFixed(6); }); } }
   Future<void> _save() async { if (_title.text.trim().isEmpty || _location.text.trim().isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Completa título y ubicación.'))); return; } if (_selectedLocation == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona el lugar de la jornada en el mapa.'))); return; } final latitude = double.tryParse(_latitude.text.trim()); final longitude = double.tryParse(_longitude.text.trim()); setState(() => _saving = true); try { await widget.api.createEvent(title: _title.text.trim(), description: _description.text.trim(), date: _date.toUtc().toIso8601String(), location: _location.text.trim(), type: _type, latitude: latitude, longitude: longitude); if (mounted) Navigator.pop(context, true); } catch (error) { if (mounted) { setState(() => _saving = false); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error'))); } } }
   @override
-  Widget build(BuildContext context) => Padding(padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom), child: DraggableScrollableSheet(initialChildSize: .82, maxChildSize: .95, builder: (_, controller) => Material(borderRadius: const BorderRadius.vertical(top: Radius.circular(24)), child: ListView(controller: controller, padding: const EdgeInsets.all(20), children: [Row(children: [const Expanded(child: Text('Crear jornada', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800))), IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded))]), TextField(controller: _title, decoration: const InputDecoration(labelText: 'Título *')), const SizedBox(height: 12), TextField(controller: _description, maxLines: 2, decoration: const InputDecoration(labelText: 'Descripción')), const SizedBox(height: 12), DropdownButtonFormField<String>(initialValue: _type, isExpanded: true, decoration: const InputDecoration(labelText: 'Tipo de jornada'), items: _types.entries.map((entry) => DropdownMenuItem(value: entry.key, child: Text(entry.value))).toList(), onChanged: (value) => setState(() => _type = value ?? _type)), const SizedBox(height: 12), TextField(controller: _location, decoration: const InputDecoration(labelText: 'Ubicación textual *', hintText: 'Ej. Casa comunal del barrio')), const SizedBox(height: 12), OutlinedButton.icon(onPressed: _pickLocation, icon: const Icon(Icons.map_outlined), label: Text(_selectedLocation == null ? 'Seleccionar punto en el mapa' : 'Punto seleccionado')), if (_selectedLocation != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Ubicación lista para publicar: ${_selectedLocation!.latitude.toStringAsFixed(5)}, ${_selectedLocation!.longitude.toStringAsFixed(5)}', style: const TextStyle(fontSize: 11, color: Colors.black54))), const SizedBox(height: 12), ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.calendar_month_rounded), title: Text('Fecha y hora: ${_date.day}/${_date.month}/${_date.year} ${_date.hour.toString().padLeft(2, '0')}:${_date.minute.toString().padLeft(2, '0')}'), onTap: _pickDateTime), const SizedBox(height: 16), FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.event_available_rounded), label: Text(_saving ? 'Guardando...' : 'Publicar jornada'))]))));
+  Widget build(BuildContext context) => Padding(padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom), child: DraggableScrollableSheet(initialChildSize: .82, maxChildSize: .95, builder: (_, controller) => Material(borderRadius: const BorderRadius.vertical(top: Radius.circular(24)), child: ListView(controller: controller, padding: const EdgeInsets.all(20), children: [Row(children: [const Expanded(child: Text('Crear jornada', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800))), IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded))]), TextField(controller: _title, decoration: const InputDecoration(labelText: 'Título *')), const SizedBox(height: 12), TextField(controller: _description, maxLines: 2, decoration: const InputDecoration(labelText: 'Descripción')), const SizedBox(height: 12), DropdownButtonFormField<String>(initialValue: _type, isExpanded: true, decoration: const InputDecoration(labelText: 'Tipo de jornada'), items: _types.entries.map((entry) => DropdownMenuItem(value: entry.key, child: Text(entry.value))).toList(), onChanged: (value) => setState(() => _type = value ?? _type)), const SizedBox(height: 12), TextField(controller: _location, decoration: const InputDecoration(labelText: 'Ubicación textual *', hintText: 'Ej. Casa comunal del barrio')), const SizedBox(height: 12), OutlinedButton.icon(onPressed: _pickLocation, icon: const Icon(Icons.map_outlined), label: Text(_selectedLocation == null ? 'Seleccionar punto en el mapa' : 'Punto seleccionado')), if (_selectedLocation != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Ubicación lista para publicar: ${_selectedLocation!.latitude.toStringAsFixed(5)}, ${_selectedLocation!.longitude.toStringAsFixed(5)}', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant))), const SizedBox(height: 12), ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.calendar_month_rounded), title: Text('Fecha y hora: ${_date.day}/${_date.month}/${_date.year} ${_date.hour.toString().padLeft(2, '0')}:${_date.minute.toString().padLeft(2, '0')}'), onTap: _pickDateTime), const SizedBox(height: 16), FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.event_available_rounded), label: Text(_saving ? 'Guardando...' : 'Publicar jornada'))]))));
 }
 
 class _EventLocationPicker extends StatefulWidget {
@@ -374,9 +390,9 @@ class _EventLocationPickerState extends State<_EventLocationPicker> {
                 ],
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Align(alignment: Alignment.centerLeft, child: Text('Toca el mapa donde se realizará la jornada.', style: TextStyle(fontSize: 12, color: Colors.black54))),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Align(alignment: Alignment.centerLeft, child: Text('Toca el mapa donde se realizará la jornada.', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant))),
             ),
             const SizedBox(height: 10),
             Expanded(
@@ -407,5 +423,5 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _SectionHeading extends StatelessWidget { final String title; final IconData icon; const _SectionHeading({required this.title, required this.icon}); @override Widget build(BuildContext context) => Row(children: [Icon(icon, color: BiomarkColors.blue), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800))]); }
-class _PanelMessage extends StatelessWidget { final String message; final IconData icon; const _PanelMessage({required this.message, required this.icon}); @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 20), child: Row(children: [Icon(icon, color: Colors.black45), const SizedBox(width: 10), Expanded(child: Text(message, style: const TextStyle(color: Colors.black54)))])); }
+class _PanelMessage extends StatelessWidget { final String message; final IconData icon; const _PanelMessage({required this.message, required this.icon}); @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 20), child: Row(children: [Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant), const SizedBox(width: 10), Expanded(child: Text(message, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)))])); }
 class _EventTile extends StatelessWidget { final Map<String, dynamic> event; const _EventTile({required this.event}); @override Widget build(BuildContext context) => Card(margin: const EdgeInsets.only(bottom: 10), child: ListTile(leading: const CircleAvatar(child: Icon(Icons.event_available_rounded)), title: Text('${event['titulo'] ?? 'Jornada comunitaria'}', style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text('${event['ubicacion'] ?? 'Ubicación por confirmar'}\n${event['fecha_evento'] ?? ''}'))); }

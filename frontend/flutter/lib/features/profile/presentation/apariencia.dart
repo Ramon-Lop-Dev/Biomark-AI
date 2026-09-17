@@ -27,97 +27,102 @@ class _AparienciaScreenState extends State<AparienciaScreen> {
         ),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 10),
-              child: Text(
-                'Elige cómo se ve la app',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color: tema.colorScheme.onSurface.withValues(alpha: .6),
-                ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                color: tema.cardColor,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: .05),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 10),
+                  child: Text(
+                    'Elige cómo se ve la app',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: tema.colorScheme.onSurface.withValues(alpha: .6),
+                    ),
                   ),
-                ],
-              ),
-              child: Column(
-                children: List.generate(ModoApariencia.values.length, (i) {
-                  final modo = ModoApariencia.values[i];
-                  final esUltimo = i == ModoApariencia.values.length - 1;
-                  final seleccionado = modo == actual;
-
-                  return Column(
-                    children: [
-                      InkWell(
-                        onTap: () => _seleccionar(modo),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: tema.colorScheme.primary.withValues(alpha: .12),
-                                ),
-                                child: Icon(
-                                  modo.icono,
-                                  size: 17,
-                                  color: tema.colorScheme.primary,
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Text(
-                                  modo.etiqueta,
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: seleccionado ? FontWeight.w800 : FontWeight.w600,
-                                    color: seleccionado
-                                        ? tema.colorScheme.primary
-                                        : tema.colorScheme.onSurface,
-                                  ),
-                                ),
-                              ),
-                              if (seleccionado)
-                                Icon(
-                                  Icons.check_circle_rounded,
-                                  color: tema.colorScheme.primary,
-                                  size: 20,
-                                ),
-                            ],
-                          ),
-                        ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: tema.cardColor,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: .05),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                      if (!esUltimo)
-                        Divider(
-                          height: 1,
-                          indent: 56,
-                          endIndent: 16,
-                          color: tema.colorScheme.onSurface.withValues(alpha: .08),
-                        ),
                     ],
-                  );
-                }),
-              ),
+                  ),
+                  child: Column(
+                    children: List.generate(ModoApariencia.values.length, (i) {
+                      final modo = ModoApariencia.values[i];
+                      final esUltimo = i == ModoApariencia.values.length - 1;
+                      final seleccionado = modo == actual;
+
+                      return Column(
+                        children: [
+                          InkWell(
+                            onTap: () => _seleccionar(modo),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: tema.colorScheme.primary.withValues(alpha: .12),
+                                    ),
+                                    child: Icon(
+                                      modo.icono,
+                                      size: 17,
+                                      color: tema.colorScheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Text(
+                                      modo.etiqueta,
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: seleccionado ? FontWeight.w800 : FontWeight.w600,
+                                        color: seleccionado
+                                            ? tema.colorScheme.primary
+                                            : tema.colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ),
+                                  if (seleccionado)
+                                    Icon(
+                                      Icons.check_circle_rounded,
+                                      color: tema.colorScheme.primary,
+                                      size: 20,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (!esUltimo)
+                            Divider(
+                              height: 1,
+                              indent: 56,
+                              endIndent: 16,
+                              color: tema.colorScheme.onSurface.withValues(alpha: .08),
+                            ),
+                        ],
+                      );
+                    }),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -17,17 +17,23 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: BiomarkColors.black, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: Theme.of(context).colorScheme.onSurface, size: 20),
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text(
+        title: Text(
           'Mis Antecedentes',
-          style: TextStyle(color: BiomarkColors.black, fontWeight: FontWeight.w800, fontSize: 18),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.w800, fontSize: 18),
         ),
       ),
       body: SafeArea(
-        child: SurveyService.completado ? _buildContenido() : _buildEstadoVacio(),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 750),
+            child: SurveyService.completado ? _buildContenido() : _buildEstadoVacio(),
+          ),
+        ),
       ),
     );
   }
@@ -49,10 +55,10 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
               child: const Icon(Icons.folder_shared_outlined, color: BiomarkColors.blue, size: 38),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               'Aún no tienes antecedentes registrados',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -151,7 +157,7 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 10, offset: const Offset(0, 4)),
@@ -172,7 +178,7 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
               Expanded(
                 child: Text(
                   titulo,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface),
                 ),
               ),
               GestureDetector(
@@ -209,7 +215,7 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 10, offset: const Offset(0, 4)),
@@ -227,10 +233,10 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
                 child: const Icon(Icons.medication_liquid_rounded, color: BiomarkColors.blue, size: 17),
               ),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Medicamentos actuales',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: BiomarkColors.black),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface),
                 ),
               ),
               GestureDetector(
@@ -249,7 +255,7 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
             texto.isEmpty ? 'Sin información registrada' : texto,
             style: TextStyle(
               fontSize: 12.5,
-              color: texto.isEmpty ? const Color(0xFF9C9CA6) : BiomarkColors.black,
+              color: texto.isEmpty ? const Color(0xFF9C9CA6) : Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

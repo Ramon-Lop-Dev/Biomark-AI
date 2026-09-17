@@ -204,33 +204,38 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: IntrinsicHeight(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildTopBar(),
-                        const SizedBox(height: 8),
-                        _buildIcono(),
-                        const SizedBox(height: 22),
-                        _buildTitulos(),
-                        const SizedBox(height: 24),
-                        _buildPasosIndicador(),
-                        const SizedBox(height: 24),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 350),
-                          transitionBuilder: (child, anim) => FadeTransition(
-                            opacity: anim,
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0.05, 0),
-                                end: Offset.zero,
-                              ).animate(anim),
-                              child: child,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildTopBar(),
+                            const SizedBox(height: 8),
+                            _buildIcono(),
+                            const SizedBox(height: 22),
+                            _buildTitulos(),
+                            const SizedBox(height: 24),
+                            _buildPasosIndicador(),
+                            const SizedBox(height: 24),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 350),
+                              transitionBuilder: (child, anim) => FadeTransition(
+                                opacity: anim,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0.05, 0),
+                                    end: Offset.zero,
+                                  ).animate(anim),
+                                  child: child,
+                                ),
+                              ),
+                              child: _buildTarjetaSegunPaso(),
                             ),
-                          ),
-                          child: _buildTarjetaSegunPaso(),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),

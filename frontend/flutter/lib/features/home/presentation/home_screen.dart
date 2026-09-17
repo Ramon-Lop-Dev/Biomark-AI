@@ -14,6 +14,7 @@ import '../../vitals/presentation/ppg_screen.dart';
 import '../../vitals/presentation/scg_screen.dart';
 import '../domain/health_recommendation.dart';
 import '../data/recommendations_service.dart';
+import '../../../core/design/responsive_layout.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -429,19 +430,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      children: [
-        _buildGreetingHeader(),
-        const SizedBox(height: 16),
-        _buildVitalPulseCard(),
-        const SizedBox(height: 20),
-        _buildQuickActionsGrid(),
-        const SizedBox(height: 24),
-        _buildRecommendationsSection(),
-        const SizedBox(height: 24),
-        _buildCommunitySection(),
-      ],
+    return Center(
+      child: ResponsiveContainer(
+        maxWidth: 1050,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          children: [
+            _buildGreetingHeader(),
+            const SizedBox(height: 16),
+            _buildVitalPulseCard(),
+            const SizedBox(height: 20),
+            _buildQuickActionsGrid(),
+            const SizedBox(height: 24),
+            _buildRecommendationsSection(),
+            const SizedBox(height: 24),
+            _buildCommunitySection(),
+          ],
+        ),
+      ),
     );
   }
 
@@ -538,12 +544,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Pulso Cardíaco (PPG)',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    Text(
+                      vital?.method == 'PPG' ? 'Pulso Cardíaco (PPG Óptico)' : 'Pulso Cardíaco (SCG Pecho)',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                     ),
                     Text(
-                      vital != null ? 'Último chequeo óptico registrado' : 'Medición con cámara del teléfono',
+                      vital != null ? 'Último chequeo: ${vital.method} (${vital.statusLabel})' : 'Medición en el pecho con acelerómetro o cámara',
                       style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                   ],
@@ -626,6 +632,44 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickActionsGrid() {
+    final isDesktop = MediaQuery.sizeOf(context).width > 750;
+
+    final tileChat = _buildActionTile(
+      icon: Icons.chat_bubble_outline_rounded,
+      title: 'Consultar IA',
+      subtitle: 'Orientación de salud',
+      color: BiomarkColors.blue,
+      onTap: () => SurveyService.abrirChat(context),
+    );
+
+    final tileMejoria = _buildActionTile(
+      icon: Icons.trending_up_rounded,
+      title: 'Mi Mejoría',
+      subtitle: 'Evolución de síntomas',
+      color: const Color(0xFF10B981),
+      onTap: () {
+        if (widget.onNavigateToTab != null) {
+          widget.onNavigateToTab!(1);
+        }
+      },
+    );
+
+    final tilePulso = _buildActionTile(
+      icon: Icons.favorite_rounded,
+      title: 'Medir Pulso',
+      subtitle: 'SCG Pecho 18s',
+      color: const Color(0xFFEF4444),
+      onTap: _openScgScreen,
+    );
+
+    final tileMinsa = _buildActionTile(
+      icon: Icons.local_hospital_outlined,
+      title: 'Centros MINSA',
+      subtitle: 'Puestos y hospitales',
+      color: const Color(0xFF0284C7),
+      onTap: _openMap,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -634,57 +678,35 @@ class _HomeScreenState extends State<HomeScreen> {
           style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionTile(
-                icon: Icons.chat_bubble_outline_rounded,
-                title: 'Consultar IA',
-                subtitle: 'Orientación de salud',
-                color: BiomarkColors.blue,
-                onTap: () => SurveyService.abrirChat(context),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionTile(
-                icon: Icons.trending_up_rounded,
-                title: 'Mi Mejoría',
-                subtitle: 'Evolución de síntomas',
-                color: const Color(0xFF10B981),
-                onTap: () {
-                  if (widget.onNavigateToTab != null) {
-                    widget.onNavigateToTab!(1);
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionTile(
-                icon: Icons.favorite_rounded,
-                title: 'Medir Pulso',
-                subtitle: 'SCG Pecho 18s',
-                color: const Color(0xFFEF4444),
-                onTap: _openScgScreen,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionTile(
-                icon: Icons.local_hospital_outlined,
-                title: 'Centros MINSA',
-                subtitle: 'Puestos y hospitales',
-                color: const Color(0xFF0284C7),
-                onTap: _openMap,
-              ),
-            ),
-          ],
-        ),
+        if (isDesktop)
+          Row(
+            children: [
+              Expanded(child: tileChat),
+              const SizedBox(width: 12),
+              Expanded(child: tileMejoria),
+              const SizedBox(width: 12),
+              Expanded(child: tilePulso),
+              const SizedBox(width: 12),
+              Expanded(child: tileMinsa),
+            ],
+          )
+        else ...[
+          Row(
+            children: [
+              Expanded(child: tileChat),
+              const SizedBox(width: 12),
+              Expanded(child: tileMejoria),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: tilePulso),
+              const SizedBox(width: 12),
+              Expanded(child: tileMinsa),
+            ],
+          ),
+        ],
       ],
     );
   }
