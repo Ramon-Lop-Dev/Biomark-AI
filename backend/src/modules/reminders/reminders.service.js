@@ -59,7 +59,8 @@ const processDueReminders = async () => {
   const procesados = [];
   for (const registro of data) {
     try {
-      await publicarEvento('recordatorio.disparado', {
+      const nombreEvento = process.env.N8N_REMINDER_EVENT || 'recordatorio.creado';
+      await publicarEvento(nombreEvento, {
         recordatorio: registro,
         usuario_id: registro.usuario_id,
         recordatorio_id: registro.id,
@@ -84,7 +85,8 @@ const processDueReminders = async () => {
       // Si es UNA_VEZ, se queda en PENDIENTE hasta que n8n confirme recepción vía PATCH /internal/reminders/:id/sent (markReminderSent)
       procesados.push(registro.id);
     } catch (err) {
-      console.error(`[Reminders] Error procesando recordatorio ${registro.id}:`, err.message);
+      const detalleError = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+      console.error(`[Reminders] Error procesando recordatorio ${registro.id}:`, detalleError);
     }
   }
 

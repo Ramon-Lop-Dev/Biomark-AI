@@ -97,10 +97,10 @@
                   {
                     "id": "c_recordatorio",
                     "leftValue": "={{$json.body.evento}}",
-                    "rightValue": "recordatorio.creado",
+                    "rightValue": "^recordatorio\\.(creado|disparado)$",
                     "operator": {
                       "type": "string",
-                      "operation": "equals"
+                      "operation": "regex"
                     }
                   }
                 ],
