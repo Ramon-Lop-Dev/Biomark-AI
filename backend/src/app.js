@@ -33,13 +33,13 @@ app.use(cors({ origin: (origin, callback) => callback(null, isAllowedOrigin(orig
 app.use(express.json({ limit: '256kb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// 3. Rate Limiting (Mitigar abuso y ataques de fuerza bruta)
+// 3. Rate Limiting (Mitigar abuso y ataques de fuerza bruta con margen para navegación en mapa)
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 100, // Límite de 100 peticiones por IP
+    max: process.env.RATE_LIMIT_MAX ? parseInt(process.env.RATE_LIMIT_MAX, 10) : 1000,
     message: { error: "Demasiadas peticiones, intente más tarde.", code: "429" }
 });
-app.use(limiter);
+app.use('/api', limiter);
 
 // 4. Ruta de Healthcheck (Verificación de disponibilidad general del sistema)
 app.get('/health', (req, res) => {

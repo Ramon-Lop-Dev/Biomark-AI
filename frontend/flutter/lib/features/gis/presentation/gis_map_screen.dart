@@ -62,13 +62,15 @@ class _GisMapScreenState extends State<GisMapScreen>
         widget.initialCenter!.longitude,
       );
       _zoom = 15;
+      _loadViewport();
+      _loadLayersOnce();
+    } else {
+      // Localizar primero para no duplicar peticiones de Managua + ubicación real
+      WidgetsBinding.instance.addPostFrameCallback((_) => _locate());
     }
-    _loadViewport();
-    _loadLayersOnce();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _locate());
   }
 
-  Future<void> _loadViewport([LatLngBounds? bounds]) async {
+  Future<void> _loadViewport([LatLngBounds? bounds, bool forceRefresh = false]) async {
     final visible = bounds ?? _boundsAround(_mapCenter, _zoom);
     if (mounted) setState(() => _loading = true);
     try {
@@ -78,10 +80,15 @@ class _GisMapScreenState extends State<GisMapScreen>
         maxLon: visible.east,
         maxLat: visible.north,
         zoom: _zoom,
+        forceRefresh: forceRefresh,
       );
       if (!mounted) return;
       setState(() {
-        _centers = data.centers;
+        final centersMap = <String, HealthCenter>{
+          for (final c in _centers) c.id: c,
+          for (final c in data.centers) c.id: c,
+        };
+        _centers = centersMap.values.toList();
         _loading = false;
       });
     } on GisApiException catch (error) {
@@ -89,7 +96,7 @@ class _GisMapScreenState extends State<GisMapScreen>
       setState(() {
         _loading = false;
         _error = error.statusCode == 429
-            ? 'Demasiadas peticiones. Espera unos minutos y vuelve a intentar.'
+            ? 'Demasiadas peticiones. Espera un momento antes de volver a consultar.'
             : 'No se pudieron cargar los centros. Revisa tu conexión.';
       });
     } catch (_) {
@@ -101,24 +108,25 @@ class _GisMapScreenState extends State<GisMapScreen>
     }
   }
 
-  Future<void> _loadLayersOnce() async {
-    if (_layersLoaded || _layersLoading) return;
+  Future<void> _loadLayersOnce({bool forceRefresh = false}) async {
+    if ((_layersLoaded && !forceRefresh) || _layersLoading) return;
     _layersLoading = true;
     try {
       final layers = await _gisApi.fetchLayers(
         latitude: _mapCenter.latitude,
         longitude: _mapCenter.longitude,
+        forceRefresh: forceRefresh,
       );
       List<CommunityReportPoint> reports = const [];
       try {
-        reports = await _gisApi.fetchValidatedReports();
+        reports = await _gisApi.fetchValidatedReports(forceRefresh: forceRefresh);
       } on GisApiException catch (error) {
         if (mounted) {
           setState(
             () => _error = error.statusCode == 401 || error.statusCode == 403
                 ? 'Inicia sesión para ver los reportes comunitarios.'
                 : error.statusCode == 429
-                ? 'Demasiadas peticiones. Espera unos minutos y vuelve a intentar.'
+                ? 'Demasiadas peticiones. Espera un momento.'
                 : 'No se pudieron cargar los reportes comunitarios.',
           );
         }
@@ -153,10 +161,22 @@ class _GisMapScreenState extends State<GisMapScreen>
     if (event is! MapEventMoveEnd && event is! MapEventFlingAnimationEnd) {
       return;
     }
-    _mapCenter = event.camera.center;
-    _zoom = event.camera.zoom;
+    final newCenter = event.camera.center;
+    final newZoom = event.camera.zoom;
+
+    final distanceMoved = const Distance().as(LengthUnit.Meter, _mapCenter, newCenter);
+    final zoomChanged = (newZoom - _zoom).abs() > 0.8;
+
+    _mapCenter = newCenter;
+    _zoom = newZoom;
+
+    // Si el movimiento es leve (< 800m) y el zoom no cambió sustancialmente, no disparar petición
+    if (distanceMoved < 800 && !zoomChanged) {
+      return;
+    }
+
     _viewportTimer?.cancel();
-    _viewportTimer = Timer(const Duration(milliseconds: 250), () {
+    _viewportTimer = Timer(const Duration(milliseconds: 700), () {
       _loadViewport(event.camera.visibleBounds);
     });
   }
@@ -175,14 +195,15 @@ class _GisMapScreenState extends State<GisMapScreen>
           permission == LocationPermission.deniedForever) {
         throw const PermissionDeniedException('Ubicación denegada');
       }
-      final position = await Geolocator.getCurrentPosition();
+      final position = await Geolocator.getCurrentPosition().timeout(
+        const Duration(seconds: 5),
+      );
       final location = LatLng(position.latitude, position.longitude);
       if (mounted) {
         setState(() {
           _userLocation = location;
           _mapCenter = location;
           _zoom = 14;
-          _layersLoaded = false;
         });
       }
       _mapController.move(location, 14);
@@ -191,11 +212,13 @@ class _GisMapScreenState extends State<GisMapScreen>
     } catch (_) {
       _mapController.move(_managua, 12);
       if (mounted) {
-        setState(
-          () => _error =
-              'Mostrando Managua. Puedes activar la ubicación cuando quieras.',
-        );
+        setState(() {
+          _mapCenter = _managua;
+          _zoom = 12;
+        });
       }
+      unawaited(_loadViewport(_boundsAround(_managua, 12)));
+      unawaited(_loadLayersOnce());
     } finally {
       if (mounted) setState(() => _locating = false);
     }

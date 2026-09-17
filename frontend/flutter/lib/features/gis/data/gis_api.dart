@@ -27,12 +27,33 @@ class GisViewportData {
   const GisViewportData({required this.centers});
 }
 
+class _CacheEntry<T> {
+  final T data;
+  final DateTime timestamp;
+  const _CacheEntry(this.data, this.timestamp);
+
+  bool isExpired(Duration ttl) => DateTime.now().difference(timestamp) > ttl;
+}
+
 class GisApi {
   GisApi({http.Client? client}) : _client = client ?? http.Client();
 
   static final _apiUrl = AppConfig.apiUrl;
   static String get _accessToken => AuthSession.instance.accessToken ?? '';
   final http.Client _client;
+
+  // Caché en memoria para evitar saturar el backend al mover el mapa o reingresar a la pantalla
+  static final Map<String, _CacheEntry<GisViewportData>> _viewportCache = {};
+  static final Map<String, _CacheEntry<GisMapData>> _layersCache = {};
+  static _CacheEntry<List<CommunityReportPoint>>? _reportsCache;
+  static final Map<String, _CacheEntry<HealthCenter>> _centerDetailsCache = {};
+
+  static void clearCache() {
+    _viewportCache.clear();
+    _layersCache.clear();
+    _reportsCache = null;
+    _centerDetailsCache.clear();
+  }
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -45,7 +66,18 @@ class GisApi {
     required double maxLon,
     required double maxLat,
     required double zoom,
+    bool forceRefresh = false,
   }) async {
+    final cacheKey =
+        '${minLon.toStringAsFixed(2)}_${minLat.toStringAsFixed(2)}_${maxLon.toStringAsFixed(2)}_${maxLat.toStringAsFixed(2)}_${zoom.round()}';
+
+    if (!forceRefresh) {
+      final cached = _viewportCache[cacheKey];
+      if (cached != null && !cached.isExpired(const Duration(minutes: 5))) {
+        return cached.data;
+      }
+    }
+
     final uri = Uri.parse('${_apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/gis/centros').replace(
       queryParameters: {
         'min_lon': '$minLon',
@@ -66,12 +98,24 @@ class GisApi {
     }
     final body = jsonDecode(response.body);
     if (body is! List) throw const GisApiException('Respuesta GIS inválida.');
-    return GisViewportData(
+    final result = GisViewportData(
       centers: body.whereType<Map<String, dynamic>>().map(HealthCenter.fromJson).toList(),
     );
+    _viewportCache[cacheKey] = _CacheEntry(result, DateTime.now());
+    if (_viewportCache.length > 60) {
+      _viewportCache.remove(_viewportCache.keys.first);
+    }
+    return result;
   }
 
-  Future<HealthCenter> fetchCenterDetails(String id) async {
+  Future<HealthCenter> fetchCenterDetails(String id, {bool forceRefresh = false}) async {
+    if (!forceRefresh) {
+      final cached = _centerDetailsCache[id];
+      if (cached != null && !cached.isExpired(const Duration(minutes: 10))) {
+        return cached.data;
+      }
+    }
+
     final response = await _client.get(
       Uri.parse('${_apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/gis/centros/$id'),
       headers: _headers,
@@ -79,14 +123,27 @@ class GisApi {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw GisApiException('No se pudo cargar el centro de salud.', statusCode: response.statusCode);
     }
-    return HealthCenter.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    final result = HealthCenter.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    _centerDetailsCache[id] = _CacheEntry(result, DateTime.now());
+    return result;
   }
 
   Future<GisMapData> fetchNearby({
     required double latitude,
     required double longitude,
     double radiusKm = 15,
+    bool forceRefresh = false,
   }) async {
+    final cacheKey =
+        '${latitude.toStringAsFixed(2)}_${longitude.toStringAsFixed(2)}_${radiusKm.round()}';
+
+    if (!forceRefresh) {
+      final cached = _layersCache[cacheKey];
+      if (cached != null && !cached.isExpired(const Duration(minutes: 5))) {
+        return cached.data;
+      }
+    }
+
     final uri =
         Uri.parse(
           '${_apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/gis/smart-map',
@@ -118,18 +175,31 @@ class GisApi {
         ? value.whereType<Map<String, dynamic>>().toList()
         : const [];
 
-    return GisMapData(
+    final result = GisMapData(
       centers: maps(body['centros_salud']).map(HealthCenter.fromJson).toList(),
       riskZones: maps(body['zonas_riesgo']).map(RiskZone.fromJson).toList(),
       events: maps(body['eventos_comunitarios']).map(CommunityEvent.fromJson).where((event) => event.latitude != 0 && event.longitude != 0).toList(),
       reports: const [],
     );
+    _layersCache[cacheKey] = _CacheEntry(result, DateTime.now());
+    if (_layersCache.length > 30) {
+      _layersCache.remove(_layersCache.keys.first);
+    }
+    return result;
   }
 
-  Future<GisMapData> fetchLayers({required double latitude, required double longitude}) =>
-      fetchNearby(latitude: latitude, longitude: longitude);
+  Future<GisMapData> fetchLayers({
+    required double latitude,
+    required double longitude,
+    bool forceRefresh = false,
+  }) =>
+      fetchNearby(latitude: latitude, longitude: longitude, forceRefresh: forceRefresh);
 
-  Future<List<CommunityReportPoint>> fetchValidatedReports() async {
+  Future<List<CommunityReportPoint>> fetchValidatedReports({bool forceRefresh = false}) async {
+    if (!forceRefresh && _reportsCache != null && !_reportsCache!.isExpired(const Duration(minutes: 5))) {
+      return _reportsCache!.data;
+    }
+
     final response = await _client.get(
       Uri.parse('${_apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/community/heatmap'),
       headers: {'Authorization': 'Bearer $_accessToken'},
@@ -138,9 +208,11 @@ class GisApi {
       throw GisApiException('No se pudieron cargar los reportes comunitarios.', statusCode: response.statusCode);
     }
     final body = jsonDecode(response.body);
-    return body is List
+    final result = body is List
         ? body.whereType<Map<String, dynamic>>().map(CommunityReportPoint.fromJson).toList()
-        : const [];
+        : const <CommunityReportPoint>[];
+    _reportsCache = _CacheEntry(result, DateTime.now());
+    return result;
   }
 
   Future<void> createCommunityReport({
@@ -162,6 +234,8 @@ class GisApi {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw GisApiException('No se pudo registrar el reporte comunitario.', statusCode: response.statusCode);
     }
+    // Invalidar caché de reportes para ver el nuevo reporte
+    _reportsCache = null;
   }
 
   void dispose() => _client.close();
