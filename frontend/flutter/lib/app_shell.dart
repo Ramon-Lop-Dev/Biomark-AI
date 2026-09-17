@@ -294,11 +294,13 @@ class _AppShellState extends State<AppShell> {
 
     return SafeArea(
       top: false,
-      child: Center(
-        child: SizedBox(
-          width: isWide ? 620 : double.infinity,
-          height: 96,
-          child: Stack(
+      child: SizedBox(
+        height: 96,
+        child: Center(
+          child: SizedBox(
+            width: isWide ? 620 : double.infinity,
+            height: 96,
+            child: Stack(
             alignment: Alignment.topCenter,
             children: [
               Positioned(
@@ -365,6 +367,7 @@ class _AppShellState extends State<AppShell> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -398,7 +401,7 @@ class _AppShellState extends State<AppShell> {
                   style: TextStyle(
                     color: selected
                         ? BiomarkColors.green
-                        : const Color(0xFF3F4A3B),
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 10.5,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
