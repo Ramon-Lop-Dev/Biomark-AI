@@ -23,23 +23,25 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
   bool _isProcessingFrame = false;
   bool _isMeasuring = false;
   bool _fingerDetected = false;
+  int _framesWithoutFinger = 0;
   String _statusMessage = 'Inicializando cámara y sensor óptico...';
-  
+
   int? _liveBpm;
   double _signalQuality = 0.0;
   int _secondsRemaining = 20;
   Timer? _countdownTimer;
   VitalMeasurement? _completedMeasurement;
   bool _measurementFinished = false;
+  int _lastUiUpdateTime = 0;
 
   @override
   void initState() {
     super.initState();
     _heartAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 280),
     );
-    _heartScale = Tween<double>(begin: 1.0, end: 1.28).animate(
+    _heartScale = Tween<double>(begin: 1.0, end: 1.25).animate(
       CurvedAnimation(parent: _heartAnimController, curve: Curves.easeOutBack),
     );
 
@@ -58,7 +60,7 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
         return;
       }
 
-      // Buscar cámara trasera
+      // Priorizar cámara trasera para flash e iluminación dérmica
       final backCamera = cameras.firstWhere(
         (cam) => cam.lensDirection == CameraLensDirection.back,
         orElse: () => cameras.first,
@@ -80,14 +82,16 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
       try {
         await controller.setFlashMode(FlashMode.torch);
       } catch (_) {
-        // En algunos dispositivos el flash requiere inicio de stream primero
+        // En algunos dispositivos el flash se activa con el stream
       }
 
-      setState(() {
-        _cameraController = controller;
-        _isCameraInitialized = true;
-        _statusMessage = 'Coloca la yema de tu dedo suavemente sobre la cámara y el flash.';
-      });
+      if (mounted) {
+        setState(() {
+          _cameraController = controller;
+          _isCameraInitialized = true;
+          _statusMessage = 'Coloca la yema de tu dedo suavemente sobre la cámara y el flash.';
+        });
+      }
 
       _startImageStream();
     } catch (e) {
@@ -109,32 +113,45 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
 
       try {
         final result = _processor.processCameraImage(image);
+        if (!mounted || _measurementFinished) return;
 
-        if (!mounted) return;
+        final now = DateTime.now().millisecondsSinceEpoch;
 
-        setState(() {
-          _fingerDetected = result.fingerDetected;
-          _signalQuality = result.quality;
-          if (result.currentBpm != null) {
-            _liveBpm = result.currentBpm;
+        if (result.fingerDetected) {
+          _framesWithoutFinger = 0;
+          if (!_isMeasuring) {
+            _startMeasurementCountdown();
           }
-
-          if (result.isBeat) {
-            _heartAnimController.forward().then((_) {
-              if (mounted) _heartAnimController.reverse();
-            });
-          }
-
-          if (result.fingerDetected) {
-            if (!_isMeasuring) {
-              _startMeasurementCountdown();
-            }
-            _statusMessage = 'Dedo detectado. Mantén la presión suave y no te muevas.';
-          } else {
+        } else {
+          _framesWithoutFinger++;
+          if (_framesWithoutFinger > 10 && _isMeasuring) {
             _pauseMeasurementCountdown();
-            _statusMessage = 'Coloca tu dedo cubriendo la cámara trasera y el flash.';
           }
-        });
+        }
+
+        if (result.isBeat) {
+          _heartAnimController.forward().then((_) {
+            if (mounted) _heartAnimController.reverse();
+          });
+        }
+
+        // Throttle UI updates a ~20 FPS (cada 50ms) o al registrar latido
+        if (now - _lastUiUpdateTime > 50 || result.isBeat) {
+          _lastUiUpdateTime = now;
+          setState(() {
+            _fingerDetected = result.fingerDetected;
+            _signalQuality = result.quality;
+            if (result.currentBpm != null) {
+              _liveBpm = result.currentBpm;
+            }
+
+            if (result.fingerDetected) {
+              _statusMessage = 'Dedo detectado. Mantén la presión suave y no te muevas.';
+            } else {
+              _statusMessage = 'Coloca tu dedo cubriendo la cámara trasera y el flash.';
+            }
+          });
+        }
       } catch (_) {
       } finally {
         _isProcessingFrame = false;
@@ -143,18 +160,23 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
   }
 
   void _startMeasurementCountdown() {
+    if (_isMeasuring || _measurementFinished) return;
     _isMeasuring = true;
     _countdownTimer?.cancel();
+
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
         return;
       }
-      if (_secondsRemaining > 1) {
+
+      if (_secondsRemaining > 0) {
         setState(() {
           _secondsRemaining--;
         });
-      } else {
+      }
+
+      if (_secondsRemaining <= 0) {
         timer.cancel();
         _finishMeasurement();
       }
@@ -166,35 +188,57 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
     _countdownTimer?.cancel();
   }
 
-  Future<void> _finishMeasurement() async {
+  void _finishMeasurement() {
     _countdownTimer?.cancel();
+    if (_measurementFinished) return;
+
+    // 1. Obtener la frecuencia cardíaca final más representativa de la sesión
+    final int finalBpm = (_processor.bestBpm ?? _liveBpm ?? 72).clamp(45, 185);
+    final double quality = _processor.qualityScore > 0
+        ? _processor.qualityScore
+        : (_signalQuality > 0 ? _signalQuality : 0.85);
+
+    final measurement = VitalMeasurement.fromBpm(
+      bpm: finalBpm,
+      qualityScore: quality,
+      timestamp: DateTime.now(),
+      notes: 'Medición óptica PPG móvil (cámara y flash)',
+    );
+
+    // 2. ACTUALIZACIÓN INMEDIATA: muestra la pantalla de resultado instantáneamente sin esperar hardware
     setState(() {
       _measurementFinished = true;
       _isMeasuring = false;
-    });
-
-    try {
-      await _cameraController?.stopImageStream();
-      await _cameraController?.setFlashMode(FlashMode.off);
-    } catch (_) {}
-
-    final finalBpm = _liveBpm ?? 72;
-    final measurement = VitalMeasurement.fromBpm(
-      bpm: finalBpm,
-      qualityScore: _signalQuality > 0 ? _signalQuality : 0.85,
-      timestamp: DateTime.now(),
-      notes: 'Medición óptica PPG móvil',
-    );
-
-    setState(() {
+      _secondsRemaining = 0;
       _completedMeasurement = measurement;
     });
 
-    // Guardar automáticamente
-    await VitalsStorage.saveMeasurement(measurement);
+    // 3. Guardado en segundo plano
+    VitalsStorage.saveMeasurement(measurement);
+
+    // 4. Detener cámara y flash en segundo plano de manera segura
+    _safeTeardownCamera();
   }
 
-  void _restartMeasurement() {
+  Future<void> _safeTeardownCamera() async {
+    try {
+      final controller = _cameraController;
+      if (controller != null && controller.value.isInitialized) {
+        if (controller.value.isStreamingImages) {
+          await controller.stopImageStream().catchError((e) {
+            debugPrint('stopImageStream warning: $e');
+          });
+        }
+        await controller.setFlashMode(FlashMode.off).catchError((e) {
+          debugPrint('setFlashMode warning: $e');
+        });
+      }
+    } catch (e) {
+      debugPrint('safeTeardownCamera warning: $e');
+    }
+  }
+
+  Future<void> _restartMeasurement() async {
     _countdownTimer?.cancel();
     _processor.reset();
     setState(() {
@@ -203,23 +247,34 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
       _secondsRemaining = 20;
       _liveBpm = null;
       _signalQuality = 0.0;
+      _framesWithoutFinger = 0;
       _statusMessage = 'Coloca la yema de tu dedo suavemente sobre la cámara y el flash.';
     });
 
     try {
-      _cameraController?.setFlashMode(FlashMode.torch);
-      _startImageStream();
-    } catch (_) {}
+      final controller = _cameraController;
+      if (controller != null && controller.value.isInitialized) {
+        await controller.setFlashMode(FlashMode.torch).catchError((_) {});
+        if (!controller.value.isStreamingImages) {
+          _startImageStream();
+        }
+      } else {
+        await _initCamera();
+      }
+    } catch (e) {
+      debugPrint('restartMeasurement error: $e');
+    }
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
     _heartAnimController.dispose();
-    try {
-      _cameraController?.setFlashMode(FlashMode.off);
-    } catch (_) {}
-    _cameraController?.dispose();
+    _safeTeardownCamera().then((_) {
+      try {
+        _cameraController?.dispose();
+      } catch (_) {}
+    });
     super.dispose();
   }
 
@@ -256,7 +311,7 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
                   ],
                 ),
               )
-            : _measurementFinished && _completedMeasurement != null
+            : (_measurementFinished && _completedMeasurement != null)
                 ? _buildResultView(context, _completedMeasurement!)
                 : _buildMeasuringView(context),
       ),
@@ -265,7 +320,7 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
 
   Widget _buildMeasuringView(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final progress = (20 - _secondsRemaining) / 20.0;
+    final progress = ((20 - _secondsRemaining) / 20.0).clamp(0.0, 1.0);
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -367,7 +422,7 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${_secondsRemaining}s restantes',
+                    _secondsRemaining > 0 ? '${_secondsRemaining}s restantes' : 'Finalizando...',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -717,8 +772,8 @@ class _PpgWavePainter extends CustomPainter {
     final centerY = size.height / 2;
 
     for (int i = 0; i < data.length; i++) {
-      // Normalizar valor centrado
-      final y = (centerY - (data[i] * 28.0)).clamp(4.0, size.height - 4.0);
+      // Normalizar valor centrado con rango dinámico agradable
+      final y = (centerY - (data[i] * 24.0)).clamp(4.0, size.height - 4.0);
       final x = i * stepX;
 
       if (i == 0) {

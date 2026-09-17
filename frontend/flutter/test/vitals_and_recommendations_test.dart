@@ -72,13 +72,19 @@ void main() {
     });
   });
 
-  group('PpgProcessor State Tests', () {
+  group('PpgProcessor State and Signal Tests', () {
     test('Initializes with empty wave buffer and reset clears buffers', () {
       final processor = PpgProcessor();
       expect(processor.waveData.isEmpty, isTrue);
+      expect(processor.beatCount, 0);
+      expect(processor.bestBpm, isNull);
+      expect(processor.currentBpm, isNull);
+      expect(processor.qualityScore, 0.50);
 
       processor.reset();
       expect(processor.waveData.isEmpty, isTrue);
+      expect(processor.beatCount, 0);
+      expect(processor.bestBpm, isNull);
     });
   });
 }

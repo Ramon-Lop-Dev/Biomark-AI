@@ -8,6 +8,7 @@ class PpgFrameResult {
   final bool isBeat;
   final int? currentBpm;
   final double quality;
+  final int totalBeats;
 
   const PpgFrameResult({
     required this.fingerDetected,
@@ -16,118 +17,172 @@ class PpgFrameResult {
     required this.isBeat,
     this.currentBpm,
     required this.quality,
+    this.totalBeats = 0,
   });
 }
 
 class PpgProcessor {
-  final List<double> _rawBuffer = [];
   final List<double> _smoothedBuffer = [];
-  final List<int> _peakTimes = [];
-  final List<int> _bpmHistory = [];
+  final List<int> _recentBpmHistory = [];
+  final List<int> _allSessionBpms = [];
 
   double _previousSmoothed = 0.0;
   double _previousSlope = 0.0;
   int _lastBeatTime = 0;
-  double _runningDc = 128.0;
+  double _runningDc = 120.0;
+  double _runningAmplitude = 0.5;
+  int _beatCount = 0;
 
   List<double> get waveData => List.unmodifiable(_smoothedBuffer);
+  int get beatCount => _beatCount;
+
+  /// Retorna el pulso más representativo de la sesión mediante la mediana
+  int? get bestBpm {
+    final list = _allSessionBpms.isNotEmpty ? _allSessionBpms : _recentBpmHistory;
+    if (list.isEmpty) return null;
+    final sorted = List<int>.from(list)..sort();
+    return sorted[sorted.length ~/ 2];
+  }
+
+  /// Retorna el pulso instantáneo reciente
+  int? get currentBpm {
+    if (_recentBpmHistory.isEmpty) return null;
+    final sorted = List<int>.from(_recentBpmHistory)..sort();
+    return sorted[sorted.length ~/ 2];
+  }
+
+  /// Puntuación de calidad de la señal (0.0 a 1.0)
+  double get qualityScore {
+    if (_allSessionBpms.length >= 8) return 0.95;
+    if (_allSessionBpms.length >= 4) return 0.85;
+    if (_allSessionBpms.length >= 2) return 0.70;
+    return 0.50;
+  }
 
   void reset() {
-    _rawBuffer.clear();
     _smoothedBuffer.clear();
-    _peakTimes.clear();
-    _bpmHistory.clear();
+    _recentBpmHistory.clear();
+    _allSessionBpms.clear();
     _previousSmoothed = 0.0;
     _previousSlope = 0.0;
     _lastBeatTime = 0;
-    _runningDc = 128.0;
+    _runningDc = 120.0;
+    _runningAmplitude = 0.5;
+    _beatCount = 0;
   }
 
   PpgFrameResult processCameraImage(CameraImage image) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    double redSum = 0.0;
+    double intensitySum = 0.0;
     int sampleCount = 0;
+    bool isRedPredominant = false;
 
     // Procesar según formato de cámara (Android YUV420 o iOS BGRA)
     if (image.format.group == ImageFormatGroup.yuv420 && image.planes.length >= 3) {
       final yPlane = image.planes[0].bytes;
+      final uPlane = image.planes[1].bytes;
       final vPlane = image.planes[2].bytes;
-      final step = max(1, (yPlane.length / 500).floor());
+
+      final step = max(1, (yPlane.length / 400).floor());
+      double vSum = 0.0;
+      double uSum = 0.0;
 
       for (int i = 0; i < yPlane.length; i += step) {
         final y = yPlane[i];
-        final vIndex = (i ~/ 4).clamp(0, vPlane.length - 1);
-        final v = vPlane[vIndex];
-        // Aproximación canal rojo: R = Y + 1.402 * (V - 128)
+        final uvIndex = (i ~/ 4).clamp(0, vPlane.length - 1);
+        final v = vPlane[uvIndex];
+        final u = uPlane[(uvIndex).clamp(0, uPlane.length - 1)];
+
+        // Reconstrucción del canal rojo: R = Y + 1.402 * (V - 128)
         final r = (y + 1.402 * (v - 128)).clamp(0.0, 255.0);
-        redSum += r;
+        intensitySum += r;
+        vSum += v;
+        uSum += u;
         sampleCount++;
+      }
+
+      if (sampleCount > 0) {
+        final avgV = vSum / sampleCount;
+        final avgU = uSum / sampleCount;
+        // En tejido humano con flash, V (componente roja) es significativamente mayor que U (azul)
+        isRedPredominant = avgV > 132.0 || (avgV > avgU);
       }
     } else if (image.planes.isNotEmpty) {
       final plane = image.planes[0].bytes;
-      final step = max(1, (plane.length / 500).floor());
-      for (int i = 0; i < plane.length; i += step) {
-        redSum += plane[i];
+      // Para BGRA en iOS o RGBA genérico: salto de 4 bytes por pixel
+      final step = max(4, ((plane.length / 400).floor() ~/ 4) * 4);
+      for (int i = 0; i + 2 < plane.length; i += step) {
+        // Asumir formato con canal rojo predominante (índice 2 en BGRA o 0 en RGBA)
+        final r = plane[i + (image.format.group == ImageFormatGroup.bgra8888 ? 2 : 0)];
+        intensitySum += r;
         sampleCount++;
       }
+      isRedPredominant = true;
     }
 
     if (sampleCount == 0) {
-      return const PpgFrameResult(
+      return PpgFrameResult(
         fingerDetected: false,
         rawValue: 0.0,
         smoothedValue: 0.0,
         isBeat: false,
         quality: 0.0,
+        totalBeats: _beatCount,
       );
     }
 
-    final avgRed = redSum / sampleCount;
+    final avgIntensity = intensitySum / sampleCount;
 
-    // Validación de contacto: el dedo sobre el flash produce un canal rojo dominante (> 100)
-    final bool fingerDetected = avgRed > 95.0;
+    // Validación de contacto dérmico:
+    // El dedo cubriendo el lente y flash produce alta intensidad lumínica y predominancia del rojo
+    final bool fingerDetected = avgIntensity > 75.0 && isRedPredominant;
 
     if (!fingerDetected) {
-      _rawBuffer.clear();
-      _smoothedBuffer.clear();
       return PpgFrameResult(
         fingerDetected: false,
-        rawValue: avgRed,
+        rawValue: avgIntensity,
         smoothedValue: 0.0,
         isBeat: false,
         quality: 0.0,
+        totalBeats: _beatCount,
       );
     }
 
-    // Filtro paso alto / eliminación de componente continua (DC)
-    _runningDc = (_runningDc * 0.95) + (avgRed * 0.05);
-    final acSignal = avgRed - _runningDc;
+    // 1. Filtro Paso-Alto dinámico / Eliminación de componente continua (DC)
+    // tau ~ 2.0 segundos a 30 FPS para no atenuar la onda de pulso (0.8 Hz a 2.5 Hz)
+    _runningDc = (_runningDc * 0.984) + (avgIntensity * 0.016);
+    final acSignal = avgIntensity - _runningDc;
 
-    // Filtro paso bajo (IIR) para suavizar ruido de sensor
-    final smoothed = (_previousSmoothed * 0.70) + (acSignal * 0.30);
+    // 2. Filtro Paso-Bajo IIR para atenuar ruido y jitter de sensor
+    final smoothed = (_previousSmoothed * 0.65) + (acSignal * 0.35);
     final slope = smoothed - _previousSmoothed;
 
+    // 3. Seguimiento de envolvente de amplitud para umbral adaptativo
+    _runningAmplitude = (_runningAmplitude * 0.95) + (smoothed.abs() * 0.05);
+    final dynamicThreshold = max(0.04, _runningAmplitude * 0.40);
+
     _smoothedBuffer.add(smoothed);
-    if (_smoothedBuffer.length > 70) {
+    if (_smoothedBuffer.length > 80) {
       _smoothedBuffer.removeAt(0);
     }
 
     bool isBeat = false;
-    // Detección de pico cuando la pendiente cambia de positiva a negativa
-    if (_previousSlope > 0 && slope <= 0 && smoothed > 0.4) {
+    // 4. Detección de pico sistólico: inversión de pendiente con valor sobre umbral adaptativo
+    if (_previousSlope > 0 && slope <= 0 && smoothed > dynamicThreshold) {
       final elapsed = now - _lastBeatTime;
-      // Período refractario fisiológico (330 ms = 180 BPM máx, 1500 ms = 40 BPM mín)
+      // Período refractario fisiológico humano: 330 ms (181 BPM) a 1500 ms (40 BPM)
       if (elapsed >= 330 && elapsed <= 1500) {
         isBeat = true;
         _lastBeatTime = now;
-        _peakTimes.add(now);
+        _beatCount++;
 
         final instantBpm = (60000.0 / elapsed).round();
-        if (instantBpm >= 45 && instantBpm <= 185) {
-          _bpmHistory.add(instantBpm);
-          if (_bpmHistory.length > 8) {
-            _bpmHistory.removeAt(0);
+        if (instantBpm >= 42 && instantBpm <= 185) {
+          _recentBpmHistory.add(instantBpm);
+          if (_recentBpmHistory.length > 6) {
+            _recentBpmHistory.removeAt(0);
           }
+          _allSessionBpms.add(instantBpm);
         }
       } else if (elapsed > 1500) {
         _lastBeatTime = now;
@@ -137,21 +192,17 @@ class PpgProcessor {
     _previousSmoothed = smoothed;
     _previousSlope = slope;
 
-    int? computedBpm;
-    if (_bpmHistory.length >= 3) {
-      final sorted = List<int>.from(_bpmHistory)..sort();
-      computedBpm = sorted[sorted.length ~/ 2]; // Mediana
-    }
-
-    final quality = (_bpmHistory.length / 6.0).clamp(0.0, 1.0);
+    final bpm = currentBpm;
+    final quality = (_recentBpmHistory.length / 5.0).clamp(0.0, 1.0);
 
     return PpgFrameResult(
       fingerDetected: true,
-      rawValue: avgRed,
+      rawValue: avgIntensity,
       smoothedValue: smoothed,
       isBeat: isBeat,
-      currentBpm: computedBpm,
+      currentBpm: bpm,
       quality: quality,
+      totalBeats: _beatCount,
     );
   }
 }
