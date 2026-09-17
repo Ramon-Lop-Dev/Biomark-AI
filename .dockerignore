@@ -6,3 +6,4 @@
 **/chroma_db
 **/temp_pdfs
 nginx/certs
+*.zip

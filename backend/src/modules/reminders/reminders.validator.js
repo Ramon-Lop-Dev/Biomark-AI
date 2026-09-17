@@ -7,13 +7,19 @@ const TIPOS_RECORDATORIO = ['MEDICAMENTO', 'CITA', 'VACUNA', 'CONTROL'];
 // Valores del enum estado_recordatorio en Postgres.
 const ESTADOS_RECORDATORIO = ['PENDIENTE', 'ENVIADO', 'COMPLETADO', 'CANCELADO'];
 
+// Valores del enum frecuencia_recordatorio en Postgres.
+const FRECUENCIAS_RECORDATORIO = ['UNA_VEZ', 'DIARIA', 'SEMANAL', 'MENSUAL'];
+
 const addReminderSchema = z.object({
   titulo: z.string().trim().min(1, 'El título es obligatorio'),
   descripcion: z.string().trim().max(2000).optional(),
   fecha_programada: z.string().datetime({ offset: true, message: 'fecha_programada debe ser una fecha/hora ISO 8601 válida' }),
   tipo: z.enum(TIPOS_RECORDATORIO, {
     error: `tipo debe ser uno de: ${TIPOS_RECORDATORIO.join(', ')}`
-  })
+  }),
+  frecuencia: z.enum(FRECUENCIAS_RECORDATORIO, {
+    error: `frecuencia debe ser una de: ${FRECUENCIAS_RECORDATORIO.join(', ')}`
+  }).default('UNA_VEZ')
 });
 
 const updateReminderStatusSchema = z.object({
@@ -22,4 +28,10 @@ const updateReminderStatusSchema = z.object({
   })
 });
 
-module.exports = { addReminderSchema, updateReminderStatusSchema, TIPOS_RECORDATORIO, ESTADOS_RECORDATORIO };
+module.exports = {
+  addReminderSchema,
+  updateReminderStatusSchema,
+  TIPOS_RECORDATORIO,
+  ESTADOS_RECORDATORIO,
+  FRECUENCIAS_RECORDATORIO
+};

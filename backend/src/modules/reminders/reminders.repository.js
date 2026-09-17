@@ -8,10 +8,10 @@ const listarPorUsuario = (usuarioId) =>
     .eq('usuario_id', usuarioId)
     .order('fecha_programada', { ascending: true });
 
-const crear = (usuarioId, { titulo, descripcion, fecha_programada, tipo }) =>
+const crear = (usuarioId, { titulo, descripcion, fecha_programada, tipo, frecuencia }) =>
   supabase
     .from('recordatorios')
-    .insert([{ usuario_id: usuarioId, titulo, descripcion, fecha_programada, tipo }])
+    .insert([{ usuario_id: usuarioId, titulo, descripcion, fecha_programada, tipo, frecuencia: frecuencia || 'UNA_VEZ' }])
     .select();
 
 // Se filtra por usuario_id además de por id: sin esto, cualquier usuario
@@ -37,4 +37,27 @@ const marcarEnviado = (recordatorioId) =>
     .select()
     .maybeSingle();
 
-module.exports = { listarPorUsuario, crear, actualizarEstado, marcarEnviado };
+const listarVencidosPendientes = (ahora = new Date().toISOString()) =>
+  supabase
+    .from('recordatorios')
+    .select('*')
+    .eq('estado', 'PENDIENTE')
+    .lte('fecha_programada', ahora)
+    .order('fecha_programada', { ascending: true });
+
+const reprogramarSiguienteCiclo = (id, nuevaFecha) =>
+  supabase
+    .from('recordatorios')
+    .update({ fecha_programada: nuevaFecha })
+    .eq('id', id)
+    .select()
+    .maybeSingle();
+
+module.exports = {
+  listarPorUsuario,
+  crear,
+  actualizarEstado,
+  marcarEnviado,
+  listarVencidosPendientes,
+  reprogramarSiguienteCiclo
+};

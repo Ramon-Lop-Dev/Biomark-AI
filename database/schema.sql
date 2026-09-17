@@ -126,6 +126,7 @@ CREATE TABLE public.recordatorios (
   descripcion text,
   fecha_programada timestamp with time zone NOT NULL,
   estado USER-DEFINED NOT NULL DEFAULT 'PENDIENTE'::estado_recordatorio,
+  frecuencia USER-DEFINED NOT NULL DEFAULT 'UNA_VEZ'::frecuencia_recordatorio,
   fecha_creacion timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT recordatorios_pkey PRIMARY KEY (id),
   CONSTRAINT recordatorios_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)

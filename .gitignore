@@ -8,3 +8,5 @@ deploy/ai-service.env
 deploy/.env
 frontend/flutter/.env
 nginx/certs/ai-service/.env
+*.zip
+frontend/flutter/devtools_options.yaml

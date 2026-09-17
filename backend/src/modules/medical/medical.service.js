@@ -118,6 +118,56 @@ const replaceSurvey = async (usuarioId, payload) => {
   return { updated: true };
 };
 
+const normalizarHorarios = (entrada) => {
+  if (Array.isArray(entrada)) {
+    return entrada
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter((item) => /^\d{1,2}:\d{2}$/.test(item))
+      .map((item) => (item.length === 4 ? `0${item}` : item));
+  }
+  if (typeof entrada === 'string') {
+    return entrada
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => /^\d{1,2}:\d{2}$/.test(item))
+      .map((item) => (item.length === 4 ? `0${item}` : item));
+  }
+  return [];
+};
+
+const generarPlanRecordatoriosMedicamento = ({
+  nombreMedicamento,
+  frecuencia,
+  horarios,
+  fechaInicio,
+  fechaFin,
+  confirmadoPorUsuario
+}) => {
+  if (!confirmadoPorUsuario) return [];
+
+  const horas = normalizarHorarios(horarios);
+  if (horas.length === 0) return [];
+
+  const plan = [];
+  const fechaActual = new Date(`${fechaInicio}T00:00:00.000Z`);
+  const limite = fechaFin ? new Date(`${fechaFin}T00:00:00.000Z`) : new Date(fechaActual);
+
+  while (fechaActual <= limite) {
+    const yyyyMmDd = fechaActual.toISOString().split('T')[0];
+    for (const hora of horas) {
+      plan.push({
+        titulo: `Tomar ${nombreMedicamento}`,
+        descripcion: `Dosis programada: ${frecuencia}`,
+        fecha_programada: `${yyyyMmDd}T${hora}:00.000Z`,
+        tipo: 'MEDICAMENTO'
+      });
+    }
+    fechaActual.setUTCDate(fechaActual.getUTCDate() + 1);
+  }
+
+  return plan;
+};
+
 module.exports = {
   getMedicalHistory,
   createMedicalRecord,
@@ -126,6 +176,8 @@ module.exports = {
   getMedications,
   createMedication,
   getFamilyHistory,
-  createFamilyHistory
-  ,replaceSurvey
+  createFamilyHistory,
+  replaceSurvey,
+  normalizarHorarios,
+  generarPlanRecordatoriosMedicamento
 };

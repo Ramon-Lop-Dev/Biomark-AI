@@ -21,32 +21,74 @@ const addReminder = async (usuarioId, payload) => {
     tipoEntidad: 'recordatorios',
     idEntidad: registro.id,
     accion: 'CREACION',
-    detalle: { tipo: registro.tipo, titulo: registro.titulo }
+    detalle: { tipo: registro.tipo, titulo: registro.titulo, frecuencia: registro.frecuencia }
   });
 
-  try {
-    const eventoRecordatorio = {
-      id: registro.id,
-      usuario_id: usuarioId,
-      titulo: registro.titulo,
-      descripcion: registro.descripcion || '',
-      tipo: registro.tipo,
-      fecha_programada: registro.fecha_programada,
-    };
-    await publicarEvento('recordatorio.creado', {
-      recordatorio: registro,
-      usuario_id: usuarioId,
-      recordatorio_id: eventoRecordatorio.id,
-      titulo: eventoRecordatorio.titulo,
-      descripcion: eventoRecordatorio.descripcion,
-      tipo: eventoRecordatorio.tipo,
-      fecha_programada: eventoRecordatorio.fecha_programada,
-    });
-  } catch (error) {
-    console.error('[Reminders] No se pudo publicar el evento en n8n:', error.message);
+  return registro;
+};
+
+const calcularSiguienteFecha = (fechaIso, frecuencia) => {
+  const d = new Date(fechaIso);
+  if (isNaN(d.getTime())) return null;
+
+  switch (frecuencia) {
+    case 'DIARIA':
+      d.setDate(d.getDate() + 1);
+      return d.toISOString();
+    case 'SEMANAL':
+      d.setDate(d.getDate() + 7);
+      return d.toISOString();
+    case 'MENSUAL':
+      d.setMonth(d.getMonth() + 1);
+      return d.toISOString();
+    case 'UNA_VEZ':
+    default:
+      return null;
+  }
+};
+
+const processDueReminders = async () => {
+  const { data, error } = await remindersRepo.listarVencidosPendientes();
+  if (error) {
+    console.error('[Reminders] Error al listar recordatorios vencidos:', error.message);
+    return [];
   }
 
-  return registro;
+  if (!data || data.length === 0) return [];
+
+  const procesados = [];
+  for (const registro of data) {
+    try {
+      await publicarEvento('recordatorio.disparado', {
+        recordatorio: registro,
+        usuario_id: registro.usuario_id,
+        recordatorio_id: registro.id,
+        titulo: registro.titulo,
+        descripcion: registro.descripcion || '',
+        tipo: registro.tipo,
+        frecuencia: registro.frecuencia || 'UNA_VEZ',
+        fecha_programada: registro.fecha_programada
+      });
+
+      const siguienteFecha = calcularSiguienteFecha(registro.fecha_programada, registro.frecuencia);
+      if (siguienteFecha) {
+        await remindersRepo.reprogramarSiguienteCiclo(registro.id, siguienteFecha);
+        await auditService.registrar({
+          usuarioId: registro.usuario_id,
+          tipoEntidad: 'recordatorios',
+          idEntidad: registro.id,
+          accion: 'REPROGRAMACION_CICLO',
+          detalle: { nueva_fecha: siguienteFecha, frecuencia: registro.frecuencia }
+        });
+      }
+      // Si es UNA_VEZ, se queda en PENDIENTE hasta que n8n confirme recepción vía PATCH /internal/reminders/:id/sent (markReminderSent)
+      procesados.push(registro.id);
+    } catch (err) {
+      console.error(`[Reminders] Error procesando recordatorio ${registro.id}:`, err.message);
+    }
+  }
+
+  return procesados;
 };
 
 const updateReminderStatus = async (usuarioId, recordatorioId, estado) => {
@@ -75,4 +117,11 @@ const markReminderSent = async (recordatorioId) => {
   return data;
 };
 
-module.exports = { getReminders, addReminder, updateReminderStatus, markReminderSent };
+module.exports = {
+  getReminders,
+  addReminder,
+  updateReminderStatus,
+  markReminderSent,
+  processDueReminders,
+  calcularSiguienteFecha
+};

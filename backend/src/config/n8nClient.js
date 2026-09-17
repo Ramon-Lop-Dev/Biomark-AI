@@ -2,12 +2,9 @@
 const AppError = require('../utils/AppError');
 const axios = require('axios');
 
-// Punto de enganche preparado para la Fase 7 (integración real con n8n).
-// Hoy nada llama a este módulo todavía — reminders.service.js solo tiene
-// un TODO apuntando aquí. Se deja listo el contrato de configuración
-// (mismo patrón que aiServiceClient.js) para que, cuando se implemente
-// reminders.repository.postWebhook() en la Fase 7, no haya que decidir
-// nombres de variables de entorno ni repetir la validación desde cero.
+// Cliente de integración con n8n.
+// Utilizado por reminders.service.js para publicar eventos cuando un
+// recordatorio vence (evento 'recordatorio.disparado').
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL;
 const N8N_WEBHOOK_SECRET = process.env.N8N_WEBHOOK_SECRET;
 

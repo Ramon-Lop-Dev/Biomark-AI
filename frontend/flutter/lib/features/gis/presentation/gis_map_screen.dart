@@ -143,8 +143,9 @@ class _GisMapScreenState extends State<GisMapScreen> {
   }
 
   void _onMapEvent(MapEvent event) {
-    if (event is! MapEventMoveEnd && event is! MapEventFlingAnimationEnd)
+    if (event is! MapEventMoveEnd && event is! MapEventFlingAnimationEnd) {
       return;
+    }
     _mapCenter = event.camera.center;
     _zoom = event.camera.zoom;
     _viewportTimer?.cancel();
@@ -160,23 +161,34 @@ class _GisMapScreenState extends State<GisMapScreen> {
         throw const LocationServiceDisabledException();
       }
       var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied)
+      if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
+      }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         throw const PermissionDeniedException('Ubicación denegada');
       }
       final position = await Geolocator.getCurrentPosition();
       final location = LatLng(position.latitude, position.longitude);
-      if (mounted) setState(() => _userLocation = location);
+      if (mounted) {
+        setState(() {
+          _userLocation = location;
+          _mapCenter = location;
+          _zoom = 14;
+          _layersLoaded = false;
+        });
+      }
       _mapController.move(location, 14);
+      unawaited(_loadViewport(_boundsAround(location, 14)));
+      unawaited(_loadLayersOnce());
     } catch (_) {
       _mapController.move(_managua, 12);
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error =
               'Mostrando Managua. Puedes activar la ubicación cuando quieras.',
         );
+      }
     } finally {
       if (mounted) setState(() => _locating = false);
     }
@@ -203,12 +215,19 @@ class _GisMapScreenState extends State<GisMapScreen> {
   }
 
   Future<void> _openDirections(HealthCenter center) async {
-    final destination = '${center.latitude},${center.longitude}';
+    final tieneDireccion =
+        center.address.trim().isNotEmpty &&
+        center.address != 'Dirección no disponible';
+    final consulta = tieneDireccion
+        ? '${center.name}, ${center.address}'
+        : '${center.name}, Nicaragua';
+
     final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$destination&travelmode=driving',
+      'https://www.google.com/maps/dir/?api=1'
+      '&destination=${Uri.encodeComponent(consulta)}'
+      '&travelmode=driving',
     );
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
-        mounted) {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
       setState(() => _error = 'No se pudo abrir la aplicación de mapas.');
     }
   }
@@ -228,11 +247,12 @@ class _GisMapScreenState extends State<GisMapScreen> {
       );
       if (mounted) setState(() => _error = 'Reporte enviado para validación.');
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _error =
               'No se pudo enviar el reporte. Inicia sesión e inténtalo de nuevo.',
         );
+      }
     }
   }
 
@@ -333,12 +353,13 @@ class _GisMapScreenState extends State<GisMapScreen> {
             children: [
               TileLayer(
                 urlTemplate: AppConfig.cartoApiKey.isNotEmpty
-                    ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?api_key=${AppConfig.cartoApiKey}'
+                    ? 'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=${AppConfig.cartoApiKey}'
                     : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 subdomains: AppConfig.cartoApiKey.isNotEmpty
                     ? const ['a', 'b', 'c', 'd']
                     : const [],
                 userAgentPackageName: 'com.biomark.ai',
+                retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
               ),
               if (_showRisk)
                 CircleLayer(
