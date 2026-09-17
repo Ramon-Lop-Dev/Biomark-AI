@@ -577,6 +577,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
   late TextEditingController _descriptionController;
   late TextEditingController _hourController;
   String _selectedType = 'MEDICAMENTO';
+  String _selectedFrecuencia = 'UNA_VEZ';
   DateTime _selectedDate = DateTime.now();
   bool _isSaving = false;
 
@@ -655,6 +656,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
             : _descriptionController.text.trim(),
         fechaRecordatorio: _selectedDate,
         hora: _hourController.text,
+        frecuencia: _selectedFrecuencia,
       );
       if (!mounted) return;
       Navigator.pop(context, true);
@@ -835,6 +837,31 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 18),
+                // Frecuencia
+                const Text(
+                  'Frecuencia de repetición',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFrequencyChip('UNA_VEZ', 'Una vez', Icons.looks_one_outlined),
+                      const SizedBox(width: 8),
+                      _buildFrequencyChip('HORARIA', 'Cada hora', Icons.hourglass_bottom_rounded),
+                      const SizedBox(width: 8),
+                      _buildFrequencyChip('DIARIA', 'Diario', Icons.today_rounded),
+                      const SizedBox(width: 8),
+                      _buildFrequencyChip('SEMANAL', 'Semanal', Icons.date_range_rounded),
+                      const SizedBox(width: 8),
+                      _buildFrequencyChip('QUINCENAL', 'Quincenal (15 días)', Icons.calendar_view_week_rounded),
+                      const SizedBox(width: 8),
+                      _buildFrequencyChip('MENSUAL', 'Mensual', Icons.calendar_month_rounded),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 24),
                 // Botón crear
                 SizedBox(
@@ -904,6 +931,49 @@ class _AddReminderModalState extends State<_AddReminderModal> {
             const SizedBox(width: 6),
             Text(
               typeLabel,
+              style: TextStyle(
+                color: isSelected
+                    ? Colors.white
+                    : Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFrequencyChip(String value, String label, IconData icon) {
+    final isSelected = _selectedFrecuencia == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedFrecuencia = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? BiomarkColors.green
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? BiomarkColors.green : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected
+                  ? Colors.white
+                  : Theme.of(context).colorScheme.onSurface,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
               style: TextStyle(
                 color: isSelected
                     ? Colors.white

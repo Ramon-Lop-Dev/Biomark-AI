@@ -4,7 +4,7 @@ const { addReminderSchema, FRECUENCIAS_RECORDATORIO } = require('../src/modules/
 const { calcularSiguienteFecha } = require('../src/modules/reminders/reminders.service');
 
 test('valida frecuencia de recordatorio y aplica default UNA_VEZ', () => {
-  assert.deepEqual(FRECUENCIAS_RECORDATORIO, ['UNA_VEZ', 'DIARIA', 'SEMANAL', 'MENSUAL']);
+  assert.deepEqual(FRECUENCIAS_RECORDATORIO, ['UNA_VEZ', 'HORARIA', 'DIARIA', 'SEMANAL', 'QUINCENAL', 'MENSUAL']);
 
   const base = {
     titulo: 'Control de glucosa',
@@ -15,22 +15,31 @@ test('valida frecuencia de recordatorio y aplica default UNA_VEZ', () => {
   const conDefault = addReminderSchema.parse(base);
   assert.equal(conDefault.frecuencia, 'UNA_VEZ');
 
-  const conFrecuencia = addReminderSchema.parse({ ...base, frecuencia: 'DIARIA' });
-  assert.equal(conFrecuencia.frecuencia, 'DIARIA');
+  const conHoraria = addReminderSchema.parse({ ...base, frecuencia: 'HORARIA' });
+  assert.equal(conHoraria.frecuencia, 'HORARIA');
+
+  const conQuincenal = addReminderSchema.parse({ ...base, frecuencia: 'QUINCENAL' });
+  assert.equal(conQuincenal.frecuencia, 'QUINCENAL');
 
   assert.throws(() => {
-    addReminderSchema.parse({ ...base, frecuencia: 'CADA_HORA' });
+    addReminderSchema.parse({ ...base, frecuencia: 'FRECUENCIA_INVALIDA' });
   });
 });
 
 test('calcularSiguienteFecha proyecta la fecha según la frecuencia', () => {
   const baseIso = '2026-09-20T08:00:00.000Z';
 
+  const horaria = calcularSiguienteFecha(baseIso, 'HORARIA');
+  assert.equal(horaria, '2026-09-20T09:00:00.000Z');
+
   const diaria = calcularSiguienteFecha(baseIso, 'DIARIA');
   assert.equal(diaria, '2026-09-21T08:00:00.000Z');
 
   const semanal = calcularSiguienteFecha(baseIso, 'SEMANAL');
   assert.equal(semanal, '2026-09-27T08:00:00.000Z');
+
+  const quincenal = calcularSiguienteFecha(baseIso, 'QUINCENAL');
+  assert.equal(quincenal, '2026-10-05T08:00:00.000Z');
 
   const mensual = calcularSiguienteFecha(baseIso, 'MENSUAL');
   assert.equal(mensual, '2026-10-20T08:00:00.000Z');

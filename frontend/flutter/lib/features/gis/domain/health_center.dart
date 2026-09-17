@@ -136,11 +136,13 @@ class CommunityReportPoint {
   final double latitude;
   final double longitude;
   final int caseCount;
+  final String description;
 
   const CommunityReportPoint({
     required this.latitude,
     required this.longitude,
     required this.caseCount,
+    this.description = '',
   });
 
   factory CommunityReportPoint.fromJson(Map<String, dynamic> json) {
@@ -150,6 +152,7 @@ class CommunityReportPoint {
       latitude: number(json['latitud']),
       longitude: number(json['longitud']),
       caseCount: (json['cantidad_casos'] as num?)?.toInt() ?? 1,
+      description: '${json['descripcion'] ?? ''}',
     );
   }
 }

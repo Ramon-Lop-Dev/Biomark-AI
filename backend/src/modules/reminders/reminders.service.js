@@ -32,11 +32,17 @@ const calcularSiguienteFecha = (fechaIso, frecuencia) => {
   if (isNaN(d.getTime())) return null;
 
   switch (frecuencia) {
+    case 'HORARIA':
+      d.setHours(d.getHours() + 1);
+      return d.toISOString();
     case 'DIARIA':
       d.setDate(d.getDate() + 1);
       return d.toISOString();
     case 'SEMANAL':
       d.setDate(d.getDate() + 7);
+      return d.toISOString();
+    case 'QUINCENAL':
+      d.setDate(d.getDate() + 15);
       return d.toISOString();
     case 'MENSUAL':
       d.setMonth(d.getMonth() + 1);

@@ -21,13 +21,15 @@ class GisMapScreen extends StatefulWidget {
   State<GisMapScreen> createState() => _GisMapScreenState();
 }
 
-class _GisMapScreenState extends State<GisMapScreen> {
+class _GisMapScreenState extends State<GisMapScreen>
+    with SingleTickerProviderStateMixin {
   static const _managua = LatLng(12.1364, -86.2514);
   final _mapController = MapController();
   final _searchController = TextEditingController();
   final _gisApi = GisApi();
   final _sheetController = DraggableScrollableController();
   Timer? _viewportTimer;
+  late final AnimationController _pulseController;
 
   List<HealthCenter> _centers = const [];
   LatLng _mapCenter = _managua;
@@ -49,6 +51,11 @@ class _GisMapScreenState extends State<GisMapScreen> {
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat();
+
     if (widget.initialCenter != null) {
       _mapCenter = LatLng(
         widget.initialCenter!.latitude,
@@ -272,8 +279,8 @@ class _GisMapScreenState extends State<GisMapScreen> {
         .map(
           (center) => Marker(
             point: LatLng(center.latitude, center.longitude),
-            width: 48,
-            height: 48,
+            width: 52,
+            height: 52,
             child: Semantics(
               label: center.name,
               button: true,
@@ -284,7 +291,7 @@ class _GisMapScreenState extends State<GisMapScreen> {
                   _openDetails(center);
                 },
                 child: Center(
-                  child: _CenterDot(
+                  child: _HealthCenterMarker(
                     center: center,
                     selected: _selected?.id == center.id,
                   ),
@@ -298,9 +305,12 @@ class _GisMapScreenState extends State<GisMapScreen> {
       if (_userLocation != null)
         Marker(
           point: _userLocation!,
-          width: 52,
-          height: 52,
-          child: const IgnorePointer(child: _UserLocationMarker()),
+          width: 140,
+          height: 96,
+          alignment: Alignment.center,
+          child: IgnorePointer(
+            child: _UserLocationMarker(pulseAnimation: _pulseController),
+          ),
         ),
       if (_showEvents)
         ..._events.map(
@@ -309,13 +319,11 @@ class _GisMapScreenState extends State<GisMapScreen> {
             width: 44,
             height: 44,
             child: GestureDetector(
-              onTap: () =>
-                  setState(() => _error = '${event.title} · ${event.location}'),
-              child: const Icon(
-                Icons.event_available_rounded,
-                color: BiomarkColors.blue,
-                size: 28,
-              ),
+              onTap: () {
+                final visual = _getEventVisual(event);
+                setState(() => _error = '[${visual.category}] ${event.title} · ${event.location}');
+              },
+              child: _CommunityEventMarker(event: event),
             ),
           ),
         ),
@@ -323,17 +331,17 @@ class _GisMapScreenState extends State<GisMapScreen> {
         ..._reports.map(
           (report) => Marker(
             point: LatLng(report.latitude, report.longitude),
-            width: 44,
-            height: 44,
+            width: 180,
+            height: 56,
+            alignment: Alignment.center,
             child: GestureDetector(
               onTap: () => setState(
                 () => _error =
-                    '${report.caseCount} casos reportados en esta zona',
+                    '${report.caseCount} ${report.caseCount == 1 ? 'caso' : 'casos'} reportados: ${report.description.isNotEmpty ? report.description : "Zona con reporte comunitario"}',
               ),
-              child: const Icon(
-                Icons.report_problem_rounded,
-                color: Colors.redAccent,
-                size: 26,
+              child: _CommunityReportMarker(
+                report: report,
+                pulseAnimation: _pulseController,
               ),
             ),
           ),
@@ -353,7 +361,7 @@ class _GisMapScreenState extends State<GisMapScreen> {
             children: [
               TileLayer(
                 urlTemplate: AppConfig.cartoApiKey.isNotEmpty
-                    ? 'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=${AppConfig.cartoApiKey}'
+                    ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${AppConfig.cartoApiKey}'
                     : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 subdomains: AppConfig.cartoApiKey.isNotEmpty
                     ? const ['a', 'b', 'c', 'd']
@@ -361,6 +369,21 @@ class _GisMapScreenState extends State<GisMapScreen> {
                 userAgentPackageName: 'com.biomark.ai',
                 retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
               ),
+              if (_showReports && _reports.isNotEmpty)
+                CircleLayer(
+                  circles: _reports
+                      .map(
+                        (report) => CircleMarker(
+                          point: LatLng(report.latitude, report.longitude),
+                          radius: 350,
+                          useRadiusInMeter: true,
+                          color: const Color(0x33FF1744),
+                          borderColor: const Color(0xCCFF1744),
+                          borderStrokeWidth: 2,
+                        ),
+                      )
+                      .toList(),
+                ),
               if (_showRisk)
                 CircleLayer(
                   circles: _riskZones
@@ -537,6 +560,7 @@ class _GisMapScreenState extends State<GisMapScreen> {
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _viewportTimer?.cancel();
     _searchController.dispose();
     _sheetController.dispose();
@@ -665,6 +689,49 @@ class _CenterSheet extends StatelessWidget {
   }
 }
 
+class _HealthCenterMarker extends StatelessWidget {
+  const _HealthCenterMarker({required this.center, this.selected = false});
+  final HealthCenter center;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final isHospital =
+        center.level == 3 || center.type.toUpperCase().contains('HOSPITAL');
+    final color = isHospital ? const Color(0xFFC62828) : BiomarkColors.green;
+    final icon = isHospital
+        ? Icons.local_hospital_rounded
+        : Icons.health_and_safety_rounded;
+    final size = isHospital ? 38.0 : 32.0;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: selected ? size * 1.25 : size,
+      height: selected ? size * 1.25 : size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: selected ? 3.0 : 2.0),
+        boxShadow: [
+          BoxShadow(
+            color: selected ? color.withValues(alpha: 0.5) : Colors.black26,
+            blurRadius: selected ? 8 : 4,
+            spreadRadius: selected ? 3 : 0,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: isHospital ? (selected ? 22 : 18) : (selected ? 18 : 15),
+        ),
+      ),
+    );
+  }
+}
+
 class _CenterDot extends StatelessWidget {
   const _CenterDot({required this.center, this.selected = false});
   final HealthCenter center;
@@ -672,54 +739,370 @@ class _CenterDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final size = center.level == 3
-        ? 16.0
-        : center.level == 2
-        ? 12.0
-        : 8.0;
-    final filled = center.level != 1;
-    final color = center.level == 3 ? BiomarkColors.blue : BiomarkColors.green;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      width: selected ? size * 1.3 : size,
-      height: selected ? size * 1.3 : size,
+    final isHospital =
+        center.level == 3 || center.type.toUpperCase().contains('HOSPITAL');
+    final color = isHospital ? const Color(0xFFC62828) : BiomarkColors.green;
+    final icon = isHospital
+        ? Icons.local_hospital_rounded
+        : Icons.health_and_safety_rounded;
+
+    return Container(
+      width: 34,
+      height: 34,
       decoration: BoxDecoration(
-        color: filled ? color : Colors.white,
+        color: color.withValues(alpha: .14),
         shape: BoxShape.circle,
-        border: Border.all(
-          color: filled ? Colors.white : color,
-          width: center.level == 3 ? 2 : 1.5,
-        ),
-        boxShadow: selected
-            ? [
-                BoxShadow(
-                  color: color.withValues(alpha: .25),
-                  blurRadius: 0,
-                  spreadRadius: 5,
-                ),
-              ]
-            : null,
+        border: Border.all(color: color, width: 1.5),
       ),
+      child: Icon(icon, color: color, size: 18),
     );
   }
 }
 
 class _UserLocationMarker extends StatelessWidget {
-  const _UserLocationMarker();
+  const _UserLocationMarker({required this.pulseAnimation});
+  final Animation<double> pulseAnimation;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        color: BiomarkColors.blue,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 4),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: pulseAnimation,
+      builder: (context, child) {
+        final t = pulseAnimation.value;
+        final t2 = (t + 0.5) % 1.0;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: BiomarkColors.blue.withValues(alpha: .35),
+                  width: 1.2,
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.navigation_rounded,
+                    size: 13,
+                    color: BiomarkColors.blue,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'Tu ubicación',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A1C1E),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            CustomPaint(
+              size: const Size(8, 4),
+              painter: const _BalloonPointerPainter(color: Colors.white),
+            ),
+            const SizedBox(height: 2),
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 20 + (t * 24),
+                    height: 20 + (t * 24),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: BiomarkColors.blue.withValues(
+                        alpha: (1.0 - t) * 0.4,
+                      ),
+                      border: Border.all(
+                        color: BiomarkColors.blue.withValues(
+                          alpha: (1.0 - t) * 0.6,
+                        ),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 20 + (t2 * 20),
+                    height: 20 + (t2 * 20),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: BiomarkColors.blue.withValues(
+                        alpha: (1.0 - t2) * 0.3,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: BiomarkColors.blue,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black38,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _BalloonPointerPainter extends CustomPainter {
+  final Color color;
+  const _BalloonPointerPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _CommunityEventMarker extends StatelessWidget {
+  const _CommunityEventMarker({required this.event});
+  final CommunityEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    final visual = _getEventVisual(event);
+    return Tooltip(
+      message: '${event.title} (${visual.category})',
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: visual.color,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 2.5),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 5,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(
+          visual.icon,
+          color: Colors.white,
+          size: 20,
+        ),
       ),
-    ),
+    );
+  }
+}
+
+class _EventVisualData {
+  final IconData icon;
+  final Color color;
+  final String category;
+  const _EventVisualData(this.icon, this.color, this.category);
+}
+
+_EventVisualData _getEventVisual(CommunityEvent event) {
+  final text = '${event.title} ${event.description}'.toLowerCase();
+  if (text.contains('vacun') ||
+      text.contains('inmuniz') ||
+      text.contains('dosis')) {
+    return const _EventVisualData(
+      Icons.vaccines_rounded,
+      Color(0xFF00897B),
+      'Vacunación',
+    );
+  }
+  if (text.contains('fumig') ||
+      text.contains('plaga') ||
+      text.contains('dengue') ||
+      text.contains('limpieza') ||
+      text.contains('vector') ||
+      text.contains('abatiz')) {
+    return const _EventVisualData(
+      Icons.pest_control_rounded,
+      Color(0xFFE65100),
+      'Fumigación / Limpieza',
+    );
+  }
+  if (text.contains('sangre') || text.contains('donac')) {
+    return const _EventVisualData(
+      Icons.bloodtype_rounded,
+      Color(0xFFC2185B),
+      'Donación de sangre',
+    );
+  }
+  if (text.contains('dient') ||
+      text.contains('dental') ||
+      text.contains('odonto')) {
+    return const _EventVisualData(
+      Icons.medical_information_rounded,
+      Color(0xFF0288D1),
+      'Salud dental',
+    );
+  }
+  if (text.contains('consult') ||
+      text.contains('feria') ||
+      text.contains('atenci') ||
+      text.contains('medic') ||
+      text.contains('chequeo')) {
+    return const _EventVisualData(
+      Icons.medical_services_rounded,
+      Color(0xFF5E35B1),
+      'Consulta médica',
+    );
+  }
+  return const _EventVisualData(
+    Icons.event_available_rounded,
+    Color(0xFF283593),
+    'Jornada comunitaria',
   );
+}
+
+class _CommunityReportMarker extends StatelessWidget {
+  const _CommunityReportMarker({
+    required this.report,
+    required this.pulseAnimation,
+  });
+  final CommunityReportPoint report;
+  final Animation<double> pulseAnimation;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasDesc = report.description.trim().isNotEmpty;
+    final descText = hasDesc
+        ? (report.description.trim().length > 16
+            ? '${report.description.trim().substring(0, 16)}…'
+            : report.description.trim())
+        : '${report.caseCount} ${report.caseCount == 1 ? 'caso' : 'casos'}';
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        AnimatedBuilder(
+          animation: pulseAnimation,
+          builder: (context, child) {
+            final t = pulseAnimation.value;
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 28 + (t * 10),
+                  height: 28 + (t * 10),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(
+                      0xFFFF1744,
+                    ).withValues(alpha: (1.0 - t) * 0.45),
+                  ),
+                ),
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD50000),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.report_problem_rounded,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFFF1744), width: 1.2),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 4,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFF1744),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    descText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFB71C1C),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _ClusterDot extends StatelessWidget {

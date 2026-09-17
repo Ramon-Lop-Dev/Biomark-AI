@@ -8,7 +8,7 @@ const TIPOS_RECORDATORIO = ['MEDICAMENTO', 'CITA', 'VACUNA', 'CONTROL'];
 const ESTADOS_RECORDATORIO = ['PENDIENTE', 'ENVIADO', 'COMPLETADO', 'CANCELADO'];
 
 // Valores del enum frecuencia_recordatorio en Postgres.
-const FRECUENCIAS_RECORDATORIO = ['UNA_VEZ', 'DIARIA', 'SEMANAL', 'MENSUAL'];
+const FRECUENCIAS_RECORDATORIO = ['UNA_VEZ', 'HORARIA', 'DIARIA', 'SEMANAL', 'QUINCENAL', 'MENSUAL'];
 
 const addReminderSchema = z.object({
   titulo: z.string().trim().min(1, 'El título es obligatorio'),

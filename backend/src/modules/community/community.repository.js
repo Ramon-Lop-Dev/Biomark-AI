@@ -44,7 +44,7 @@ const listarReportesParaEstadisticas = () =>
   supabase.from('reportes_comunitarios').select('estado, cantidad_casos');
 
 const listarReportesParaHeatmap = () =>
-  supabase.from('reportes_comunitarios').select('latitud, longitud, cantidad_casos').eq('estado', 'VALIDADO');
+  supabase.from('reportes_comunitarios').select('latitud, longitud, cantidad_casos, descripcion').eq('estado', 'VALIDADO');
 
 const listarReportesParaOperacion = (estado) => {
   let query = supabase

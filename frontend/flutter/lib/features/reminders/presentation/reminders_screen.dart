@@ -396,6 +396,27 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   color: BiomarkColors.black,
                 ),
               ),
+              const SizedBox(height: 2),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: reminder.frecuencia != 'UNA_VEZ'
+                      ? const Color(0xFFE8F5E9)
+                      : const Color(0xFFF3F3F6),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _getFrecuenciaLabel(reminder.frecuencia),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: reminder.frecuencia != 'UNA_VEZ'
+                        ? const Color(0xFF2E7D32)
+                        : const Color(0xFF5F6368),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 2),
               Text(
                 reminder.estado.toLowerCase(),
                 style: const TextStyle(
@@ -599,5 +620,23 @@ class _RemindersScreenState extends State<RemindersScreen> {
         ),
       ),
     );
+  }
+
+  String _getFrecuenciaLabel(String frecuencia) {
+    switch (frecuencia) {
+      case 'HORARIA':
+        return 'Cada hora';
+      case 'DIARIA':
+        return 'Diario';
+      case 'SEMANAL':
+        return 'Semanal';
+      case 'QUINCENAL':
+        return 'Quincenal';
+      case 'MENSUAL':
+        return 'Mensual';
+      case 'UNA_VEZ':
+      default:
+        return 'Una vez';
+    }
   }
 }
