@@ -5,6 +5,7 @@ class VitalMeasurement {
   final double qualityScore; // 0.0 a 1.0
   final DateTime timestamp;
   final String? notes;
+  final String method; // 'SCG' o 'PPG'
 
   const VitalMeasurement({
     required this.bpm,
@@ -13,6 +14,7 @@ class VitalMeasurement {
     required this.qualityScore,
     required this.timestamp,
     this.notes,
+    this.method = 'SCG',
   });
 
   factory VitalMeasurement.fromBpm({
@@ -20,6 +22,7 @@ class VitalMeasurement {
     double qualityScore = 1.0,
     String? notes,
     DateTime? timestamp,
+    String method = 'SCG',
   }) {
     String status;
     String statusLabel;
@@ -41,6 +44,7 @@ class VitalMeasurement {
       qualityScore: qualityScore,
       timestamp: timestamp ?? DateTime.now(),
       notes: notes,
+      method: method,
     );
   }
 
@@ -51,6 +55,7 @@ class VitalMeasurement {
         'qualityScore': qualityScore,
         'timestamp': timestamp.toIso8601String(),
         'notes': notes,
+        'method': method,
       };
 
   factory VitalMeasurement.fromJson(Map<String, dynamic> json) => VitalMeasurement(
@@ -60,5 +65,6 @@ class VitalMeasurement {
         qualityScore: (json['qualityScore'] as num?)?.toDouble() ?? 1.0,
         timestamp: DateTime.tryParse(json['timestamp']?.toString() ?? '') ?? DateTime.now(),
         notes: json['notes']?.toString(),
+        method: json['method']?.toString() ?? 'SCG',
       );
 }

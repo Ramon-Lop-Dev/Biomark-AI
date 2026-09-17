@@ -4,7 +4,7 @@ import '../data/progress_api.dart';
 import '../domain/progress_snapshot.dart';
 import '../../vitals/domain/vital_measurement.dart';
 import '../../vitals/data/vitals_storage.dart';
-import '../../vitals/presentation/ppg_screen.dart';
+import '../../vitals/presentation/scg_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key, this.refreshSignal});
@@ -46,10 +46,10 @@ class _ProgressScreenState extends State<ProgressScreen> {
     super.dispose();
   }
 
-  Future<void> _openPpg() async {
+  Future<void> _openScg() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const PpgScreen()),
+      MaterialPageRoute(builder: (_) => const ScgScreen()),
     );
     _reload();
   }
@@ -897,7 +897,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   ),
                 ] else ...[
                   const Text(
-                    'Sin mediciones hoy · Medir con cámara',
+                    'Sin mediciones hoy · Medir en el pecho',
                     style: TextStyle(fontSize: 12, color: Color(0xFF6C736F)),
                   ),
                 ],
@@ -905,7 +905,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             ),
           ),
           OutlinedButton(
-            onPressed: _openPpg,
+            onPressed: _openScg,
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFFEF4444),
               side: const BorderSide(color: Color(0xFFEF4444)),

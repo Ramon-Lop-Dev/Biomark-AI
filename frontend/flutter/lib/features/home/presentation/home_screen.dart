@@ -11,6 +11,7 @@ import '../../gis/presentation/gis_map_screen.dart';
 import '../../vitals/domain/vital_measurement.dart';
 import '../../vitals/data/vitals_storage.dart';
 import '../../vitals/presentation/ppg_screen.dart';
+import '../../vitals/presentation/scg_screen.dart';
 import '../domain/health_recommendation.dart';
 import '../data/recommendations_service.dart';
 
@@ -143,6 +144,138 @@ class _HomeScreenState extends State<HomeScreen> {
     } else {
       _cargarUltimoSignoVital();
     }
+  }
+
+  Future<void> _openScgScreen() async {
+    final result = await Navigator.push<VitalMeasurement?>(
+      context,
+      MaterialPageRoute(builder: (_) => const ScgScreen()),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _latestVital = result;
+      });
+    } else {
+      _cargarUltimoSignoVital();
+    }
+  }
+
+  void _showMeasurementOptionsModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.fromLTRB(22, 16, 22, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Selecciona el método de medición',
+                style: TextStyle(
+                  fontFamily: 'Syne',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Elige cómo prefieres registrar tu frecuencia cardíaca hoy:',
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 12.5,
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: BiomarkColors.green.withValues(alpha: 0.4), width: 1.5),
+                ),
+                tileColor: BiomarkColors.green.withValues(alpha: 0.08),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: BiomarkColors.green.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.sensors_rounded, color: BiomarkColors.green, size: 24),
+                ),
+                title: const Row(
+                  children: [
+                    Text(
+                      'Sismocardiografía (SCG)',
+                      style: TextStyle(fontFamily: 'Syne', fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    SizedBox(width: 8),
+                    Badge(
+                      label: Text('Recomendado', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                      backgroundColor: BiomarkColors.green,
+                    ),
+                  ],
+                ),
+                subtitle: const Text(
+                  'Coloca el celular en tu pecho (acostado o sentado). Sin quemar dedos ni depender de flash.',
+                  style: TextStyle(fontFamily: 'Poppins', fontSize: 11),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openScgScreen();
+                },
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+                ),
+                tileColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.camera_alt_outlined, color: Colors.red, size: 24),
+                ),
+                title: const Text(
+                  'Fotopletismografía (PPG)',
+                  style: TextStyle(fontFamily: 'Syne', fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                subtitle: const Text(
+                  'Sensor óptico usando la cámara trasera y el flash sobre la yema del dedo.',
+                  style: TextStyle(fontFamily: 'Poppins', fontSize: 11),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _openPpgScreen();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _openRecommendationDetails(HealthRecommendation rec) {
@@ -464,7 +597,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 14),
           ] else ...[
             Text(
-              'Coloca suavemente tu dedo sobre el lente de la cámara y el flash para calcular tus latidos en tiempo real.',
+              'Coloca el celular sobre tu pecho (acostado o sentado) para medir tus pulsaciones mediante micro-vibraciones cardíacas.',
               style: TextStyle(fontSize: 12.5, height: 1.35, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 14),
@@ -472,10 +605,10 @@ class _HomeScreenState extends State<HomeScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _openPpgScreen,
-              icon: const Icon(Icons.fingerprint_rounded, size: 20),
+              onPressed: _showMeasurementOptionsModal,
+              icon: const Icon(Icons.favorite_rounded, size: 20),
               label: Text(
-                vital != null ? 'Medir Pulso de Nuevo' : 'Medir Pulso con Cámara',
+                vital != null ? 'Medir Pulso de Nuevo' : 'Medir Pulso Cardíaco',
                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
               ),
               style: ElevatedButton.styleFrom(
@@ -533,11 +666,11 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Expanded(
               child: _buildActionTile(
-                icon: Icons.favorite_border_rounded,
+                icon: Icons.favorite_rounded,
                 title: 'Medir Pulso',
-                subtitle: 'PPG Óptico 20s',
+                subtitle: 'SCG Pecho 18s',
                 color: const Color(0xFFEF4444),
-                onTap: _openPpgScreen,
+                onTap: _openScgScreen,
               ),
             ),
             const SizedBox(width: 12),
