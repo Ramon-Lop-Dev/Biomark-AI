@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../biomark_brand.dart';
@@ -733,9 +733,8 @@ class _HealthCenterMarker extends StatelessWidget {
 }
 
 class _CenterDot extends StatelessWidget {
-  const _CenterDot({required this.center, this.selected = false});
+  const _CenterDot({required this.center});
   final HealthCenter center;
-  final bool selected;
 
   @override
   Widget build(BuildContext context) {
