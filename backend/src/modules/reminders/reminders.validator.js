@@ -10,6 +10,9 @@ const ESTADOS_RECORDATORIO = ['PENDIENTE', 'ENVIADO', 'COMPLETADO', 'CANCELADO']
 // Valores del enum frecuencia_recordatorio en Postgres.
 const FRECUENCIAS_RECORDATORIO = ['UNA_VEZ', 'HORARIA', 'DIARIA', 'SEMANAL', 'QUINCENAL', 'MENSUAL'];
 
+// Opciones de aviso previo (anticipación de notificación).
+const AVISOS_PREVIOS = ['AL_MOMENTO', '1_HORA_ANTES', '1_DIA_ANTES', '2_DIAS_ANTES'];
+
 const addReminderSchema = z.object({
   titulo: z.string().trim().min(1, 'El título es obligatorio'),
   descripcion: z.string().trim().max(2000).optional(),
@@ -19,7 +22,10 @@ const addReminderSchema = z.object({
   }),
   frecuencia: z.enum(FRECUENCIAS_RECORDATORIO, {
     error: `frecuencia debe ser una de: ${FRECUENCIAS_RECORDATORIO.join(', ')}`
-  }).default('UNA_VEZ')
+  }).default('UNA_VEZ'),
+  aviso_previo: z.enum(AVISOS_PREVIOS, {
+    error: `aviso_previo debe ser uno de: ${AVISOS_PREVIOS.join(', ')}`
+  }).default('AL_MOMENTO')
 });
 
 const updateReminderStatusSchema = z.object({
@@ -33,5 +39,6 @@ module.exports = {
   updateReminderStatusSchema,
   TIPOS_RECORDATORIO,
   ESTADOS_RECORDATORIO,
-  FRECUENCIAS_RECORDATORIO
+  FRECUENCIAS_RECORDATORIO,
+  AVISOS_PREVIOS
 };

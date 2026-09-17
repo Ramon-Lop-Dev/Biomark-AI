@@ -465,6 +465,29 @@ class _RemindersScreenState extends State<RemindersScreen> {
                       ),
                     ),
                   ),
+                if (reminder.avisoPrevio != 'AL_MOMENTO')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.alarm_on_rounded,
+                          size: 13,
+                          color: Color(0xFFD97706),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Aviso: ${_getAvisoPrevioLabel(reminder.avisoPrevio)}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFD97706),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -637,6 +660,20 @@ class _RemindersScreenState extends State<RemindersScreen> {
       case 'UNA_VEZ':
       default:
         return 'Una vez';
+    }
+  }
+
+  String _getAvisoPrevioLabel(String aviso) {
+    switch (aviso) {
+      case '1_HORA_ANTES':
+        return '1 hora antes';
+      case '1_DIA_ANTES':
+        return '1 día antes';
+      case '2_DIAS_ANTES':
+        return '2 días antes';
+      case 'AL_MOMENTO':
+      default:
+        return 'A la hora exacta';
     }
   }
 }

@@ -10,8 +10,35 @@ const getReminders = async (usuarioId) => {
   return data;
 };
 
+const calcularFechaNotificacion = (fechaProgramadaIso, avisoPrevio) => {
+  const d = new Date(fechaProgramadaIso);
+  if (isNaN(d.getTime())) return fechaProgramadaIso;
+
+  switch (avisoPrevio) {
+    case '1_HORA_ANTES':
+      d.setHours(d.getHours() - 1);
+      return d.toISOString();
+    case '1_DIA_ANTES':
+      d.setDate(d.getDate() - 1);
+      return d.toISOString();
+    case '2_DIAS_ANTES':
+      d.setDate(d.getDate() - 2);
+      return d.toISOString();
+    case 'AL_MOMENTO':
+    default:
+      return d.toISOString();
+  }
+};
+
 const addReminder = async (usuarioId, payload) => {
-  const { data, error } = await remindersRepo.crear(usuarioId, payload);
+  const avisoPrevio = payload.aviso_previo || 'AL_MOMENTO';
+  const fechaNotificacion = calcularFechaNotificacion(payload.fecha_programada, avisoPrevio);
+
+  const { data, error } = await remindersRepo.crear(usuarioId, {
+    ...payload,
+    aviso_previo: avisoPrevio,
+    fecha_notificacion: fechaNotificacion
+  });
   if (error) throw new AppError('Error al crear recordatorio', 500);
 
   const registro = data[0];
@@ -21,7 +48,13 @@ const addReminder = async (usuarioId, payload) => {
     tipoEntidad: 'recordatorios',
     idEntidad: registro.id,
     accion: 'CREACION',
-    detalle: { tipo: registro.tipo, titulo: registro.titulo, frecuencia: registro.frecuencia }
+    detalle: {
+      tipo: registro.tipo,
+      titulo: registro.titulo,
+      frecuencia: registro.frecuencia,
+      aviso_previo: registro.aviso_previo,
+      fecha_notificacion: registro.fecha_notificacion
+    }
   });
 
   return registro;
@@ -74,18 +107,33 @@ const processDueReminders = async () => {
         descripcion: registro.descripcion || '',
         tipo: registro.tipo,
         frecuencia: registro.frecuencia || 'UNA_VEZ',
-        fecha_programada: registro.fecha_programada
+        aviso_previo: registro.aviso_previo || 'AL_MOMENTO',
+        fecha_programada: registro.fecha_programada,
+        fecha_notificacion: registro.fecha_notificacion
       });
 
       const siguienteFecha = calcularSiguienteFecha(registro.fecha_programada, registro.frecuencia);
       if (siguienteFecha) {
-        await remindersRepo.reprogramarSiguienteCiclo(registro.id, siguienteFecha);
+        const siguienteNotificacion = calcularFechaNotificacion(
+          siguienteFecha,
+          registro.aviso_previo || 'AL_MOMENTO'
+        );
+        await remindersRepo.reprogramarSiguienteCiclo(
+          registro.id,
+          siguienteFecha,
+          siguienteNotificacion
+        );
         await auditService.registrar({
           usuarioId: registro.usuario_id,
           tipoEntidad: 'recordatorios',
           idEntidad: registro.id,
           accion: 'REPROGRAMACION_CICLO',
-          detalle: { nueva_fecha: siguienteFecha, frecuencia: registro.frecuencia }
+          detalle: {
+            nueva_fecha: siguienteFecha,
+            nueva_notificacion: siguienteNotificacion,
+            frecuencia: registro.frecuencia,
+            aviso_previo: registro.aviso_previo
+          }
         });
       }
       // Si es UNA_VEZ, se queda en PENDIENTE hasta que n8n confirme recepción vía PATCH /internal/reminders/:id/sent (markReminderSent)
@@ -131,5 +179,6 @@ module.exports = {
   updateReminderStatus,
   markReminderSent,
   processDueReminders,
-  calcularSiguienteFecha
+  calcularSiguienteFecha,
+  calcularFechaNotificacion
 };

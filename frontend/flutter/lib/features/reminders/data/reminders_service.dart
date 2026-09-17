@@ -22,6 +22,8 @@ class Reminder {
   final String? hora;
   final String estado; // PENDIENTE, ENVIADO, COMPLETADO, CANCELADO
   final String frecuencia; // UNA_VEZ, HORARIA, DIARIA, SEMANAL, QUINCENAL, MENSUAL
+  final String avisoPrevio; // AL_MOMENTO, 1_HORA_ANTES, 1_DIA_ANTES, 2_DIAS_ANTES
+  final DateTime? fechaNotificacion;
   final DateTime fechaCreacion;
   final DateTime? fechaActualizacion;
 
@@ -35,6 +37,8 @@ class Reminder {
     this.hora,
     required this.estado,
     this.frecuencia = 'UNA_VEZ',
+    this.avisoPrevio = 'AL_MOMENTO',
+    this.fechaNotificacion,
     required this.fechaCreacion,
     this.fechaActualizacion,
   });
@@ -58,6 +62,10 @@ class Reminder {
           RemindersService.formatHour(json['fecha_programada'] as String?),
       estado: json['estado'] as String? ?? 'PENDIENTE',
       frecuencia: json['frecuencia'] as String? ?? 'UNA_VEZ',
+      avisoPrevio: json['aviso_previo'] as String? ?? 'AL_MOMENTO',
+      fechaNotificacion: json['fecha_notificacion'] != null
+          ? DateTime.tryParse(json['fecha_notificacion'] as String)
+          : null,
       fechaCreacion:
           DateTime.tryParse(
             json['fecha_creacion'] as String? ??
@@ -84,6 +92,8 @@ class Reminder {
       'hora': hora,
       'estado': estado,
       'frecuencia': frecuencia,
+      'aviso_previo': avisoPrevio,
+      'fecha_notificacion': fechaNotificacion?.toIso8601String(),
       'created_at': fechaCreacion.toIso8601String(),
       'updated_at': fechaActualizacion?.toIso8601String(),
     };
@@ -144,12 +154,14 @@ class RemindersService {
     required DateTime fechaRecordatorio,
     String? hora,
     String frecuencia = 'UNA_VEZ',
+    String avisoPrevio = 'AL_MOMENTO',
   }) async {
     final payload = {
       'tipo': tipo,
       'titulo': titulo,
       'descripcion': descripcion,
       'frecuencia': frecuencia,
+      'aviso_previo': avisoPrevio,
       'fecha_programada': _combineDateAndTime(
         fechaRecordatorio,
         hora,

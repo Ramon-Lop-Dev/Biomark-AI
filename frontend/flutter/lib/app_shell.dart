@@ -578,6 +578,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
   late TextEditingController _hourController;
   String _selectedType = 'MEDICAMENTO';
   String _selectedFrecuencia = 'UNA_VEZ';
+  String _selectedAvisoPrevio = 'AL_MOMENTO';
   DateTime _selectedDate = DateTime.now();
   bool _isSaving = false;
 
@@ -657,6 +658,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
         fechaRecordatorio: _selectedDate,
         hora: _hourController.text,
         frecuencia: _selectedFrecuencia,
+        avisoPrevio: _selectedAvisoPrevio,
       );
       if (!mounted) return;
       Navigator.pop(context, true);
@@ -862,6 +864,43 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 18),
+                // Aviso previo
+                const Text(
+                  'Aviso previo',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildAvisoPrevioChip(
+                        'AL_MOMENTO',
+                        'A la hora exacta',
+                        Icons.notifications_active_outlined,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildAvisoPrevioChip(
+                        '1_HORA_ANTES',
+                        '1 hora antes',
+                        Icons.schedule_rounded,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildAvisoPrevioChip(
+                        '1_DIA_ANTES',
+                        '1 día antes',
+                        Icons.event_available_rounded,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildAvisoPrevioChip(
+                        '2_DIAS_ANTES',
+                        '2 días antes',
+                        Icons.calendar_today_rounded,
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 24),
                 // Botón crear
                 SizedBox(
@@ -949,6 +988,49 @@ class _AddReminderModalState extends State<_AddReminderModal> {
     final isSelected = _selectedFrecuencia == value;
     return GestureDetector(
       onTap: () => setState(() => _selectedFrecuencia = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? BiomarkColors.green
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? BiomarkColors.green : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected
+                  ? Colors.white
+                  : Theme.of(context).colorScheme.onSurface,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected
+                    ? Colors.white
+                    : Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAvisoPrevioChip(String value, String label, IconData icon) {
+    final isSelected = _selectedAvisoPrevio == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedAvisoPrevio = value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(

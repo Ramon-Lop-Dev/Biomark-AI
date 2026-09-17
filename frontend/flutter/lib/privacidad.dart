@@ -157,7 +157,9 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
       ).deleteAccount(accessToken: token);
       await AuthSession.instance.clear();
       if (!mounted) return;
-      Navigator.of(dialogContext).pop();
+      if (dialogContext.mounted) {
+        Navigator.of(dialogContext).pop();
+      }
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (_) => false,
