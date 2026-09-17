@@ -7,6 +7,35 @@ import '../../../core/config/app_config.dart';
 
 import '../domain/progress_snapshot.dart';
 
+class EvolutionRecord {
+  final String id;
+  final String sintoma;
+  final String estado; // MEJORO, IGUAL, EMPEORO, NO_SEGURO
+  final int? intensidad;
+  final String? notas;
+  final DateTime fechaRegistro;
+
+  const EvolutionRecord({
+    required this.id,
+    required this.sintoma,
+    required this.estado,
+    this.intensidad,
+    this.notas,
+    required this.fechaRegistro,
+  });
+
+  factory EvolutionRecord.fromJson(Map<String, dynamic> json) {
+    return EvolutionRecord(
+      id: json['id']?.toString() ?? '',
+      sintoma: json['sintoma']?.toString() ?? '',
+      estado: json['estado']?.toString() ?? 'NO_SEGURO',
+      intensidad: json['intensidad'] is num ? (json['intensidad'] as num).toInt() : null,
+      notas: json['notas']?.toString(),
+      fechaRegistro: DateTime.tryParse(json['fecha_registro']?.toString() ?? '') ?? DateTime.now(),
+    );
+  }
+}
+
 class ProgressApi {
   static const _apiUrl = AppConfig.apiUrl;
   static String get _accessToken => AuthSession.instance.accessToken ?? '';
@@ -17,6 +46,16 @@ class ProgressApi {
       };
 
   String get _baseUrl => _apiUrl.replaceFirst(RegExp(r'/$'), '');
+
+  Future<List<EvolutionRecord>> fetchEvolutionHistory() async {
+    final response = await http.get(Uri.parse('$_baseUrl/api/progress'), headers: _headers);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_backendError(response, 'No se pudo cargar el historial de evolución.'));
+    }
+    final decoded = jsonDecode(response.body);
+    final items = decoded is List ? decoded : const [];
+    return items.whereType<Map<String, dynamic>>().map(EvolutionRecord.fromJson).toList();
+  }
 
   Future<List<ProgressGoal>> fetchGoals() async {
     final response = await http.get(Uri.parse('$_baseUrl/api/progress/goals'), headers: _headers);
@@ -121,25 +160,22 @@ class ProgressApi {
   Future<void> createProgress({
     required String symptom,
     required String status,
+    int? intensity,
     String? notes,
   }) async {
-    final uri = Uri.parse(
-      '${_apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/progress',
-    );
+    final uri = Uri.parse('$_baseUrl/api/progress');
     final response = await http.post(
       uri,
-      headers: {
-        'Content-Type': 'application/json',
-        if (_accessToken.isNotEmpty) 'Authorization': 'Bearer $_accessToken',
-      },
+      headers: _headers,
       body: jsonEncode({
-        'sintoma': symptom,
+        'sintoma': symptom.trim(),
         'estado': status,
+        'intensidad': ?intensity,
         if (notes != null && notes.trim().isNotEmpty) 'notas': notes.trim(),
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('No se pudo registrar la evolución.');
+      throw Exception(_backendError(response, 'No se pudo registrar la evolución.'));
     }
   }
 

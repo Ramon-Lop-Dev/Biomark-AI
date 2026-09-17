@@ -7,32 +7,46 @@ módulo debe leer os.getenv() directamente ni hardcodear credenciales.
 """
 
 import os
-import torch
-from dotenv import load_dotenv
-
-load_dotenv()
+try:
+    import torch
+except ImportError:
+    torch = None
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.isfile(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k = k.strip()
+                    v = v.strip().strip("'").strip('"')
+                    if k and k not in os.environ:
+                        os.environ[k] = v
 
 # --- Credenciales y configuración obligatoria ---
-# Sin valores por defecto "reales": si falta algo, el servicio debe fallar
-# de forma explícita en vez de arrancar con una llave de ejemplo filtrada.
 AI_SERVICE_INTERNAL_KEY = os.getenv("AI_SERVICE_INTERNAL_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-_faltantes = [
-    nombre
-    for nombre, valor in [
-        ("AI_SERVICE_INTERNAL_KEY", AI_SERVICE_INTERNAL_KEY),
-        ("SUPABASE_URL", SUPABASE_URL),
-        ("SUPABASE_SERVICE_ROLE_KEY", SUPABASE_SERVICE_ROLE_KEY),
+if os.getenv("TESTING") != "1":
+    _faltantes = [
+        nombre
+        for nombre, valor in [
+            ("AI_SERVICE_INTERNAL_KEY", AI_SERVICE_INTERNAL_KEY),
+            ("SUPABASE_URL", SUPABASE_URL),
+            ("SUPABASE_SERVICE_ROLE_KEY", SUPABASE_SERVICE_ROLE_KEY),
+        ]
+        if not valor
     ]
-    if not valor
-]
-if _faltantes:
-    raise RuntimeError(
-        f"Faltan variables de entorno obligatorias: {', '.join(_faltantes)}. "
-        f"Revisa tu archivo .env (usa .env.example como referencia)."
-    )
+    if _faltantes:
+        raise RuntimeError(
+            f"Faltan variables de entorno obligatorias: {', '.join(_faltantes)}. "
+            f"Revisa tu archivo .env (usa .env.example como referencia)."
+        )
 
 # --- Configuración opcional (con valores por defecto razonables) ---
 MODEL_ID = os.getenv("MODEL_ID", "BiomarkAI/Biomark-AI-Produccion")
@@ -52,10 +66,14 @@ UMBRAL_RELEVANCIA = float(os.getenv("UMBRAL_RELEVANCIA", "0.75"))
 SUPABASE_BUCKET_MINSA = os.getenv("SUPABASE_BUCKET_MINSA", "documentos-minsa")
 
 # --- Dispositivo de inferencia ---
-# Detecta GPU automáticamente si existe (Colab hoy, VPS con GPU mañana);
+# Detecta GPU automáticamente si existe (Colab hoy, VPS/RunPod con GPU mañana);
 # usa CPU si no hay GPU disponible, sin necesidad de tocar código.
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-TORCH_DTYPE = torch.bfloat16 if DEVICE == "cuda" else torch.float32
+if torch is not None:
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    TORCH_DTYPE = torch.bfloat16 if DEVICE == "cuda" else torch.float32
+else:
+    DEVICE = "cpu"
+    TORCH_DTYPE = None
 
 # --- Voz: ASR (voz -> texto) y TTS (texto -> voz) ---
 ASR_MODEL_ID = os.getenv("ASR_MODEL_ID", "openai/whisper-small")

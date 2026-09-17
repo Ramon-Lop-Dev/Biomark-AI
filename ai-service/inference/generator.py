@@ -104,6 +104,16 @@ def _formatear_contexto_medico(medical_context) -> str:
         texto_sintomas = "; ".join(s.get("nombre_sintoma", "síntoma no especificado") for s in sintomas[:10])
         lineas.append(f"Síntomas registrados recientemente por el paciente: {texto_sintomas}.")
 
+    seguimiento = medical_context.get("seguimiento") or medical_context.get("seguimiento_salud") or []
+    if seguimiento:
+        texto_seg = "; ".join(
+            f"{s.get('sintoma', 'síntoma')}: estado {s.get('estado', 'no especificado')}"
+            + (f" (intensidad {s.get('intensidad')}/10)" if s.get("intensidad") is not None else "")
+            + (f" - notas: {s.get('notas')}" if s.get("notas") else "")
+            for s in seguimiento[:5]
+        )
+        lineas.append(f"Evolución reciente de síntomas: {texto_seg}.")
+
     vacunas = medical_context.get("vacunas") or []
     if vacunas:
         texto_vacunas = "; ".join(v.get("nombre_vacuna", "vacuna no especificada") for v in vacunas[:5])
@@ -136,22 +146,19 @@ class TextGenerator:
         referencia = contexto_rag or "No hay referencia clínica específica cargada."
 
         reglas = (
-            "Reglas obligatorias: no inventes datos, no afirmes un diagnóstico, no prescribas "
-            "ni indiques dosis. Distingue orientación de diagnóstico. Si faltan datos, haz "
-            "preguntas concretas sobre duración, intensidad, edad, sexo y señales de alarma.\n\n"
-            "Para un saludo, responde cordialmente y pregunta qué síntoma o duda tiene la persona.\n\n"
-            "Para síntomas, responde SIEMPRE con un diagnóstico preventivo completo, usando "
-            "exactamente estas tres etiquetas y en este orden (igual que en el análisis de "
-            "fotos, para que la persona reciba el mismo tipo de respuesta estructurada "
-            "converse por texto, por foto o por audio):\n"
-            "Posible causa: una frase con la causa o causas más probables según lo descrito, "
-            "en tono condicional ('podría tratarse de', 'suele asociarse a'), nunca como "
-            "diagnóstico confirmado.\n"
-            "Recomendación: medidas generales de autocuidado (reposo, hidratación, higiene), "
-            "nunca medicamentos ni dosis específicas.\n"
-            "Señales de alarma: en qué casos debe acudir de inmediato a un centro de salud.\n\n"
-            "Responde SOLO por el Asistente, en un único turno, y no continúes la conversación "
-            "inventando nuevos mensajes del paciente."
+            "Reglas obligatorias de seguridad clínica:\n"
+            "1. CERO PRESCRIPCIONES: NUNCA recetes medicamentos, nombres de fármacos ni dosis específicas.\n"
+            "2. SIN DIAGNÓSTICO DEFINITIVO: Distingue siempre orientación preventiva de diagnóstico médico formal.\n"
+            "3. PREGUNTAS EDUCATIVAS O GENERALES (ej. '¿Qué es el sarampión?', '¿Cómo se transmite el dengue?'): "
+            "Explica de forma clara, didáctica y objetiva la definición, causas conocidas y síntomas típicos "
+            "según lineamientos médicos y del MINSA. No asumas que la persona lo padece ni fuerces estructura de triaje.\n"
+            "4. DESCRIPCIÓN DE SÍNTOMAS: Explica qué condiciones o causas probables suelen asociarse a esos síntomas "
+            "en tono condicional ('podría deberse a', 'suele asociarse a'), indica medidas generales de cuidado "
+            "(hidratación, reposo) y destaca las señales de alarma para acudir de urgencia a un centro de salud.\n"
+            "5. SEGUIMIENTO DE EVOLUCIÓN (estados MEJORO, IGUAL, EMPEORO, NO_SEGURO): Valora la evolución en base al historial. "
+            "Si mejoró, refuerza el autocuidado; si empeoró o no está seguro, aconseja valoración presencial pronta.\n"
+            "6. Saludos: responde cordialmente y pregunta en qué puedes orientar hoy.\n"
+            "Responde SOLO por el Asistente en un único turno, en español claro, cálido y empático."
         )
 
         cuerpo = (

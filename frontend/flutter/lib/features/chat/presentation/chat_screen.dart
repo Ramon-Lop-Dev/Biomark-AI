@@ -140,51 +140,79 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
-  Future<void> _showProgressDialog() async {
-    final symptomController = TextEditingController();
+  Future<void> _showProgressDialog({String? initialStatus, String? initialSymptom}) async {
+    final symptomController = TextEditingController(text: initialSymptom ?? '');
     final notesController = TextEditingController();
-    var status = 'MEJORO';
+    var status = initialStatus ?? 'MEJORO';
+    double intensity = 5.0;
 
     final shouldSave = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Registrar evolución'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Row(
             children: [
-              TextField(
-                controller: symptomController,
-                decoration: const InputDecoration(
-                  labelText: '¿Qué síntoma estás siguiendo?',
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: status,
-                decoration: const InputDecoration(labelText: 'Estado'),
-                items: const [
-                  DropdownMenuItem(value: 'MEJORO', child: Text('Mejoré')),
-                  DropdownMenuItem(value: 'IGUAL', child: Text('Sigo igual')),
-                  DropdownMenuItem(value: 'EMPEORO', child: Text('Empeoré')),
-                  DropdownMenuItem(
-                    value: 'NO_SEGURO',
-                    child: Text('No estoy seguro'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) setDialogState(() => status = value);
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: notesController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Notas (opcional)',
-                ),
-              ),
+              Icon(Icons.insights_rounded, color: Color(0xFF1B8E44)),
+              SizedBox(width: 8),
+              Text('Registrar evolución'),
             ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: symptomController,
+                  decoration: const InputDecoration(
+                    labelText: '¿Qué síntoma estás siguiendo?',
+                    hintText: 'Ej: Fiebre, dolor de cabeza...',
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text('Estado de evolución:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: 'MEJORO', child: Text('Mejoró (MEJORO)')),
+                    DropdownMenuItem(value: 'IGUAL', child: Text('Sigue igual (IGUAL)')),
+                    DropdownMenuItem(value: 'EMPEORO', child: Text('Empeoró (EMPEORO)')),
+                    DropdownMenuItem(value: 'NO_SEGURO', child: Text('No estoy seguro (NO_SEGURO)')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setDialogState(() => status = value);
+                  },
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Intensidad del síntoma:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text('${intensity.round()}/10', style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1B8E44))),
+                  ],
+                ),
+                Slider(
+                  value: intensity,
+                  min: 0,
+                  max: 10,
+                  divisions: 10,
+                  activeColor: const Color(0xFF1B8E44),
+                  onChanged: (v) => setDialogState(() => intensity = v),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: notesController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Notas (opcional)',
+                    hintText: 'Detalles sobre cómo te sientes...',
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -192,6 +220,7 @@ class _ChatScreenState extends State<ChatScreen>
               child: const Text('Cancelar'),
             ),
             FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1B8E44)),
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Guardar'),
             ),
@@ -214,11 +243,30 @@ class _ChatScreenState extends State<ChatScreen>
 
     try {
       await _progressApi.createProgress(
-        symptom: symptomController.text,
+        symptom: symptomController.text.trim(),
         status: status,
-        notes: notesController.text,
+        intensity: intensity.round(),
+        notes: notesController.text.trim(),
       );
-      if (mounted) _showMessage('Evolución registrada correctamente.');
+      if (mounted) {
+        final statusMap = {
+          'MEJORO': 'Mejoró',
+          'IGUAL': 'Sigue igual',
+          'EMPEORO': 'Empeoró',
+          'NO_SEGURO': 'No estoy seguro'
+        };
+        final label = statusMap[status] ?? status;
+        setState(() {
+          _messages.add(
+            ChatMessage(
+              '✅ Registraste tu evolución de "${symptomController.text.trim()}" como $label (Intensidad ${intensity.round()}/10). Puedes ver tu progreso en la pantalla de evolución/mejoría.',
+              false,
+            ),
+          );
+        });
+        _scrollToBottom();
+        _showMessage('Evolución registrada correctamente.');
+      }
     } catch (_) {
       if (mounted) _showMessage('No se pudo registrar la evolución.');
     } finally {
@@ -669,6 +717,7 @@ class _ChatScreenState extends State<ChatScreen>
                 onSend: _sendMessage,
                 onVoice: _toggleRecording,
                 onOpenImagePicker: _chooseImageSource,
+                onLogEvolution: () => _showProgressDialog(),
                 onSendAudio: _audioDraftPath == null
                     ? null
                     : () => _sendRecording(_audioDraftPath!),
@@ -772,16 +821,9 @@ class _MessageBubble extends StatelessWidget {
                     ),
                   ),
                 if (message.audioPath != null)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: 'Reproducir audio',
-                        onPressed: onPlayAudio,
-                        icon: const Icon(Icons.play_circle_fill_rounded),
-                      ),
-                      const Text('Respuesta de voz'),
-                    ],
+                  _WhatsAppAudioBubble(
+                    audioPath: message.audioPath!,
+                    isUser: message.isUser,
                   ),
                 if (message.text.isNotEmpty)
                   Padding(
@@ -797,7 +839,7 @@ class _MessageBubble extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (!message.isUser && onPlayAudio != null)
+                if (!message.isUser && message.audioPath == null && onPlayAudio != null)
                   Align(
                     alignment: Alignment.centerRight,
                     child: IconButton(
@@ -912,7 +954,7 @@ class _FollowUpActionCard extends StatelessWidget {
     final isRegisterProgress = actionType == 'register_progress';
 
     return Container(
-      width: MediaQuery.sizeOf(context).width * 0.78,
+      width: MediaQuery.sizeOf(context).width * 0.84,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -928,34 +970,70 @@ class _FollowUpActionCard extends StatelessWidget {
       child: Column(
         children: [
           if (isRegisterProgress) ...[
-            const Icon(
-              Icons.insights_rounded,
-              size: 28,
-              color: BiomarkColors.blue,
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.insights_rounded,
+                  size: 20,
+                  color: Color(0xFF1B8E44),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Seguimiento de Evolución',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             const Text(
-              'Podemos registrar cómo ha evolucionado este síntoma.',
+              '¿Cómo ha evolucionado tu síntoma hoy?',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 13, color: Color(0xFF556257)),
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => context
-                    .findAncestorStateOfType<_ChatScreenState>()
-                    ?._showProgressDialog(),
-                style: FilledButton.styleFrom(
-                  backgroundColor: BiomarkColors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              alignment: WrapAlignment.center,
+              children: [
+                _EvolutionOptionChip(
+                  label: 'Mejoré',
+                  status: 'MEJORO',
+                  color: const Color(0xFF1B8E44),
+                  icon: Icons.trending_up_rounded,
+                  onTap: () => context
+                      .findAncestorStateOfType<_ChatScreenState>()
+                      ?._showProgressDialog(initialStatus: 'MEJORO'),
                 ),
-                child: const Text('Registrar evolución'),
-              ),
+                _EvolutionOptionChip(
+                  label: 'Sigo igual',
+                  status: 'IGUAL',
+                  color: const Color(0xFF1D64D8),
+                  icon: Icons.trending_flat_rounded,
+                  onTap: () => context
+                      .findAncestorStateOfType<_ChatScreenState>()
+                      ?._showProgressDialog(initialStatus: 'IGUAL'),
+                ),
+                _EvolutionOptionChip(
+                  label: 'Empeoré',
+                  status: 'EMPEORO',
+                  color: const Color(0xFFD32F2F),
+                  icon: Icons.trending_down_rounded,
+                  onTap: () => context
+                      .findAncestorStateOfType<_ChatScreenState>()
+                      ?._showProgressDialog(initialStatus: 'EMPEORO'),
+                ),
+                _EvolutionOptionChip(
+                  label: 'No seguro',
+                  status: 'NO_SEGURO',
+                  color: const Color(0xFF7C3AED),
+                  icon: Icons.help_outline_rounded,
+                  onTap: () => context
+                      .findAncestorStateOfType<_ChatScreenState>()
+                      ?._showProgressDialog(initialStatus: 'NO_SEGURO'),
+                ),
+              ],
             ),
           ] else ...[
             const Icon(
@@ -970,6 +1048,316 @@ class _FollowUpActionCard extends StatelessWidget {
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EvolutionOptionChip extends StatelessWidget {
+  final String label;
+  final String status;
+  final Color color;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _EvolutionOptionChip({
+    required this.label,
+    required this.status,
+    required this.color,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WhatsAppAudioBubble extends StatefulWidget {
+  final String audioPath;
+  final bool isUser;
+
+  const _WhatsAppAudioBubble({
+    required this.audioPath,
+    required this.isUser,
+  });
+
+  @override
+  State<_WhatsAppAudioBubble> createState() => _WhatsAppAudioBubbleState();
+}
+
+class _WhatsAppAudioBubbleState extends State<_WhatsAppAudioBubble> {
+  late final AudioPlayer _player;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+  PlayerState _playerState = PlayerState.stopped;
+  double _speed = 1.0;
+  StreamSubscription? _durationSub;
+  StreamSubscription? _positionSub;
+  StreamSubscription? _playerStateSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _player = AudioPlayer();
+    _initAudio();
+  }
+
+  Future<void> _initAudio() async {
+    try {
+      await _player.setSource(DeviceFileSource(widget.audioPath));
+      final dur = await _player.getDuration();
+      if (dur != null && mounted) {
+        setState(() => _duration = dur);
+      }
+    } catch (_) {}
+
+    _playerStateSub = _player.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _playerState = state;
+          if (state == PlayerState.completed) {
+            _position = Duration.zero;
+          }
+        });
+      }
+    });
+
+    _durationSub = _player.onDurationChanged.listen((dur) {
+      if (mounted && dur > Duration.zero) {
+        setState(() => _duration = dur);
+      }
+    });
+
+    _positionSub = _player.onPositionChanged.listen((pos) {
+      if (mounted) {
+        setState(() => _position = pos);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _durationSub?.cancel();
+    _positionSub?.cancel();
+    _playerStateSub?.cancel();
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _togglePlay() async {
+    try {
+      if (_playerState == PlayerState.playing) {
+        await _player.pause();
+      } else {
+        await _player.setPlaybackRate(_speed);
+        await _player.play(DeviceFileSource(widget.audioPath));
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _cycleSpeed() async {
+    final nextSpeed = _speed == 1.0
+        ? 1.5
+        : _speed == 1.5
+            ? 2.0
+            : 1.0;
+    setState(() => _speed = nextSpeed);
+    try {
+      await _player.setPlaybackRate(nextSpeed);
+    } catch (_) {}
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes;
+    final seconds = d.inSeconds % 60;
+    return '${minutes.toString().padLeft(1, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isPlaying = _playerState == PlayerState.playing;
+    final maxMs = _duration.inMilliseconds.toDouble();
+    final posMs = _position.inMilliseconds.toDouble().clamp(0.0, maxMs > 0 ? maxMs : 1.0);
+    final sliderVal = maxMs > 0 ? posMs : 0.0;
+    final maxVal = maxMs > 0 ? maxMs : 1.0;
+
+    final primaryColor = widget.isUser ? Colors.white : const Color(0xFF1B8E44);
+    final trackColor = widget.isUser ? Colors.white54 : const Color(0xFFC5E3CE);
+    final textColor = widget.isUser ? Colors.white70 : const Color(0xFF5F6D63);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: widget.isUser
+            ? Colors.white.withValues(alpha: 0.15)
+            : const Color(0xFFF1F6F2),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: widget.isUser
+              ? Colors.white.withValues(alpha: 0.25)
+              : const Color(0xFFDFEAE1),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Avatar con insignia de micrófono estilo WhatsApp
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CircleAvatar(
+                radius: 19,
+                backgroundColor: widget.isUser
+                    ? Colors.white24
+                    : const Color(0xFFD4EBD9),
+                child: widget.isUser
+                    ? const Icon(Icons.person_rounded, color: Colors.white, size: 20)
+                    : Image.asset(
+                        'assets/branding/Icono.png',
+                        width: 24,
+                        height: 24,
+                        fit: BoxFit.contain,
+                      ),
+              ),
+              Positioned(
+                bottom: -2,
+                right: -2,
+                child: Container(
+                  padding: const EdgeInsets.all(2.5),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1B8E44),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.mic_rounded,
+                    size: 10,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          // Botón Play / Pause
+          GestureDetector(
+            onTap: _togglePlay,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: widget.isUser ? Colors.white : const Color(0xFF1B8E44),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                color: widget.isUser ? const Color(0xFF1E88E5) : Colors.white,
+                size: 22,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // Barra de progreso y tiempos
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 3.5,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 9),
+                    activeTrackColor: primaryColor,
+                    inactiveTrackColor: trackColor,
+                    thumbColor: primaryColor,
+                  ),
+                  child: Slider(
+                    value: sliderVal,
+                    min: 0.0,
+                    max: maxVal,
+                    onChanged: (val) {
+                      _player.seek(Duration(milliseconds: val.toInt()));
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        isPlaying || _position > Duration.zero
+                            ? _formatDuration(_position)
+                            : _formatDuration(_duration),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: textColor,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _cycleSpeed,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: widget.isUser
+                                ? Colors.white24
+                                : const Color(0xFFE2EEE5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '${_speed == 1.0 ? '1' : _speed == 1.5 ? '1.5' : '2'}x',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1030,6 +1418,7 @@ class _ChatInput extends StatelessWidget {
   final VoidCallback onSend;
   final VoidCallback onVoice;
   final VoidCallback onOpenImagePicker;
+  final VoidCallback? onLogEvolution;
   final VoidCallback? onSendAudio;
   final VoidCallback? onDeleteAudio;
   final VoidCallback? onPauseAudio;
@@ -1044,6 +1433,7 @@ class _ChatInput extends StatelessWidget {
     required this.onSend,
     required this.onVoice,
     required this.onOpenImagePicker,
+    this.onLogEvolution,
     this.onSendAudio,
     this.onDeleteAudio,
     this.onPauseAudio,
@@ -1081,11 +1471,17 @@ class _ChatInput extends StatelessWidget {
                 : Row(
                     children: [
                       IconButton.filledTonal(
+                        tooltip: 'Registrar evolución',
+                        onPressed: enabled && onLogEvolution != null ? onLogEvolution : null,
+                        icon: const Icon(Icons.insights_rounded, size: 20),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton.filledTonal(
                         tooltip: 'Subir imagen',
                         onPressed: enabled ? onOpenImagePicker : null,
-                        icon: const Icon(Icons.camera_alt_rounded),
+                        icon: const Icon(Icons.camera_alt_rounded, size: 20),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: TextField(
                           controller: controller,

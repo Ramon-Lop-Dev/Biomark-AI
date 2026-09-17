@@ -16,6 +16,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   final _progressApi = ProgressApi();
   late Future<ProgressSnapshot> _progressFuture;
   late Future<List<ProgressGoal>> _goalsFuture;
+  late Future<List<EvolutionRecord>> _evolutionFuture;
   final Map<String, bool> _milestoneOverrides = {};
 
   @override
@@ -28,6 +29,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   void _reload() {
     _progressFuture = _progressApi.fetch();
     _goalsFuture = _progressApi.fetchGoals();
+    _evolutionFuture = _progressApi.fetchEvolutionHistory();
     if (mounted) setState(() {});
   }
 
@@ -50,6 +52,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
             children: [
               _buildSummary(data),
               const SizedBox(height: 20),
+              _buildEvolutionSection(),
+              const SizedBox(height: 20),
               _buildGoalsSection(),
               const SizedBox(height: 20),
               _buildRecentMilestones(),
@@ -58,6 +62,473 @@ class _ProgressScreenState extends State<ProgressScreen> {
         );
       },
     );
+  }
+
+  Widget _buildEvolutionSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Evolución de síntomas',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1B1F1C),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _showAddEvolutionModal,
+              icon: const Icon(Icons.add_rounded, size: 18, color: Color(0xFF1B8E44)),
+              label: const Text(
+                'Registrar',
+                style: TextStyle(
+                  color: Color(0xFF1B8E44),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        FutureBuilder<List<EvolutionRecord>>(
+          future: _evolutionFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const LinearProgressIndicator(color: Color(0xFF1B8E44));
+            }
+            final list = snapshot.data ?? const <EvolutionRecord>[];
+            if (list.isEmpty) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE5EBE6)),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.show_chart_rounded, size: 36, color: Color(0xFF8CA593)),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'No hay evolución de síntomas registrada.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF4A564D)),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Registra si tu síntoma mejoró, sigue igual o empeoró para dar seguimiento.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Color(0xFF6E7E72)),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: _showAddEvolutionModal,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF1B8E44),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                      label: const Text('Registrar evolución'),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return Column(
+              children: list.take(5).map(_buildEvolutionCard).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEvolutionCard(EvolutionRecord record) {
+    Color badgeBg;
+    Color badgeFg;
+    IconData badgeIcon;
+    String badgeLabel;
+
+    switch (record.estado) {
+      case 'MEJORO':
+        badgeBg = const Color(0xFFE8F8EE);
+        badgeFg = const Color(0xFF1B8E44);
+        badgeIcon = Icons.trending_up_rounded;
+        badgeLabel = 'Mejoró';
+        break;
+      case 'IGUAL':
+        badgeBg = const Color(0xFFEAF2FD);
+        badgeFg = const Color(0xFF1D64D8);
+        badgeIcon = Icons.trending_flat_rounded;
+        badgeLabel = 'Sigue igual';
+        break;
+      case 'EMPEORO':
+        badgeBg = const Color(0xFFFDE8E8);
+        badgeFg = const Color(0xFFD32F2F);
+        badgeIcon = Icons.trending_down_rounded;
+        badgeLabel = 'Empeoró';
+        break;
+      case 'NO_SEGURO':
+      default:
+        badgeBg = const Color(0xFFF3E8FF);
+        badgeFg = const Color(0xFF7C3AED);
+        badgeIcon = Icons.help_outline_rounded;
+        badgeLabel = 'No seguro';
+        break;
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(badgeIcon, size: 14, color: badgeFg),
+                    const SizedBox(width: 4),
+                    Text(
+                      badgeLabel,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: badgeFg,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                _formatRecordDate(record.fechaRegistro),
+                style: const TextStyle(fontSize: 11, color: Color(0xFF859388)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  record.sintoma,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1B1F1C),
+                  ),
+                ),
+              ),
+              if (record.intensidad != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F4F1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Intensidad: ${record.intensidad}/10',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF48564B),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (record.notas != null && record.notas!.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              record.notas!,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF5D6B60),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAddEvolutionModal() async {
+    final symptomController = TextEditingController();
+    final notesController = TextEditingController();
+    var selectedStatus = 'MEJORO';
+    double selectedIntensity = 5.0;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalContext) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              18,
+              20,
+              MediaQuery.viewInsetsOf(context).bottom + 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Registrar Evolución de Síntoma',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1B1F1C),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Indica cómo ha progresado tu salud para actualizar tus estadísticas.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF6C796E)),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: symptomController,
+                    decoration: InputDecoration(
+                      labelText: 'Síntoma',
+                      hintText: 'Ej: Dolor de cabeza, fiebre, tos...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '¿Cómo ha evolucionado?',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildStatusChip(
+                        label: 'Mejoró',
+                        value: 'MEJORO',
+                        selected: selectedStatus == 'MEJORO',
+                        color: const Color(0xFF1B8E44),
+                        icon: Icons.trending_up_rounded,
+                        onTap: () => setModalState(() => selectedStatus = 'MEJORO'),
+                      ),
+                      _buildStatusChip(
+                        label: 'Sigue igual',
+                        value: 'IGUAL',
+                        selected: selectedStatus == 'IGUAL',
+                        color: const Color(0xFF1D64D8),
+                        icon: Icons.trending_flat_rounded,
+                        onTap: () => setModalState(() => selectedStatus = 'IGUAL'),
+                      ),
+                      _buildStatusChip(
+                        label: 'Empeoró',
+                        value: 'EMPEORO',
+                        selected: selectedStatus == 'EMPEORO',
+                        color: const Color(0xFFD32F2F),
+                        icon: Icons.trending_down_rounded,
+                        onTap: () => setModalState(() => selectedStatus = 'EMPEORO'),
+                      ),
+                      _buildStatusChip(
+                        label: 'No seguro',
+                        value: 'NO_SEGURO',
+                        selected: selectedStatus == 'NO_SEGURO',
+                        color: const Color(0xFF7C3AED),
+                        icon: Icons.help_outline_rounded,
+                        onTap: () => setModalState(() => selectedStatus = 'NO_SEGURO'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Nivel de intensidad:',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        '${selectedIntensity.round()}/10',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1B8E44)),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: selectedIntensity,
+                    min: 0,
+                    max: 10,
+                    divisions: 10,
+                    activeColor: const Color(0xFF1B8E44),
+                    onChanged: (val) => setModalState(() => selectedIntensity = val),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: notesController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: 'Notas adicionales (opcional)',
+                      hintText: 'Ej: Bajó la fiebre después de descansar...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF1B8E44),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: () async {
+                        final symptom = symptomController.text.trim();
+                        final messenger = ScaffoldMessenger.of(context);
+                        final navigator = Navigator.of(modalContext);
+                        if (symptom.isEmpty) {
+                          messenger.showSnackBar(
+                            const SnackBar(content: Text('Por favor escribe el nombre del síntoma.')),
+                          );
+                          return;
+                        }
+                        try {
+                          await _progressApi.createProgress(
+                            symptom: symptom,
+                            status: selectedStatus,
+                            intensity: selectedIntensity.round(),
+                            notes: notesController.text.trim(),
+                          );
+                          if (!mounted) return;
+                          navigator.pop();
+                          _reload();
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Evolución guardada correctamente.'),
+                              backgroundColor: Color(0xFF1B8E44),
+                            ),
+                          );
+                        } catch (e) {
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      },
+                      child: const Text('Guardar evolución', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    symptomController.dispose();
+    notesController.dispose();
+  }
+
+  Widget _buildStatusChip({
+    required String label,
+    required String value,
+    required bool selected,
+    required Color color,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.12) : const Color(0xFFF3F5F3),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? color : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: selected ? color : const Color(0xFF6B756E)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? color : const Color(0xFF424A44),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatRecordDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inMinutes < 60) {
+      return 'Hace ${diff.inMinutes.clamp(1, 60)} min';
+    } else if (diff.inHours < 24 && date.day == now.day) {
+      return 'Hoy ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (diff.inDays < 2) {
+      return 'Ayer';
+    }
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   Widget _buildRecentMilestones() {

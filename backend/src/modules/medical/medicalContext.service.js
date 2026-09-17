@@ -17,14 +17,15 @@ const obtenerContextoClinico = async (usuarioId) => {
         }
 
         // 2. Ejecutar consultas en paralelo para máxima velocidad
-        const [perfilRes, alergiasRes, medsRes, historialRes, antecedentesRes, vacunasRes, sintomasRes] = await Promise.all([
+        const [perfilRes, alergiasRes, medsRes, historialRes, antecedentesRes, vacunasRes, sintomasRes, seguimientoRes] = await Promise.all([
             supabase.from('perfiles').select('fecha_nacimiento, sexo').eq('usuario_id', usuarioId).maybeSingle(),
             supabase.from('alergias').select('alergeno, severidad').eq('usuario_id', usuarioId),
             supabase.from('medicamentos').select('nombre_medicamento, dosis, frecuencia').eq('usuario_id', usuarioId).is('fecha_fin', null),
             supabase.from('historial_medico').select('nombre_condicion, fecha_diagnostico').eq('usuario_id', usuarioId).limit(20),
             supabase.from('antecedentes_familiares').select('parentesco, nombre_condicion').eq('usuario_id', usuarioId).limit(20),
             supabase.from('vacunas').select('nombre_vacuna, numero_dosis, fecha_aplicacion').eq('usuario_id', usuarioId).order('fecha_aplicacion', { ascending: false }).limit(20),
-            supabase.from('sintomas').select('nombre_sintoma, registros_sintomas(temperatura, presion_arterial, fecha_registro)').eq('usuario_id', usuarioId).limit(20)
+            supabase.from('sintomas').select('nombre_sintoma, registros_sintomas(temperatura, presion_arterial, fecha_registro)').eq('usuario_id', usuarioId).limit(20),
+            supabase.from('seguimiento_salud').select('sintoma, estado, intensidad, notas, fecha_registro').eq('usuario_id', usuarioId).order('fecha_registro', { ascending: false }).limit(10)
         ]);
 
         // 3. Retornar el objeto estructurado
@@ -35,7 +36,8 @@ const obtenerContextoClinico = async (usuarioId) => {
             historial: historialRes.data || [],
             antecedentes_familiares: antecedentesRes.data || [],
             vacunas: vacunasRes.data || [],
-            sintomas: sintomasRes.data || []
+            sintomas: sintomasRes.data || [],
+            seguimiento: seguimientoRes.data || []
         };
     } catch (error) {
         console.error("[MedicalContext] Error al extraer datos:", error);
