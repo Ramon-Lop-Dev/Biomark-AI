@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../data/progress_api.dart';
 import '../domain/progress_snapshot.dart';
+import '../../vitals/domain/vital_measurement.dart';
+import '../../vitals/data/vitals_storage.dart';
+import '../../vitals/presentation/ppg_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key, this.refreshSignal});
@@ -18,6 +21,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   late Future<List<ProgressGoal>> _goalsFuture;
   late Future<List<EvolutionRecord>> _evolutionFuture;
   final Map<String, bool> _milestoneOverrides = {};
+  VitalMeasurement? _latestVital;
 
   @override
   void initState() {
@@ -30,6 +34,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
     _progressFuture = _progressApi.fetch();
     _goalsFuture = _progressApi.fetchGoals();
     _evolutionFuture = _progressApi.fetchEvolutionHistory();
+    VitalsStorage.getLatest().then((v) {
+      if (mounted) setState(() => _latestVital = v);
+    });
     if (mounted) setState(() {});
   }
 
@@ -37,6 +44,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
   void dispose() {
     widget.refreshSignal?.removeListener(_reload);
     super.dispose();
+  }
+
+  Future<void> _openPpg() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PpgScreen()),
+    );
+    _reload();
   }
 
   @override
@@ -51,6 +66,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildSummary(data),
+              const SizedBox(height: 18),
+              _buildVitalsPulseSummary(),
               const SizedBox(height: 20),
               _buildEvolutionSection(),
               const SizedBox(height: 20),
@@ -813,6 +830,98 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
   }
 
+  Widget _buildVitalsPulseSummary() {
+    final vital = _latestVital;
+    final isNormal = vital?.status == 'NORMAL';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFEF4444).withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.favorite_rounded, color: Color(0xFFEF4444), size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Frecuencia Cardíaca (PPG)',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1B1F1C),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                if (vital != null) ...[
+                  Row(
+                    children: [
+                      Text(
+                        '${vital.bpm} BPM',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFEF4444),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '· ${vital.status}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isNormal ? const Color(0xFF16A34A) : const Color(0xFFD97706),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  const Text(
+                    'Sin mediciones hoy · Medir con cámara',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF6C736F)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          OutlinedButton(
+            onPressed: _openPpg,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFEF4444),
+              side: const BorderSide(color: Color(0xFFEF4444)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            ),
+            child: Text(
+              vital != null ? 'Medir' : 'Chequear',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _MilestoneRow extends StatelessWidget {
@@ -894,3 +1003,4 @@ class _MilestoneRow extends StatelessWidget {
     );
   }
 }
+

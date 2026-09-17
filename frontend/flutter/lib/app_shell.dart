@@ -118,7 +118,10 @@ class _AppShellState extends State<AppShell> {
             const PromoterReportsScreen(),
           ]
         : <Widget>[
-            HomeScreen(onOpenMap: () => setState(() => _navIndex = 2)),
+            HomeScreen(
+              onOpenMap: () => setState(() => _navIndex = 2),
+              onNavigateToTab: (index) => setState(() => _navIndex = index),
+            ),
             ProgressScreen(refreshSignal: _progressRefresh),
             const GisMapScreen(),
             RemindersScreen(refreshSignal: _remindersRefresh),

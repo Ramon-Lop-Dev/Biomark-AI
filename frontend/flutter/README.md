@@ -1,29 +1,109 @@
-# Flutter
+# Biomark AI — Frontend Móvil & Web (Flutter)
 
-## Despliegue y conexión al VPS
+Aplicación móvil y web multiplataforma desarrollada en Flutter para la asistencia en salud preventiva, seguimiento de síntomas, fotopletismografía óptica (PPG) y salud comunitaria orientada a la población nicaragüense y normativas del MINSA.
 
-Configura la URL base de producción con el dominio HTTPS publicado por nginx. No uses `localhost`, ngrok ni URLs de los contenedores. Mantén las claves de Supabase y Firebase en configuración segura por ambiente; nunca incluyas `SUPABASE_SERVICE_ROLE_KEY` en Flutter. La configuración se lee desde `BIOMARK_API_URL` y por defecto usa `https://biomark-api.duckdns.org`.
+---
 
-Para Flutter Web, copia `frontend/flutter/.env.example` a `.env` y completa `FIREBASE_PROJECT_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_WEB_API_KEY`, `FIREBASE_WEB_APP_ID`, `FIREBASE_AUTH_DOMAIN`, `FIREBASE_STORAGE_BUCKET` y `FIREBASE_VAPID_KEY` desde la consola de Firebase. Son valores publicos del cliente Web, pero deben corresponder al mismo proyecto Firebase del backend. La `FIREBASE_VAPID_KEY` se obtiene en **Configuracion del proyecto > Cloud Messaging > Configuracion web**.
+## 1. Arquitectura del Proyecto (Feature-First)
 
-La URL de API y el Client ID de Google se inyectan al compilar con `--dart-define`; cambiar `.env` por si solo no modifica esos dos valores.
+El frontend está estructurado bajo una arquitectura orientada a características (**Feature-First**) y principios de **Clean Architecture**:
 
-Flujos que deben probarse contra el VPS: autenticación, encuesta (edad/sexo y contexto clínico), perfil, consentimiento médico, historial de chat, chat, voz, visión, vacunas, objetivos/hitos, recordatorios, mapa inteligente, navegación y recepción de notificaciones FCM.
+```text
+lib/
+├── core/                         # Capas transversales del sistema
+│   ├── auth/                     # Sesión, JWT, helpers de Google Auth y listeners
+│   ├── config/                   # Configuración de URLs de API y Firebase
+│   ├── design/                   # Controladores de tema (claro/oscuro), paleta Clay
+│   ├── notifications/            # Servicio de notificaciones push (FCM)
+│   └── profile/                  # API de perfil de usuario
+├── features/                     # Módulos funcionales desacoplados
+│   ├── vitals/                   # Fotopletismografía (PPG) con cámara del teléfono
+│   │   ├── domain/               # Modelos de signos vitales (VitalMeasurement)
+│   │   ├── data/                 # Persistencia local (VitalsStorage SharedPreferences)
+│   │   └── presentation/         # DSP en tiempo real (PpgProcessor) y pantalla (PpgScreen)
+│   ├── home/                     # Pantalla de inicio modernizada
+│   │   ├── domain/               # Modelos de recomendaciones (HealthRecommendation)
+│   │   ├── data/                 # Motor de pautas MINSA (RecommendationsService)
+│   │   └── presentation/         # HomeScreen con signos vitales, acciones rápidas y MINSA
+│   ├── chat/                     # Asistente clínico multimodal
+│   │   ├── domain/               # Modelos de mensajes y estados
+│   │   ├── data/                 # Chat API, Vision API y Voice API
+│   │   └── presentation/         # ChatScreen con reproductor de voz estilo WhatsApp
+│   ├── progress/                 # Seguimiento de evolución clínica y metas
+│   │   ├── domain/               # Estados MEJORO, IGUAL, EMPEORO, NO_SEGURO
+│   │   ├── data/                 # ProgressApi y registro de auditoría
+│   │   └── presentation/         # ProgressScreen integrado con pulso PPG
+│   ├── clinical/                 # Encuesta clínica inicial e historial médico
+│   │   ├── data/                 # SurveyService y sincronización
+│   │   └── presentation/         # HealthSurveyScreen y AntecedentesScreen
+│   ├── profile/                  # Gestión de perfil y configuración
+│   │   └── presentation/         # ProfileScreen, EditarPerfil, Seguridad, etc.
+│   ├── auth/                     # Registro, recuperación y pantalla de carga
+│   │   └── presentation/         # RegisterScreen, ForgotPassword, LoadingScreen
+│   ├── reminders/                # Recordatorios de medicamentos y vacunas
+│   ├── gis/                      # Mapa inteligente de centros de salud y riesgo
+│   └── community/                # Panel para promotores y eventos comunitarios
+├── main.dart                     # Punto de entrada de la aplicación
+└── biomark_brand.dart            # Paleta corporativa (BiomarkColors) y temas M3
+```
 
-El token push se registra en `POST /api/users/push-token` después de solicitar consentimiento. Al enviar un mensaje del chat, la app solicita ubicación en uso; si el servicio está desactivado o el permiso fue bloqueado, muestra un aviso y abre los ajustes cuando corresponde. Si se autoriza, envía `latitude` y `longitude` juntas. Para síntomas, el backend devuelve `ubicacion_requerida: true` si no llegaron coordenadas. Cuando devuelve `centro_sugerido`, la burbuja muestra nombre, especialidad coincidente, distancia aproximada, dirección y acceso al mapa.
+---
 
-## Audio y multimedia
+## 2. Módulos Destacados
 
-- Texto: respuesta escrita, sin síntesis automática.
-- Imagen: `image_picker` envía piel o garganta a `POST /api/vision`; la respuesta se muestra como texto preventivo.
-- Voz: `record` crea el archivo del usuario y `POST /api/voice` devuelve transcripción, respuesta escrita y `audio_base64` WAV. Flutter guarda el archivo temporal y lo reproduce como respuesta de voz.
-- El endpoint separado `/api/voice/synthesize` existe para integraciones autorizadas, pero no se usa automáticamente para respuestas de texto.
+### 💓 Fotopletismografía Óptica (PPG - Pulso Cardíaco con Cámara)
+- **Principio:** Detección de variaciones del volumen sanguíneo capilar mediante la cámara trasera y el flash LED del smartphone.
+- **Procesamiento de señal (DSP):**
+  - Validación de contacto dérmico (`avgRed > 95`) para ignorar luz ambiental.
+  - Eliminación de componente continua (DC-tracking) y filtro paso-bajo IIR contra ruido de sensor.
+  - Detección de sístoles con período refractario fisiológico (330 ms a 1500 ms = 40 a 180 BPM).
+  - Mediana móvil para estabilidad en la lectura de BPM.
+- **Experiencia de Usuario:**
+  - Anillo con cuenta regresiva de 20 segundos.
+  - Corazón con animación de latido sincronizado a las pulsaciones detectadas.
+  - Gráfico de onda PPG estilo monitor hospitalario en tiempo real (`CustomPainter`).
+  - Clasificación clínica: Ritmo normal (60-100 BPM), Bradicardia (<60 BPM) o Taquicardia (>100 BPM).
+  - Persistencia automática e integración con la pantalla de **Mi Mejoría**.
 
-En Android se declaran cámara, micrófono y ubicación en `android/app/src/main/AndroidManifest.xml`; en iOS se declaran mensajes de uso en `Info.plist`. En web el navegador exige HTTPS y permisos equivalentes.
+### 📋 Pantalla de Inicio (HomeScreen)
+- **Tarjeta de Signos Vitales (PPG):** Acceso directo y visualización de la última frecuencia cardíaca registrada.
+- **Panel de Acciones Rápidas (Quick Actions Grid):** Acceso en 1 toque a *Consultar IA*, *Mi Mejoría*, *Medir Pulso* y *Centros MINSA*.
+- **Módulo de Recomendaciones de Salud MINSA:** Tarjetas informativas adaptadas a la realidad nicaragüense:
+  1. **Prevención de Dengue y Arbovirosis:** Normativa 004 del MINSA, eliminación de criaderos y signos de alarma.
+  2. **Hidratación y Golpe de Calor:** Pautas de reposición hídrica en temperaturas superiores a 30°C (Pacífico y Centro).
+  3. **Salud Cardiovascular y Pulso:** Rangos en reposo y factores que alteran el ritmo cardíaco.
+  4. **Adherencia Farmacológica:** Importancia de no suspender dosis ni modificar prescripciones médicas.
+- **Panorama Comunitario:** Resumen de casos validados por zona, señales y próximas jornadas de vacunación/fumigación.
 
-## Mapa comunitario
+### 🎙️ Chat Multimodal con Audio Estilo WhatsApp
+- Mensajes de voz enviados con grabación de micrófono y procesados por Whisper ASR.
+- Respuestas de voz sintetizadas con MMS TTS reproducibles con control de progreso, botón de reproducción/pausa y visualización en burbuja de audio.
+- Integración del contexto clínico completo (encuesta de salud, enfermedades previas, medicamentos activos).
 
-El mapa ofrece controles independientes para centros de salud, jornadas,
-reportes comunitarios y zonas de riesgo. El botón de reporte usa la ubicación
-actual y registra una descripción/cantidad aproximada; el backend lo deja
-pendiente de validación. Solo reportes validados aparecen como heatmap agregado.
+---
+
+## 3. Pruebas y Verificación de Calidad
+
+Para ejecutar la suite completa de pruebas unitarias:
+
+```bash
+flutter test
+```
+
+Verificación de sintaxis y buenas prácticas con el analizador de Dart:
+
+```bash
+flutter analyze
+```
+
+---
+
+## 4. Permisos del Dispositivo
+
+- **Android (`AndroidManifest.xml`):**
+  - `CAMERA`: Para la medición PPG y captura de imágenes para análisis dermatológico/orofaríngeo.
+  - `FLASHLIGHT`: Para iluminar el lecho capilar durante la medición PPG.
+  - `RECORD_AUDIO`: Para consultas de voz con el asistente.
+  - `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`: Para sugerir centros de salud cercanos.
+- **iOS (`Info.plist`):**
+  - `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, `NSLocationWhenInUseUsageDescription`.

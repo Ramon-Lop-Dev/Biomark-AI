@@ -10,3 +10,5 @@ frontend/flutter/.env
 nginx/certs/ai-service/.env
 *.zip
 frontend/flutter/devtools_options.yaml
+__pycache__/
+*.pyc

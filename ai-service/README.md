@@ -1,168 +1,82 @@
-# Biomark AI — ai-service
+# Biomark AI — AI Service
 
-Motor de inferencia modular: `main.py` orquesta `config.py`, `safety/`,
-`rag/`, `inference/`, `voice/` y `vision/`. El mismo código sirve para
-pruebas en Colab y para producción en un VPS — solo cambia cómo se arranca.
+Servicio interno de inferencia modular y asistencia en salud preventiva desarrollado con **FastAPI**, **PyTorch** y **Hugging Face Transformers**. Proporciona procesamiento de lenguaje natural clínico con barreras de seguridad deterministas, síntesis y transcripción de voz, clasificación de imágenes y contextualización con antecedentes médicos.
 
-## Estructura
+---
 
-```
+## 1. Arquitectura y Módulos
+
+```text
 ai-service/
-├── main.py                  # Orquestador: define todas las rutas HTTP
-├── config.py                 # Variables de entorno, persona, dispositivo
-├── requirements.txt
-├── .env.example               # Plantilla — copiar como .env con credenciales reales
+├── main.py                     # Orquestador FastAPI y rutas de inferencia
+├── config.py                    # Carga estricta de variables de entorno y configuración
+├── requirements.txt             # Dependencias optimizadas para GPU y CPU
 │
 ├── safety/
-│   └── checker.py            # Capa de seguridad clínica
+│   └── checker.py               # Capa de seguridad clínica determinista (no prescripción ni diagnóstico)
 ├── rag/
-│   └── retriever.py          # Sincronización con Supabase + búsqueda RAG
+│   └── retriever.py             # Sincronización con Supabase y búsqueda RAG de normativas MINSA
 ├── inference/
-│   ├── model_loader.py       # Carga del modelo de texto (GPU o CPU automático)
-│   ├── generator.py          # Construcción de prompt + generación de texto
-│   └── service.py            # Safety + RAG + generación, compartido por /chat, /voice, /vision
+│   ├── model_loader.py          # Carga dinámica del LLM (4-bit/8-bit GPU o CPU)
+│   ├── generator.py             # Construcción de prompts contextuales y generación determinista
+│   └── service.py               # ClinicalService compartido por chat, voz y visión
 ├── voice/
-│   ├── asr.py                 # Voz -> texto (Whisper)
-│   └── tts.py                 # Texto -> voz (VITS, facebook/mms-tts-spa)
+│   ├── asr.py                   # Whisper ASR (transcripción de consultas de voz)
+│   └── tts.py                   # Facebook MMS-TTS (síntesis de voz en español formato audio)
 ├── vision/
-│   └── classifier.py           # Clasificación de imágenes: piel y garganta
+│   └── classifier.py            # Red neuronal para imágenes dermatológicas y orofaríngeas
 └── gis/
-  ├── specialty_mapper.py     # Padecimiento -> especialidades verificables
-  └── locator.py              # Selección determinista de centro real
+    ├── specialty_mapper.py      # Mapeo síntoma -> especialidad médica requerida
+    └── locator.py               # Selección determinista de centros de salud MINSA
 ```
 
-## Endpoints
+---
 
-Todos (excepto `/health`) requieren el header `x-internal-key` con el
-valor de `AI_SERVICE_INTERNAL_KEY`.
+## 2. Protocolos de Seguridad Clínica y Prevención de Alucinaciones
 
-| Método | Ruta                | Descripción                                              |
-|--------|----------------------|-----------------------------------------------------------|
-| GET    | `/health`            | Estado del servicio y qué modelos cargaron                |
-| POST   | `/chat`               | `{"message": "..."}` → respuesta de texto                 |
-| POST   | `/voice`              | Sube un audio (`archivo`) → transcribe, responde y devuelve audio WAV en `audio_base64` |
-| POST   | `/audio/synthesize`   | `{"text": "..."}` → devuelve audio WAV                     |
-| POST   | `/vision`             | Sube una imagen (`archivo`) + `?tipo=piel\|garganta`        |
+1. **No Prescripción Médica:** La IA tiene estrictamente prohibido recetar fármacos o alterar posologías médicas. Cualquier solicitud de medicamentos devuelve una advertencia preventiva y la indicación de acudir a un centro de salud o médico tratante.
+2. **No Diagnóstico Final:** El asistente no emite diagnósticos definitivos; ofrece orientación probabilística y pautas de autocuidado preventivo.
+3. **Capacidad Educativa e Informativa:** Responde preguntas sobre condiciones médicas (ej. *¿Qué es el sarampión?*, *¿Cuáles son los síntomas del dengue?*) con rigor científico y normativas del MINSA.
+4. **Seguimiento de Evolución de Síntomas:** Reconoce y clasifica estados clínicos de evolución:
+   - `MEJORO`: Reducción o remisión de síntomas.
+   - `IGUAL`: Síntomas estables sin variación significativa.
+   - `EMPEORO`: Aumento en severidad o aparición de signos de alarma.
+   - `NO_SEGURO`: Información insuficiente para determinar la trayectoria.
+5. **Inyección de Contexto Clínico:** Cuando el backend provee antecedentes (`medical_context`), el LLM toma en cuenta alergias, enfermedades crónicas y medicamentos activos para evitar recomendaciones contraindicadas.
 
-Los tres canales de entrada (`/chat`, `/voice`, `/vision`) pasan por el
-mismo `ClinicalService` (Safety Layer + RAG + generación), así que se
-comportan igual sin importar cómo llegó la consulta. El saludo se resuelve
-sin generación; la generación de texto usa decodificación determinista,
-límite de salida, penalización de repetición y corte de turnos inventados.
+---
 
-### Modelo de garganta
+## 3. Endpoints del Servicio
 
-A diferencia del modelo de piel (un solo `.keras`), el de garganta es un
-pipeline de dos archivos publicado como Hugging Face Space
-(`engrharis/Throat_Image_Classifier`): un extractor de características
-MobileNetV2 (`.h5`) + un clasificador KNN (`.pkl`), con ~80% de precisión
-reportada por su autor. `vision/classifier.py` descarga ambos automáticamente
-la primera vez (se cachean localmente después). Si la descarga falla,
-`/vision?tipo=garganta` responde `503` pero el resto del servicio sigue
-funcionando con normalidad.
+Todos los endpoints (salvo `/health`) requieren autenticación mediante el header `X-Internal-Key: <AI_SERVICE_INTERNAL_KEY>`.
 
-## Pruebas en Google Colab (por ahora)
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/health` | Chequeo de salud del pod y modelos cargados |
+| POST | `/chat` | Consulta de texto con contexto clínico y ubicación opcional |
+| POST | `/voice` | Entrada de audio (`.wav`/`.m4a`) -> Transcripción + Respuesta + Audio de voz |
+| POST | `/audio/synthesize` | Síntesis directa de texto a audio WAV |
+| POST | `/vision` | Análisis fotográfico de piel o garganta (`?tipo=piel\|garganta`) |
 
-**Celda 1 — Setup:**
+---
 
-```python
-!pip install -q -r requirements.txt
+## 4. Despliegue en RunPod (GPU Cloud)
 
-# Sube tu .env real con tus credenciales, o créalo así:
-%%writefile .env
-SUPABASE_URL=https://tu-proyecto.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=tu_key_real
-AI_SERVICE_INTERNAL_KEY=tu_key_real
-```
+Para producción con aceleración por hardware (NVIDIA GPU con VRAM >= 16 GB):
 
-```python
-from pyngrok import ngrok
-ngrok.kill()
-ngrok.set_auth_token("TU_NGROK_TOKEN")
-public_url = ngrok.connect("127.0.0.1:8000", "http")
-print(f"URL pública: {public_url}")
-
-from main import app
-```
-
-**Celda 2 — Arrancar el servidor:**
-
-```python
-import nest_asyncio, uvicorn
-nest_asyncio.apply()
-await uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=8000)).serve()
-```
-
-Copia la URL pública impresa en la Celda 1 a `AI_SERVICE_URL` en el `.env`
-de tu backend de Node.
-
-> Si necesitas ver logs de peticiones que llegan desde afuera (Postman,
-> tu backend) mientras el servidor corre en un `Thread` de Colab, redirige
-> `stdout`/`stderr` a un archivo — Colab solo muestra en vivo el output de
-> la celda que esté activa en ese momento, y las peticiones externas no
-> tienen ninguna celda "activa" asociada.
-
-## Migración a VPS (después)
-
-1. Sube esta carpeta al VPS (sin `.env` — créalo ahí directamente, usa `.env.example` como base).
-2. `python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`
-   - Si el VPS no tiene GPU y `bitsandbytes` falla al instalar, coméntalo en
-     `requirements.txt` — no es obligatorio (ver nota en el archivo).
-3. Prueba con arranque directo primero: `python main.py` (usa `if __name__ == "__main__"`, sin ngrok).
-4. Para producción real, corre bajo `systemd` con `Restart=always` (plantilla
-   lista en `deploy/ai-service.service`, ajusta `User`/`WorkingDirectory` a tu
-   instalación) y pon Nginx o Caddy delante con HTTPS, en vez de exponer el
-   puerto 8000 directo a internet.
-5. En la topología actual Contabo + RunPod, el backend usa `AI_SERVICE_URL=https://POD_ID-8000.proxy.runpod.net`. Solo el Compose monolítico local usa `http://ai-service:8000`.
-
-## Contrato interno de chat
-
-El backend es el único cliente de este servicio. Cada petición requiere el header `X-Internal-Key` y usa este cuerpo:
-
-```json
-{
-  "message": "Tengo fiebre desde ayer",
-  "latitude": null,
-  "longitude": null,
-  "medical_context": null,
-  "conversation_history": []
-}
-```
-
-`POST /chat` devuelve `reply`, `risk_level`, `sources`, `suggested_action`, `ubicacion_requerida` y, si se enviaron coordenadas, `centro_sugerido`. La recomendación usa el padecimiento detectado por reglas deterministas, prioriza la especialidad coincidente y después la menor distancia. `suggested_action` puede ser `REGISTER_PROGRESS`, `REGISTER_MEDICATION`, `REGISTER_REMINDER` o `SHOW_NEAREST_CENTER`.
-
-Si el mensaje describe síntomas y no trae coordenadas, `ubicacion_requerida` es `true` y la respuesta solicita activar la ubicación. Esto no reemplaza el permiso del dispositivo: Flutter debe pedirlo y reenviar ambas coordenadas.
-
-`POST /voice` recibe también `medical_context` y `conversation_history` como campos multipart opcionales. Devuelve `transcription`, `reply`, `risk_level`, `sources`, `session_id`, `audio_base64` y `audio_content_type`. `/audio/synthesize` se reserva para integraciones internas y no se invoca automáticamente para mensajes de texto.
-
-La acción sugerida es una intención de UX, no una orden de escritura. El cliente debe pedir confirmación y el backend debe validar y persistir la operación. La IA no diagnostica, prescribe ni confirma por sí sola que un paciente mejoró.
-
-Ejemplo:
-
-```json
-{
-  "reply": "¿Quieres registrar cómo ha evolucionado la fiebre?",
-  "risk_level": "LOW",
-  "sources": ["Conocimiento general del modelo"],
-  "suggested_action": "REGISTER_PROGRESS",
-  "centro_sugerido": null
-}
-```
-
-Cuando existe ubicación, `centro_sugerido` contiene `id`, `nombre`, `direccion`, `distancia_km`, `tipo_unidad` y `especialidad_coincidente`. Una emergencia pediátrica prioriza capacidades pediátricas hospitalarias como `Cirugía pediátrica` y `Neonatología`; un caso obstétrico prioriza `Gineco-obstetricia`, `Salud de la mujer` y `Maternidad`.
-
-## Orden de arranque en VPS
-
-1. Configura `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` y `AI_SERVICE_INTERNAL_KEY` únicamente en `deploy/ai-service.env`.
-2. Inicia `ai-service` y verifica `curl http://127.0.0.1:8000/health` desde el contenedor o la red privada.
-3. Inicia el backend con la misma `AI_SERVICE_INTERNAL_KEY` y `AI_SERVICE_URL=http://ai-service:8000`.
-4. Verifica desde nginx `GET /health` y después prueba `POST /api/chat` con un JWT válido.
-
-## Seguridad
-
-- El `.env` real nunca se sube a git — usa `.env.example` como plantilla.
-- `config.py` falla explícitamente si falta alguna variable de entorno
-  obligatoria, en vez de arrancar con una llave de ejemplo filtrada como
-  valor por defecto.
-- Rota cualquier credencial que se haya expuesto antes de este cambio
-  (Supabase, ngrok, llave interna).
+1. **Crear Pod en RunPod:** Seleccionar plantilla con PyTorch / CUDA 12.1.
+2. **Exponer Puerto:** Configurar el puerto `8000` como puerto HTTP público.
+3. **Variables de Entorno (`.env`):**
+   ```bash
+   SUPABASE_URL=https://tu-proyecto.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=tu_service_role_key
+   AI_SERVICE_INTERNAL_KEY=tu_clave_interna_secreta
+   DEVICE=cuda
+   ```
+4. **Instalar y Ejecutar:**
+   ```bash
+   pip install -r requirements.txt
+   python main.py
+   ```
+5. **Conexión con Backend (Contabo):**
+   En el backend en Contabo, configurar `AI_SERVICE_URL=https://POD_ID-8000.proxy.runpod.net`.
