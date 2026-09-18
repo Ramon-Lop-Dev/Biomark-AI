@@ -47,7 +47,7 @@ void main() {
   group('RecommendationsService Tests', () {
     test('Returns MINSA recommendations for dengue, heat, cardio, and treatments', () {
       final recommendations = RecommendationsService.getRecommendations();
-      expect(recommendations.length, 4);
+      expect(recommendations.length, greaterThanOrEqualTo(4));
 
       final categories = recommendations.map((r) => r.category).toSet();
       expect(categories, contains(RecommendationCategory.dengue));
@@ -69,6 +69,39 @@ void main() {
       final dengue = recommendations.firstWhere((r) => r.category == RecommendationCategory.dengue);
       expect(dengue.minsaNormative, contains('Normativa 004'));
       expect(dengue.keyPoints.any((p) => p.contains('criaderos') || p.contains('pilas')), isTrue);
+    });
+
+    test('Prioritization: Prioritizes cardiovascular when user has chronic hypertension', () {
+      final prioritized = RecommendationsService.getPrioritized(
+        surveyAnswers: {
+          'enfermedadesCronicas': ['Hipertensión Arterial'],
+          'medicamentosActuales': 'Enalapril 20mg',
+        },
+      );
+
+      expect(prioritized.first.category, RecommendationCategory.cardiovascular);
+      expect(prioritized.first.dynamicBadge, contains('Prioritario para tu salud'));
+    });
+
+    test('Prioritization: Elevates dengue when active epidemiological alert is present', () {
+      final prioritized = RecommendationsService.getPrioritized(
+        activeAlerts: ['Brote de Dengue Grave'],
+        surveyAnswers: {},
+      );
+
+      expect(prioritized.first.category, RecommendationCategory.dengue);
+      expect(prioritized.first.dynamicBadge, contains('Alerta comunitaria'));
+    });
+
+    test('Prioritization: Flags cardiovascular when recent pulse is abnormal (>100 BPM)', () {
+      final prioritized = RecommendationsService.getPrioritized(
+        latestHeartRate: 115,
+        surveyAnswers: {},
+      );
+
+      final cardio = prioritized.firstWhere((r) => r.category == RecommendationCategory.cardiovascular);
+      expect(cardio.relevanceScore, greaterThan(1));
+      expect(cardio.dynamicBadge, contains('Atención a tu pulso reciente'));
     });
   });
 

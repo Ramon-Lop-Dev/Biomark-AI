@@ -1,12 +1,9 @@
-// Controlador de apariencia (tema) — Biomark AI
-//
-// Singleton con ChangeNotifier: cuando el modo cambia, notifica a quien
-// esté escuchando (normalmente el MaterialApp en main.dart, para que
-// se reconstruya con el nuevo ThemeMode).
+// Controlador de apariencia y accesibilidad — Biomark AI
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_biomark/biomark_brand.dart';
 
-enum ModoApariencia { claro, oscuro, sistema }
+enum ModoApariencia { claro, oscuro, altoContraste, sistema }
 
 extension ModoAparienciaInfo on ModoApariencia {
   String get etiqueta {
@@ -15,6 +12,8 @@ extension ModoAparienciaInfo on ModoApariencia {
         return 'Claro';
       case ModoApariencia.oscuro:
         return 'Oscuro';
+      case ModoApariencia.altoContraste:
+        return 'Alto contraste (Accesibilidad WCAG)';
       case ModoApariencia.sistema:
         return 'Como mi dispositivo';
     }
@@ -26,6 +25,8 @@ extension ModoAparienciaInfo on ModoApariencia {
         return Icons.wb_sunny_rounded;
       case ModoApariencia.oscuro:
         return Icons.dark_mode_rounded;
+      case ModoApariencia.altoContraste:
+        return Icons.contrast_rounded;
       case ModoApariencia.sistema:
         return Icons.smartphone_rounded;
     }
@@ -37,6 +38,8 @@ extension ModoAparienciaInfo on ModoApariencia {
         return ThemeMode.light;
       case ModoApariencia.oscuro:
         return ThemeMode.dark;
+      case ModoApariencia.altoContraste:
+        return ThemeMode.light;
       case ModoApariencia.sistema:
         return ThemeMode.system;
     }
@@ -53,8 +56,15 @@ class AppThemeController extends ChangeNotifier {
   ModoApariencia get modoActual => _modoActual;
   ThemeMode get themeMode => _modoActual.themeMode;
 
-  /// Llamar una vez al inicio (por ejemplo en main() antes de runApp)
-  /// para cargar el modo guardado previamente.
+  ThemeData get currentLightTheme {
+    if (_modoActual == ModoApariencia.altoContraste) {
+      return biomarkHighContrastTheme;
+    }
+    return biomarkTheme;
+  }
+
+  bool get isHighContrast => _modoActual == ModoApariencia.altoContraste;
+
   Future<void> cargarGuardado() async {
     final prefs = await SharedPreferences.getInstance();
     final guardado = prefs.getString(_clavePreferencia);

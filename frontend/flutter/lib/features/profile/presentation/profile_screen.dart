@@ -18,6 +18,7 @@ import 'package:flutter_biomark/core/auth/auth_session.dart';
 import 'package:flutter_biomark/core/config/app_config.dart';
 import 'package:flutter_biomark/features/community/promoter_screens.dart';
 import 'package:flutter_biomark/core/profile/user_profile_api.dart';
+import 'package:flutter_biomark/features/community/recommendations_management_screen.dart';
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -315,6 +316,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const AdminRoleRequestsScreen(),
+                    ),
+                  ),
+                ),
+              if (AuthSession.instance.isPromoter || AuthSession.instance.isAdmin)
+                _ItemPerfil(
+                  icon: Icons.verified_user_outlined,
+                  label: 'Pautas y Recomendaciones MINSA',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const RecommendationsManagementScreen(),
                     ),
                   ),
                 ),

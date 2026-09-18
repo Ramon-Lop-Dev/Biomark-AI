@@ -333,32 +333,36 @@ class _AppShellState extends State<AppShell> {
               ),
               Positioned(
                 top: 0,
-                child: GestureDetector(
-                  onTap: _openChat,
-                  child: Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF46AB39), Color(0xFF006E03)],
-                      ),
-                      border: Border.all(
-                        color: Theme.of(context).scaffoldBackgroundColor,
-                        width: 4,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: BiomarkColors.green.withValues(alpha: .45),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
+                child: Semantics(
+                  label: 'Abrir asistente de salud Biomark AI',
+                  button: true,
+                  child: GestureDetector(
+                    onTap: _openChat,
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF46AB39), Color(0xFF006E03)],
                         ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.chat_bubble_rounded,
-                      color: Colors.white,
-                      size: 26,
+                        border: Border.all(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          width: 4,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: BiomarkColors.green.withValues(alpha: .45),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.chat_bubble_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
                     ),
                   ),
                 ),
@@ -376,39 +380,47 @@ class _AppShellState extends State<AppShell> {
     final labels = promoter ? _promoterNavLabels : _userNavLabels;
     final icons = promoter ? _promoterNavIcons : _userNavIcons;
     final selected = _navIndex == index;
-    return GestureDetector(
-      onTap: () => _handleNavTap(index),
-      behavior: HitTestBehavior.opaque,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icons[index],
-              color: selected
-                  ? BiomarkColors.green
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
-              size: 20,
-            ),
-            const SizedBox(height: 3),
-            SizedBox(
-              width: 74,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  labels[index],
-                  maxLines: 1,
-                  style: TextStyle(
-                    color: selected
-                        ? BiomarkColors.green
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 10.5,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+    return Semantics(
+      label: '${labels[index]}, pestaña ${index + 1} de ${labels.length}',
+      selected: selected,
+      button: true,
+      child: GestureDetector(
+        onTap: () => _handleNavTap(index),
+        behavior: HitTestBehavior.opaque,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icons[index],
+                  color: selected
+                      ? BiomarkColors.green
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
+                const SizedBox(height: 3),
+                SizedBox(
+                  width: 74,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      labels[index],
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: selected
+                            ? BiomarkColors.green
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 10.5,
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

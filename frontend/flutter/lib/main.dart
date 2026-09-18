@@ -44,8 +44,9 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Login Biomark',
           debugShowCheckedModeBanner: false,
-          theme: biomarkTheme,
+          theme: AppThemeController.instance.currentLightTheme,
           darkTheme: biomarkDarkTheme,
+          highContrastTheme: biomarkHighContrastTheme,
           themeMode: AppThemeController.instance.themeMode,
           home: const SplashScreen(),
         );

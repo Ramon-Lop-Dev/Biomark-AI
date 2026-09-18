@@ -14,6 +14,7 @@ import '../../vitals/presentation/ppg_screen.dart';
 import '../../vitals/presentation/scg_screen.dart';
 import '../domain/health_recommendation.dart';
 import '../data/recommendations_service.dart';
+import '../../community/recommendations_management_screen.dart';
 import '../../../core/design/responsive_layout.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -42,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loadingCommunity = true;
   String? _communityError;
 
-  final List<HealthRecommendation> _recommendations = RecommendationsService.getRecommendations();
+  List<HealthRecommendation> _recommendations = RecommendationsService.getRecommendations();
 
   @override
   void initState() {
@@ -54,6 +55,26 @@ class _HomeScreenState extends State<HomeScreen> {
     _cargarNombreUsuario();
     _cargarUltimoSignoVital();
     _cargarPanoramaComunitario();
+    _cargarRecomendaciones();
+  }
+
+  Future<void> _cargarRecomendaciones() async {
+    final list = await RecommendationsService.fetchRecommendations();
+    if (!mounted) return;
+    _actualizarRecomendacionesPriorizadas(list);
+  }
+
+  void _actualizarRecomendacionesPriorizadas([List<HealthRecommendation>? base]) {
+    final alerts = _signals.map((s) => s.enfermedad).where((e) => e.isNotEmpty).toList();
+    final priorizadas = RecommendationsService.getPrioritized(
+      sourceList: base ?? _recommendations,
+      surveyAnswers: SurveyService.respuestas,
+      activeAlerts: alerts,
+      latestHeartRate: _latestVital?.bpm,
+    );
+    if (mounted) {
+      setState(() => _recommendations = priorizadas);
+    }
   }
 
   Future<void> _cargarNombreUsuario() async {
@@ -79,6 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _latestVital = vital;
         _loadingVitals = false;
       });
+      _actualizarRecomendacionesPriorizadas();
     } catch (_) {
       if (mounted) setState(() => _loadingVitals = false);
     }
@@ -124,6 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _events = upcomingEvents;
         _loadingCommunity = false;
       });
+      _actualizarRecomendacionesPriorizadas();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -445,6 +468,8 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
             _buildGreetingHeader(),
+            const SizedBox(height: 14),
+            _buildVoiceAccessibilityBanner(),
             const SizedBox(height: 16),
             _buildVitalPulseCard(),
             const SizedBox(height: 20),
@@ -454,6 +479,121 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 24),
             _buildCommunitySection(),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVoiceAccessibilityBanner() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Semantics(
+      label: 'Asistente por Voz de Biomark AI. Toca para hablar directamente y recibir respuestas de salud por audio sin necesidad de leer ni escribir.',
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            widget.onNavigateToTab?.call(1);
+          },
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark
+                    ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                    : [const Color(0xFFEFF6FF), const Color(0xFFE0E7FF)],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: BiomarkColors.blue.withValues(alpha: 0.35),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: BiomarkColors.blue,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: BiomarkColors.blue.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.mic_rounded,
+                    color: Colors.white,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: BiomarkColors.blue.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'ACCESIBILIDAD UNIVERSAL',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: BiomarkColors.blue,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Modo Asistido por Voz',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Habla con tu asistente de salud sin necesidad de leer ni escribir.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: BiomarkColors.blue,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -775,17 +915,50 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecommendationsSection() {
+    final canManage = AuthSession.instance.isPromoter || AuthSession.instance.isAdmin;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle(
-          Icons.shield_outlined,
-          'Recomendaciones de Salud',
-          'Pautas de prevención según normativas del MINSA',
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: _sectionTitle(
+                Icons.shield_outlined,
+                'Recomendaciones de Salud',
+                'Pautas prioritarias según tu condición y normativas MINSA',
+              ),
+            ),
+            if (canManage)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: BiomarkColors.blue,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  ),
+                  icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+                  label: const Text(
+                    'Gestionar',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const RecommendationsManagementScreen(),
+                      ),
+                    ).then((_) => _cargarRecomendaciones());
+                  },
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 168,
+          height: 194,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -804,47 +977,50 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildRecommendationCard(HealthRecommendation rec) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return InkWell(
-      onTap: () => _openRecommendationDetails(rec),
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        width: 240,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: rec.accentColor.withValues(alpha: 0.25),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+    return Semantics(
+      label: 'Recomendación: ${rec.title}. ${rec.dynamicBadge != null ? "${rec.dynamicBadge}. " : ""}${rec.summary}',
+      button: true,
+      child: InkWell(
+        onTap: () => _openRecommendationDetails(rec),
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          width: 248,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: rec.accentColor.withValues(alpha: rec.dynamicBadge != null ? 0.45 : 0.25),
+              width: rec.dynamicBadge != null ? 1.6 : 1.2,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (rec.dynamicBadge != null) ...[
                 Container(
-                  padding: const EdgeInsets.all(6),
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
                     color: rec.accentColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: rec.accentColor.withValues(alpha: 0.4),
+                      width: 0.8,
+                    ),
                   ),
-                  child: Icon(rec.icon, color: rec.accentColor, size: 18),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
                   child: Text(
-                    rec.tag,
+                    rec.dynamicBadge!,
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
                       color: rec.accentColor,
                     ),
                     maxLines: 1,
@@ -852,42 +1028,67 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              rec.title,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Expanded(
-              child: Text(
-                rec.summary,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  height: 1.3,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                maxLines: 3,
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: rec.accentColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(rec.icon, color: rec.accentColor, size: 18),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      rec.tag,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: rec.accentColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                rec.title,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text(
-                  'Ver pautas',
+              const SizedBox(height: 4),
+              Expanded(
+                child: Text(
+                  rec.summary,
                   style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: rec.accentColor,
+                    fontSize: 11.5,
+                    height: 1.3,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Icon(Icons.chevron_right_rounded, size: 16, color: rec.accentColor),
-              ],
-            ),
-          ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    'Ver pautas',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: rec.accentColor,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, size: 16, color: rec.accentColor),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1143,11 +1344,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _CommunitySignal {
   final int cases;
+  final String enfermedad;
 
-  const _CommunitySignal({required this.cases});
+  const _CommunitySignal({required this.cases, this.enfermedad = ''});
 
   factory _CommunitySignal.fromJson(Map<String, dynamic> json) => _CommunitySignal(
         cases: (json['cantidad_casos'] as num?)?.toInt() ?? 0,
+        enfermedad: json['enfermedad']?.toString() ?? json['condicion']?.toString() ?? '',
       );
 }
 
