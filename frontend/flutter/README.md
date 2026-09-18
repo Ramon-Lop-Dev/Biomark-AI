@@ -1,109 +1,137 @@
-# Biomark AI — Frontend Móvil & Web (Flutter)
+# Biomark AI — Cliente Móvil y Web (Flutter)
 
-Aplicación móvil y web multiplataforma desarrollada en Flutter para la asistencia en salud preventiva, seguimiento de síntomas, fotopletismografía óptica (PPG) y salud comunitaria orientada a la población nicaragüense y normativas del MINSA.
+Aplicación multiplataforma (Android, iOS y Web) desarrollada con **Flutter 3.24+** y **Material Design 3**. Proporciona herramientas de salud preventiva, estimación de frecuencia cardíaca por sensores ópticos y mecánicos, pautas sanitarias basadas en normativas del MINSA, asistente de salud multimodal y gestión comunitaria.
 
 ---
 
 ## 1. Arquitectura del Proyecto (Feature-First)
 
-El frontend está estructurado bajo una arquitectura orientada a características (**Feature-First**) y principios de **Clean Architecture**:
+La aplicación implementa una arquitectura orientada a características (**Feature-First**) desacoplada en tres capas principales por cada dominio: **Domain** (entidades y reglas), **Data** (repositorios, servicios y clientes HTTP/locales) y **Presentation** (pantallas, widgets y controladores de estado).
 
 ```text
 lib/
-├── core/                         # Capas transversales del sistema
-│   ├── auth/                     # Sesión, JWT, helpers de Google Auth y listeners
-│   ├── config/                   # Configuración de URLs de API y Firebase
-│   ├── design/                   # Controladores de tema (claro/oscuro), paleta Clay
-│   ├── notifications/            # Servicio de notificaciones push (FCM)
-│   └── profile/                  # API de perfil de usuario
+├── core/                         # Utilidades y servicios transversales
+│   ├── auth/                     # Gestión de sesión, tokens JWT y autenticación
+│   ├── config/                   # Configuración de URLs de API y entornos
+│   ├── design/                   # Controlador de temas (AppThemeController) y paleta corporativa
+│   ├── notifications/            # Integración con Firebase Cloud Messaging (FCM)
+│   └── profile/                  # Servicios transversales de perfil de usuario
+│
 ├── features/                     # Módulos funcionales desacoplados
-│   ├── vitals/                   # Fotopletismografía (PPG) con cámara del teléfono
-│   │   ├── domain/               # Modelos de signos vitales (VitalMeasurement)
-│   │   ├── data/                 # Persistencia local (VitalsStorage SharedPreferences)
-│   │   └── presentation/         # DSP en tiempo real (PpgProcessor) y pantalla (PpgScreen)
-│   ├── home/                     # Pantalla de inicio modernizada
-│   │   ├── domain/               # Modelos de recomendaciones (HealthRecommendation)
-│   │   ├── data/                 # Motor de pautas MINSA (RecommendationsService)
-│   │   └── presentation/         # HomeScreen con signos vitales, acciones rápidas y MINSA
-│   ├── chat/                     # Asistente clínico multimodal
-│   │   ├── domain/               # Modelos de mensajes y estados
-│   │   ├── data/                 # Chat API, Vision API y Voice API
-│   │   └── presentation/         # ChatScreen con reproductor de voz estilo WhatsApp
-│   ├── progress/                 # Seguimiento de evolución clínica y metas
-│   │   ├── domain/               # Estados MEJORO, IGUAL, EMPEORO, NO_SEGURO
-│   │   ├── data/                 # ProgressApi y registro de auditoría
-│   │   └── presentation/         # ProgressScreen integrado con pulso PPG
-│   ├── clinical/                 # Encuesta clínica inicial e historial médico
-│   │   ├── data/                 # SurveyService y sincronización
-│   │   └── presentation/         # HealthSurveyScreen y AntecedentesScreen
-│   ├── profile/                  # Gestión de perfil y configuración
-│   │   └── presentation/         # ProfileScreen, EditarPerfil, Seguridad, etc.
-│   ├── auth/                     # Registro, recuperación y pantalla de carga
-│   │   └── presentation/         # RegisterScreen, ForgotPassword, LoadingScreen
-│   ├── reminders/                # Recordatorios de medicamentos y vacunas
-│   ├── gis/                      # Mapa inteligente de centros de salud y riesgo
-│   └── community/                # Panel para promotores y eventos comunitarios
-├── main.dart                     # Punto de entrada de la aplicación
-└── biomark_brand.dart            # Paleta corporativa (BiomarkColors) y temas M3
+│   ├── vitals/                   # Medición y análisis de signos vitales
+│   │   ├── domain/               # Modelos de pulso y mediciones (VitalMeasurement)
+│   │   ├── data/                 # Almacenamiento local (VitalsStorage)
+│   │   └── presentation/         # Procesador DSP (PpgProcessor, ScgProcessor) y pantallas
+│   │
+│   ├── home/                     # Pantalla de inicio y centro de mando
+│   │   ├── domain/               # Entidad de recomendaciones (HealthRecommendation)
+│   │   ├── data/                 # Motor de priorización contextual (RecommendationsService)
+│   │   └── presentation/         # HomeScreen, carrusel de pautas y métricas comunitarias
+│   │
+│   ├── community/                # Gestión de salud comunitaria y pautas sanitarias
+│   │   ├── recommendations_management_screen.dart # Formulario de publicación con RBAC
+│   │   └── presentation/         # Listado epidemiológico y eventos de salud
+│   │
+│   ├── chat/                     # Asistente virtual de salud multimodal
+│   │   ├── domain/               # Modelos de mensajes y estados de conversación
+│   │   ├── data/                 # Clientes para chat, análisis visual y notas de voz
+│   │   └── presentation/         # ChatScreen con reproductor de audio integrado
+│   │
+│   ├── progress/                 # Seguimiento de evolución clínica del paciente
+│   │   ├── domain/               # Estados de evolución (MEJORO, IGUAL, EMPEORO, NO_SEGURO)
+│   │   ├── data/                 # Cliente de persistencia y sincronización
+│   │   └── presentation/         # Gráficas de evolución y correlación con pulso
+│   │
+│   ├── clinical/                 # Encuesta clínica inicial y antecedentes
+│   │   ├── data/                 # Servicio de sincronización de antecedentes
+│   │   └── presentation/         # Cuestionario clínico de factores de riesgo
+│   │
+│   ├── profile/                  # Administración del perfil y configuración
+│   │   └── presentation/         # Edición de perfil, avatar, apariencia y baja de cuenta
+│   │
+│   ├── gis/                      # Mapeo georreferenciado de unidades de salud MINSA
+│   └── reminders/                # Programación de medicamentos y citas médicas
+│
+├── app_shell.dart                # Estructura principal de navegación inferior accesible
+├── biomark_brand.dart            # Paleta de colores, tipografías y temas (Claro, Oscuro, Alto Contraste)
+└── main.dart                     # Inicialización de servicios y punto de arranque
 ```
 
 ---
 
-## 2. Módulos Destacados
+## 2. Módulos y Capacidades Principales
 
-### 💓 Fotopletismografía Óptica (PPG - Pulso Cardíaco con Cámara)
-- **Principio:** Detección de variaciones del volumen sanguíneo capilar mediante la cámara trasera y el flash LED del smartphone.
-- **Procesamiento de señal (DSP):**
-  - Validación de contacto dérmico (`avgRed > 95`) para ignorar luz ambiental.
-  - Eliminación de componente continua (DC-tracking) y filtro paso-bajo IIR contra ruido de sensor.
-  - Detección de sístoles con período refractario fisiológico (330 ms a 1500 ms = 40 a 180 BPM).
-  - Mediana móvil para estabilidad en la lectura de BPM.
-- **Experiencia de Usuario:**
-  - Anillo con cuenta regresiva de 20 segundos.
-  - Corazón con animación de latido sincronizado a las pulsaciones detectadas.
-  - Gráfico de onda PPG estilo monitor hospitalario en tiempo real (`CustomPainter`).
-  - Clasificación clínica: Ritmo normal (60-100 BPM), Bradicardia (<60 BPM) o Taquicardia (>100 BPM).
-  - Persistencia automática e integración con la pantalla de **Mi Mejoría**.
+### Medición de Signos Vitales (PPG y SCG)
+* **Fotopletismografía óptica (PPG):**
+  * Estimación de frecuencia cardíaca (BPM) a través de la cámara trasera y el flash.
+  * Procesamiento digital de señales (DSP): validación de contacto en lecho capilar, eliminación de deriva continua (DC-tracking) y filtro paso-bajo para supresión de ruido.
+  * Detección de sístoles con ventana refractaria fisiológica (40 a 180 BPM).
+  * Clasificación clínica de resultados: Ritmo normal (60-100 BPM), Bradicardia (<60 BPM) y Taquicardia (>100 BPM).
+* **Sismocardiografía mecánica (SCG):**
+  * Detección de micromovimientos cardíacos en reposo utilizando el acelerómetro y giroscopio.
+  * Filtro de rechazo para movimientos bruscos del usuario (motion artifacts).
 
-### 📋 Pantalla de Inicio (HomeScreen)
-- **Tarjeta de Signos Vitales (PPG):** Acceso directo y visualización de la última frecuencia cardíaca registrada.
-- **Panel de Acciones Rápidas (Quick Actions Grid):** Acceso en 1 toque a *Consultar IA*, *Mi Mejoría*, *Medir Pulso* y *Centros MINSA*.
-- **Módulo de Recomendaciones de Salud MINSA:** Tarjetas informativas adaptadas a la realidad nicaragüense:
-  1. **Prevención de Dengue y Arbovirosis:** Normativa 004 del MINSA, eliminación de criaderos y signos de alarma.
-  2. **Hidratación y Golpe de Calor:** Pautas de reposición hídrica en temperaturas superiores a 30°C (Pacífico y Centro).
-  3. **Salud Cardiovascular y Pulso:** Rangos en reposo y factores que alteran el ritmo cardíaco.
-  4. **Adherencia Farmacológica:** Importancia de no suspender dosis ni modificar prescripciones médicas.
-- **Panorama Comunitario:** Resumen de casos validados por zona, señales y próximas jornadas de vacunación/fumigación.
+### Recomendaciones de Salud MINSA y Priorización Inteligente
+* **Estandarización visual y médica:** Las pautas incorporan colores e iconos normativos oficiales asignados a cada categoría sanitaria (Dengue, Golpe de Calor, Cardiovascular, Adherencia a Medicamentos, Diabetes y Salud Respiratoria).
+* **Motor de cálculo de relevancia:** Ordena automáticamente las tarjetas en tiempo real combinando:
+  1. Alertas sanitarias activas en el municipio del usuario (+10 pts).
+  2. Padecimientos crónicos declarados en la encuesta clínica (+8 pts).
+  3. Alteraciones en la última medición de pulso registrada (+7 pts).
+  4. Indicación de tratamientos farmacológicos vigentes (+5 pts).
+* **Gestión autorizada por roles (RBAC):** Interfaz para promotores y personal médico que permite publicar nuevas recomendaciones verificadas, validando el respaldo de normativas técnicas del MINSA.
 
-### 🎙️ Chat Multimodal con Audio Estilo WhatsApp
-- Mensajes de voz enviados con grabación de micrófono y procesados por Whisper ASR.
-- Respuestas de voz sintetizadas con MMS TTS reproducibles con control de progreso, botón de reproducción/pausa y visualización en burbuja de audio.
-- Integración del contexto clínico completo (encuesta de salud, enfermedades previas, medicamentos activos).
+### Accesibilidad Universal (WCAG 2.1 Nivel AA)
+* **Tema de Alto Contraste:** Modo opcional con contraste superior a 7:1 en fondos, bordes y textos para usuarios con déficit visual.
+* **Compatibilidad con lectores de pantalla:** Inclusión de etiquetas semánticas (`Semantics`) en botones, controles y tarjetas para TalkBack (Android) y VoiceOver (iOS), manteniendo total invisibilidad para usuarios estándar.
+* **Sugerencia de modo por voz:** Notificación amigable en la pantalla de inicio para personas con baja alfabetización, con opción de cierre permanente (`[X]`) e interruptor en las preferencias de apariencia.
+* **Ergonomía de pulsación:** Elementos interactivos con dimensiones mínimas de 48x48 dp para prevenir pulsaciones erróneas.
+* **Resiliencia sin conexión:** Almacenamiento local mediante `SharedPreferences` para acceder a las pautas y datos vitales en puestos rurales sin cobertura de datos.
+
+### Adaptabilidad Responsive (Móvil y Web)
+* La interfaz se ajusta dinámicamente a pantallas de dispositivos móviles, tabletas y navegadores de escritorio.
+* Se utilizan límites de ancho de lectura optimizados, evitando estiramientos visuales en pantallas panorámicas.
 
 ---
 
-## 3. Pruebas y Verificación de Calidad
+## 3. Instrucciones de Ejecución
 
-Para ejecutar la suite completa de pruebas unitarias:
+### Requisitos
+* Flutter SDK versión 3.24 o superior.
+* Navegador Google Chrome (para pruebas web) o dispositivo móvil con depuración USB activada.
+
+### Variables de Compilación
+La aplicación recibe la URL del servidor backend mediante `--dart-define`:
 
 ```bash
+# Instalación de dependencias
+flutter pub get
+
+# Ejecución en navegador Web
+flutter run -d chrome --dart-define=BIOMARK_API_URL=http://localhost:3000
+
+# Ejecución en dispositivo móvil Android
+flutter run -d <ID_DISPOSITIVO> --dart-define=BIOMARK_API_URL=https://tu-servidor-api.org
+```
+
+---
+
+## 4. Pruebas y Control de Calidad
+
+Ejecución de la suite de pruebas unitarias y de integración de widgets:
+
+```bash
+# Pruebas automatizadas de dominio, servicios y lógica matemática
 flutter test
-```
 
-Verificación de sintaxis y buenas prácticas con el analizador de Dart:
-
-```bash
+# Análisis estático de código y directrices de estilo
 flutter analyze
 ```
 
 ---
 
-## 4. Permisos del Dispositivo
+## 5. Permisos Requeridos del Dispositivo
 
-- **Android (`AndroidManifest.xml`):**
-  - `CAMERA`: Para la medición PPG y captura de imágenes para análisis dermatológico/orofaríngeo.
-  - `FLASHLIGHT`: Para iluminar el lecho capilar durante la medición PPG.
-  - `RECORD_AUDIO`: Para consultas de voz con el asistente.
-  - `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`: Para sugerir centros de salud cercanos.
-- **iOS (`Info.plist`):**
-  - `NSCameraUsageDescription`, `NSMicrophoneUsageDescription`, `NSLocationWhenInUseUsageDescription`.
+* **Cámara (`CAMERA`):** Requerida para la captura óptica del pulso capilar y registro de imágenes dermatológicas/orofaríngeas.
+* **Linterna (`FLASHLIGHT`):** Necesaria para iluminar el dedo durante la medición PPG.
+* **Micrófono (`RECORD_AUDIO`):** Empleado para enviar consultas de voz al asistente clínico.
+* **Ubicación (`ACCESS_FINE_LOCATION`):** Utilizada únicamente con consentimiento del usuario para ordenar por proximidad los centros de salud del MINSA.

@@ -1,43 +1,65 @@
-# Frontend Flutter
+# Biomark AI — Frontend
 
-El frontend debe apuntar al dominio HTTPS del nginx, no a `localhost`, ngrok ni a los puertos internos Docker. Configura la URL por ambiente (desarrollo, staging, producción) y no incluyas claves service role.
+Módulo de cliente multiplataforma del proyecto Biomark AI. La aplicación está construida en **Flutter** y orientada al despliegue simultáneo en dispositivos móviles (Android / iOS) y navegadores web de escritorio.
 
-Registra el token FCM en `POST /api/users/push-token` después de obtener consentimiento de notificaciones. Envía `session_id` UUID para conservar memoria de chat y solicita ubicación solo con consentimiento explícito.
+---
 
-Prueba en dispositivo real contra el VPS: login, chat, voz, mapa inteligente, navegación, vacunas, recordatorios y recepción de push.
+## 1. Conexión con el Ecosistema
 
-## Chat conectado
+La aplicación cliente se comunica de manera exclusiva con el **Backend API Gateway** a través de HTTPS. Nunca interactúa de forma directa con el servicio de inferencia de IA en RunPod ni con credenciales privilegiadas (`service_role` de Supabase).
 
-El chat Flutter llama únicamente al backend público (`POST /api/chat`). El backend valida el JWT y comunica internamente con `ai-service`; nunca configures `AI_SERVICE_INTERNAL_KEY` en Flutter.
+```mermaid
+flowchart LR
+  App["Flutter (Móvil / Web)"] -->|HTTPS / WSS| Proxy["Nginx (Proxy Reverso SSL)"]
+  Proxy -->|Puerto 3000| Backend["Backend API Gateway"]
+  Backend -->|Clave Interna| AIService["AI Service (RunPod GPU)"]
+  Backend -->|Consultas RLS| Supabase[("Supabase (PostgreSQL / Storage)")]
+```
 
-Ejecuta la app con la URL HTTPS del backend y el access token obtenido en `POST /api/auth/login`:
+---
+
+## 2. Parámetros de Configuración por Entorno
+
+Al compilar o ejecutar el cliente, se definen los parámetros de conexión mediante banderas `--dart-define`:
+
+| Variable | Descripción | Ejemplo de Valor |
+| :--- | :--- | :--- |
+| `BIOMARK_API_URL` | URL base del backend expuesto por Nginx | `https://api.biomark.org` o `http://localhost:3000` |
+| `BIOMARK_ACCESS_TOKEN` | Token JWT para depuración manual (opcional) | `eyJhbGciOi...` |
+
+### Ejemplo de Arranque
 
 ```bash
-cd frontend/flutter
-flutter run -d RMX3741 \
-	--dart-define=BIOMARK_API_URL=https://api.tu-dominio.ni \
-	--dart-define=BIOMARK_ACCESS_TOKEN=TU_ACCESS_TOKEN
+cd flutter
+
+# Ejecución para navegador web
+flutter run -d chrome --dart-define=BIOMARK_API_URL=http://localhost:3000
+
+# Ejecución para dispositivo móvil
+flutter run -d <ID_DISPOSITIVO> --dart-define=BIOMARK_API_URL=https://api.tu-dominio.com
 ```
 
-En un teléfono físico no uses `localhost`: debe ser el dominio HTTPS publicado por nginx. La primera respuesta crea `session_id`; las siguientes solicitudes de la misma pantalla lo reutilizan para conservar el contexto.
+---
 
-## Arquitectura Flutter
+## 3. Principios de Diseño y Arquitectura
 
-El frontend se organiza por features y responsabilidades:
+1. **Arquitectura Feature-First:** Cada funcionalidad reside en su propia carpeta modular dentro de `lib/features/` conteniendo sus capas de dominio, datos y presentación.
+2. **Diseño Responsive:** La interfaz adapta sus cuadrículas, formularios y tarjetas tanto para pantallas táctiles de 4 a 6 pulgadas como para monitores panorámicos de escritorio.
+3. **Accesibilidad Universal (WCAG 2.1 AA):**
+   * Compatibilidad transparente con lectores de pantalla mediante etiquetas `Semantics`.
+   * Modo opcional de Alto Contraste para debilidad visual en los ajustes de apariencia.
+   * Botón de cierre y persistencia para la sugerencia del asistente de voz.
+   * Áreas táctiles con un tamaño mínimo de interacción de 48 dp.
+4. **Resistencia a Fallos de Red:** Las recomendaciones sanitarias y las lecturas de signos vitales cuentan con persistencia local en caché para puestos de salud con conectividad intermitente.
 
-```text
-lib/
-├── core/
-│   └── design/                 # Material 3 y superficies claymorphism
-├── features/
-│   └── chat/
-│       ├── data/               # Cliente HTTP y DTOs de respuesta
-│       ├── domain/             # Entidades del negocio del chat
-│       └── presentation/      # ChatScreen y widgets de interfaz
-├── biomark_brand.dart          # Paleta y ThemeData corporativo
-└── home_screen.dart            # Shell de navegación y composición
+---
+
+## 4. Pruebas y Análisis
+
+Antes de realizar confirmaciones de código, se debe verificar la integridad del proyecto:
+
+```bash
+cd flutter
+flutter test
+flutter analyze
 ```
-
-Cada nueva capacidad debe seguir el mismo límite: `data` para APIs, `domain` para clases y reglas de negocio, `presentation` para widgets/pantallas y `core` solo para componentes compartidos. Las pantallas deben usar Material 3 y `BiomarkClaySurface` para superficies con claymorphism; los colores deben salir de `BiomarkColors` o del `ColorScheme`.
-
-El chat modular se encuentra en `features/chat/presentation/chat_screen.dart` y se comunica con `features/chat/data/chat_api.dart`. No llames al `ai-service` desde Flutter.

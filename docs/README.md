@@ -1,41 +1,33 @@
-# Documentación del proyecto
+# Biomark AI — Centro de Documentación
 
-Esta carpeta centraliza la documentación operativa, técnica y de integración del sistema Biomark AI.
+Índice central de la documentación técnica, manuales de instalación, especificaciones de arquitectura y guías operativas de Biomark AI.
 
-## Índice
+---
 
-- [Documentación técnica completa](TECHNICAL_DOCUMENTATION.md): arquitectura, módulos, base de datos, seguridad, automatizaciones y operación.
-- [Manual de instalación en VPS](INSTALLATION_VPS.md): preparación del servidor, variables de entorno, Docker Compose, HTTPS, backups y checklist de producción.
-- [Despliegue Contabo + RunPod](DEPLOYMENT_CONTABO_RUNPOD.md): procedimiento distribuido para backend, nginx y n8n en Contabo, y AI Service en RunPod.
-- [DuckDNS en Contabo](DUCKDNS_CONTABO.md): dominio, hostname de n8n, HTTPS, firewall y verificación DNS.
-- [Especificación OpenAPI](openapi.yaml): contrato de la API pública y sus rutas protegidas.
-- [Colección Postman](postman/Biomark-AI.postman_collection.json): pruebas de auth, salud, chat, GIS, epidemiología, recordatorios y notificaciones.
-- [Contrato de funcionalidades](TECHNICAL_DOCUMENTATION.md#4-flujos-funcionales): encuesta, consentimiento, chat, ubicación, audio, visión, progreso y recordatorios.
-- [Datos GIS](../database/README.md): migración y seed de centros usados por la recomendación clínica.
-- [README general del repositorio](../README.md): visión general, estructura y arranque rápido.
+## 1. Índice de Documentos
 
-## Cómo usar esta documentación
+| Documento | Descripción y Alcance |
+| :--- | :--- |
+| [Documentación Técnica](TECHNICAL_DOCUMENTATION.md) | Arquitectura integral, descripción de módulos, diagramas de flujo, base de datos y modelo de seguridad. |
+| [Manual de Despliegue en VPS](INSTALLATION_VPS.md) | Guía paso a paso para la preparación de servidores Linux, Docker Compose, configuración de firewall y certificados SSL. |
+| [Despliegue Distribuido (Contabo + RunPod)](DEPLOYMENT_CONTABO_RUNPOD.md) | Procedimiento para operar el backend y automatizaciones en VPS y el microservicio de IA en GPU Cloud. |
+| [Configuración de Dominio con DuckDNS](DUCKDNS_CONTABO.md) | Configuración de DNS dinámico, certificados HTTPS de Let's Encrypt y enrutamiento en Nginx. |
+| [Variables de Entorno](ENVIRONMENT_VARIABLES.md) | Catálogo completo de variables de entorno requeridas para backend, AI Service, Nginx y n8n. |
+| [Especificación OpenAPI](openapi.yaml) | Definición contractual estandarizada de todos los endpoints de la API pública y privada. |
+| [Colección Postman](postman/Biomark-AI.postman_collection.json) | Colección lista para importar con pruebas de autenticación, chat, signos vitales, recomendaciones MINSA y geolocalización. |
 
-1. Empezar por [../README.md](../README.md) para conocer objetivos y estructura.
-2. Revisar [TECHNICAL_DOCUMENTATION.md](TECHNICAL_DOCUMENTATION.md) antes de tocar la arquitectura o despliegue.
-3. Seguir [DEPLOYMENT_CONTABO_RUNPOD.md](DEPLOYMENT_CONTABO_RUNPOD.md) para desplegar ambos servidores.
-4. Consultar [INSTALLATION_VPS.md](INSTALLATION_VPS.md) para operación común y checklist.
-5. Importar [openapi.yaml](openapi.yaml) en Swagger Editor o Swagger UI para validar contratos.
-6. Probar endpoints con la colección de Postman, priorizando login, health, perfil/consentimiento, chat, voz, visión y GIS.
+---
 
-## Alcance de la API
+## 2. Recomendaciones de Consulta
 
-Los endpoints públicos del backend se consumen con JWT desde Flutter o clientes autorizados. Los endpoints internos del AI Service (`/chat`, `/voice`, `/vision`, `/audio/synthesize`) requieren `X-Internal-Key` y no deben exponerse directamente a usuarios. La ruta `/internal/reminders/:id/sent` requiere `X-Webhook-Secret`.
+1. **Visión general y arquitectura:** Comience con el [README principal](../README.md) y la [Documentación Técnica](TECHNICAL_DOCUMENTATION.md) para entender el flujo de datos entre el cliente Flutter, el backend Node.js y el servicio de inferencia en RunPod.
+2. **Puesta en producción:** Consulte la guía de [Despliegue Distribuido](DEPLOYMENT_CONTABO_RUNPOD.md) y aplique las pautas de seguridad del [Manual de Despliegue](INSTALLATION_VPS.md).
+3. **Validación de la API:** Importe la especificación [OpenAPI](openapi.yaml) o la colección de Postman para probar los endpoints en entornos locales o de prueba.
 
-## Recomendaciones de seguridad
+---
 
-- Mantener `SUPABASE_SERVICE_ROLE_KEY` solo en backend y AI Service.
-- Mantener la configuracion publica Firebase Web en Flutter y las credenciales Firebase Admin/Google API fuera del repositorio.
-- No compartir `AI_SERVICE_INTERNAL_KEY` ni tokens de cliente en repositorios públicos.
-- Usar HTTPS y certificados válidos delante de nginx en producción.
-- Proteger n8n con `X-Webhook-Secret` y no abrir `/internal` al exterior.
-- Mantener RLS activo en Supabase y auditar accesos sensibles.
+## 3. Políticas de Seguridad de la Información
 
-## Estado esperado del proyecto
-
-La documentación refleja la arquitectura implementada y la línea de despliegue propuesta. El estado operativo real dependerá de la configuración final de Supabase, los secretos, el entorno de GPU/CPU para el modelo y la vinculación de n8n con FCM.
+* **Gestión de Secretos:** Nunca confirme claves privadas de Firebase, tokens de servicio (`SUPABASE_SERVICE_ROLE_KEY`) ni claves internas (`AI_SERVICE_INTERNAL_KEY`) en el control de versiones.
+* **Aislamiento de Red:** El microservicio de inferencia de IA y las rutas internas de automatización (`/internal/*`) solo deben ser accesibles desde la red interna o mediante claves secretas precompartidas.
+* **Cifrado en Tránsito:** Toda comunicación entre los clientes móviles/web y el servidor debe efectuarse obligatoriamente bajo HTTPS con certificados TLS válidos.

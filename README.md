@@ -1,115 +1,178 @@
 # Biomark AI
 
-Plataforma de salud preventiva y comunitaria que combina una aplicación móvil y web en **Flutter**, una API Gateway en **Node.js/Express**, un motor de inferencia de IA en **Python/FastAPI**, **Supabase** como capa de base de datos y autenticación, y automatización con **n8n**.
+Plataforma integral de salud preventiva, comunitaria y telemedicina diseñada para la población nicaragüense, alineada con los protocolos y normativas técnicas del Ministerio de Salud (MINSA).
 
-El sistema apoya a los pacientes con **fotopletismografía óptica (PPG)** para la estimación de la frecuencia cardíaca, recomendaciones personalizadas basadas en normativas del **MINSA**, seguimiento de evolución clínica de síntomas, asistente virtual de salud multimodal y mapeo de centros de salud.
+Biomark AI combina una aplicación cliente multiplataforma (móvil y web) desarrollada en **Flutter**, una pasarela de servicios (API Gateway) en **Node.js y Express**, un microservicio especializado de inteligencia artificial clínica en **Python y FastAPI**, persistencia segura con **Supabase** (PostgreSQL, autenticación y almacenamiento) y automatizaciones de salud pública mediante **n8n**.
 
 ---
 
 ## 1. Arquitectura del Sistema
 
+La arquitectura está concebida de forma distribuida para optimizar el consumo de recursos, garantizar alta disponibilidad y proteger los datos clínicos:
+
 ```mermaid
 flowchart TD
-  subgraph Frontend [Dispositivos Móviles / Web]
-    F[Flutter App]
-    PPG[Sensor PPG con Cámara]
+  subgraph Clientes ["Clientes Multiplataforma"]
+    F["Flutter (Android, iOS y Web)"]
+    Sensors["Sensores del Dispositivo (Cámara, Flash, Acelerómetro)"]
   end
 
-  subgraph ContaboVPS [Servidor VPS Contabo]
-    N[Nginx Proxy Reverso SSL]
-    B[Backend Node.js :3000]
-    Wn[n8n Automatizaciones :5678]
+  subgraph ServidorVPS ["Servidor VPS (Contabo)"]
+    Nginx["Proxy Inverso Nginx (SSL / HTTPS)"]
+    Backend["API Gateway Node.js :3000"]
+    N8N["Motor de Automatización n8n :5678"]
   end
 
-  subgraph GPUCloud [RunPod Cloud]
-    AI[AI Service FastAPI :8000]
-    LLM[LLM Clínico & Whisper & MMS-TTS]
+  subgraph InferenciaIA ["Servicio GPU Cloud (RunPod)"]
+    FastAPI["AI Service FastAPI :8000"]
+    Models["LLM Clínico, Whisper ASR y MMS-TTS"]
   end
 
-  subgraph CloudDB [Servicios Cloud]
-    S[(Supabase DB / Auth / RLS)]
-    FCM[Firebase Cloud Messaging]
+  subgraph ServiciosCloud ["Servicios en la Nube"]
+    DB[("Supabase DB / Auth / Storage")]
+    FCM["Firebase Cloud Messaging (FCM)"]
   end
 
-  F -->|HTTPS / WSS| N
-  PPG -.->|DSP Local| F
-  N -->|Proxy Interno| B
-  B -->|Service Role Key| S
-  B -->|HTTPS X-Internal-Key| AI
-  AI --> LLM
-  B -->|Webhooks| Wn
-  Wn -->|FCM Push API| FCM
-  FCM -->|Notificaciones| F
+  F -->|HTTPS| Nginx
+  Sensors -.->|Procesamiento DSP Local| F
+  Nginx -->|Proxy Interno| Backend
+  Backend -->|Consultas Seguras con RLS| DB
+  Backend -->|X-Internal-Key| FastAPI
+  FastAPI --> Models
+  Backend -->|Eventos y Webhooks| N8N
+  N8N -->|Notificaciones Push| FCM
+  FCM -->|Alertas Sanitarias| F
 ```
 
 ---
 
 ## 2. Funcionalidades Principales
 
-- 💓 **Fotopletismografía Óptica (PPG):** Chequeo de pulso cardíaco (BPM) en 20 segundos utilizando la cámara y linterna del smartphone, con gráfica de onda en tiempo real, eliminación de deriva y clasificación clínica (Normal, Bradicardia, Taquicardia).
-- 📋 **Pantalla de Inicio Inteligente:** Tarjeta de signos vitales, panel de acciones rápidas, métricas comunitarias y módulo de recomendaciones de salud adaptadas al contexto nicaragüense (Dengue Normativa 004, Hidratación en olas de calor >30°C, Salud cardiovascular y Cumplimiento de tratamientos).
-- 💬 **Asistente Virtual Clínico:** Chat multimodal (texto, imágenes de piel/faringe y mensajes de voz reproducibles estilo WhatsApp). La IA está blindada contra la prescripción de fármacos y emisión de diagnósticos finales, ofreciendo orientación y respuestas educativas (ej. *¿Qué es el sarampión?*).
-- 📈 **Seguimiento de Evolución de Síntomas:** Registro estructurado con estados `MEJORO`, `IGUAL`, `EMPEORO` y `NO_SEGURO`, reflejado en la pantalla de *Mi Mejoría*.
-- 🏥 **Geolocalización y Centros MINSA:** Mapeo de unidades de salud, cálculo de rutas, especialidades médicas y señales epidemiológicas comunitarias.
-- 🔔 **Recordatorios y Notificaciones:** Programación de dosis de medicamentos y jornadas de vacunación sincronizadas con Supabase y n8n.
+### Medición de Signos Vitales en el Dispositivo
+* **Fotopletismografía óptica (PPG):** Estimación de la frecuencia cardíaca (BPM) en 20 segundos mediante la cámara y el flash LED del teléfono. Incorpora procesamiento digital de señales (DSP) en tiempo real con eliminación de derivas, control de contacto dérmico y clasificación clínica (ritmo normal, bradicardia o taquicardia).
+* **Sismocardiografía (SCG):** Registro de micromovimientos torácicos derivados de la actividad mecánica cardíaca empleando el acelerómetro y giroscopio del móvil, con detección automática de perturbaciones de movimiento.
+
+### Pautas de Salud MINSA y Priorización Inteligente
+* **Catálogo normativo oficial:** Tarjetas informativas de prevención respaldadas por normativas del MINSA de Nicaragua:
+  * Prevención y signos de alarma de dengue y arbovirosis (Normativa 004 del MINSA).
+  * Hidratación y protección ante olas de calor extremo (temperaturas superiores a 30 °C).
+  * Cuidado y monitoreo de la salud cardiovascular.
+  * Cumplimiento y adherencia al tratamiento farmacológico prescrito.
+  * Manejo preventivo de diabetes y metabolismo (Normativa 078 del MINSA).
+  * Protocolo de salud respiratoria e infecciones estacionales (Normativa 028 del MINSA).
+* **Motor de priorización contextual:** El sistema clasifica y ordena las recomendaciones automáticamente según:
+  1. Alertas epidemiológicas activas en el municipio del usuario.
+  2. Enfermedades crónicas declaradas en la encuesta clínica de salud.
+  3. Signos vitales alterados registrados en mediciones recientes de pulso.
+  4. Presencia de tratamientos farmacológicos continuos.
+* **Gestión por roles (RBAC):** Promotores de salud y personal sanitario autorizado (`PROMOTOR`, `TRABAJADOR_SALUD`, `ADMIN`) disponen de un módulo de gestión para publicar y validar nuevas pautas sanitarias de acuerdo a los estándares oficiales.
+
+### Asistente Clínico Multimodal y Seguro
+* **Interacción integral:** Consultas mediante texto, mensajes de voz grabados y fotografías para orientación visual en piel o faringe.
+* **Seguridad clínica estricta:** La inteligencia artificial está programada para **no prescribir medicamentos** ni emitir diagnósticos definitivos. Ofrece orientación preventiva, detección de señales de alerta y canalización oportuna a centros de salud.
+* **Lenguaje accesible y sin tecnicismos:** Respuestas adaptadas para su comprensión inmediata por familias y comunidades rurales, evitando jerga médica compleja.
+
+### Accesibilidad Universal (Estándares WCAG 2.1 AA)
+* **Diseño opcional y no intrusivo:** No afecta la experiencia limpia del usuario general.
+* **Tema de alto contraste:** Modo opcional con relación de contraste superior a 7:1 para personas con baja agudeza visual.
+* **Compatibilidad con lectores de pantalla:** Integración completa de etiquetas de accesibilidad (`Semantics`) para TalkBack en Android y VoiceOver en iOS.
+* **Sugerencia de modo por voz:** Tarjeta de acceso rápido por voz en la pantalla principal con opción de descarte inmediato y control en los ajustes del perfil.
+* **Ergonomía táctil:** Áreas de interacción táctil con dimensiones mínimas de 48x48 dp para facilitar la pulsación.
+* **Modo sin conexión (Offline-first):** Respaldo en caché local de recomendaciones y datos de consulta para áreas con conectividad inestable.
+
+### Panorama Comunitario y Geolocalización Sanitaria
+* Mapeo georreferenciado de centros de salud, puestos médicos y hospitales del MINSA.
+* Visualización de jornadas de vacunación, abatización y fumigación en el sector.
+* Registro del historial y evolución de síntomas (*Mejoró*, *Igual*, *Empeoró*).
+
+### Gestión de Cuenta y Privacidad
+* Autenticación segura mediante correo electrónico o inicio de sesión con Google.
+* Gestión de perfil de usuario y avatar alojado en Supabase Storage.
+* Encuesta clínica inicial de antecedentes personales y factores de riesgo.
+* Eliminación definitiva y segura de cuenta con baja de datos en cascada mediante procedimientos almacenados.
 
 ---
 
 ## 3. Estructura del Repositorio
 
 ```text
-.
-├── ai-service/              # Motor de inferencia en Python (FastAPI, PyTorch, Transformers)
-├── backend/                 # API Gateway en Node.js/Express (Lógica clínica y proxies)
-├── database/                # Migraciones y esquemas de base de datos para Supabase
-├── deploy/                  # Archivos de entorno y configuraciones para Docker y VPS
-├── docs/                    # Especificaciones OpenAPI, documentación técnica y guías
-├── frontend/flutter/        # Aplicación cliente Flutter (arquitectura Feature-First)
-├── nginx/                   # Configuración del proxy inverso Nginx con SSL
-├── n8n/                     # Flujos de trabajo automatizados para notificaciones
-├── docker-compose.yml       # Orquestación monolítica para desarrollo local
-└── docker-compose.contabo.yml # Orquestación para despliegue en Contabo VPS
+Biomark-AI/
+├── ai-service/              # Motor de inferencia en Python (FastAPI, PyTorch, Whisper, TTS)
+├── backend/                 # API Gateway y servidor de lógica de negocio en Node.js y Express
+├── database/                # Migraciones SQL, esquemas, funciones RPC y semillas para Supabase
+├── deploy/                  # Plantillas de variables de entorno y configuraciones de despliegue
+├── docs/                    # Especificaciones técnicas, contratos OpenAPI y guías operativas
+├── frontend/flutter/        # Aplicación cliente multiplataforma (móvil y web) en Flutter
+├── nginx/                   # Configuración del proxy inverso con soporte SSL y límites de tráfico
+├── n8n/                     # Flujos de automatización para recordatorios y notificaciones push
+├── docker-compose.yml       # Orquestación de servicios para entorno de desarrollo local
+└── docker-compose.contabo.yml # Orquestación optimizada para servidor en producción (VPS Contabo)
 ```
 
 ---
 
-## 4. Guía de Despliegue
+## 4. Guía de Puesta en Marcha
 
-### Despliegue Distribuido (Producción Recomendada)
-- **Contabo VPS:** Ejecuta `docker-compose.contabo.yml` con el backend de Node.js, proxy Nginx y n8n.
-- **RunPod (GPU):** Ejecuta el contenedor de `ai-service` en una instancia con GPU NVIDIA, exponiendo el puerto 8000 mediante su URL pública segura.
-- **Variables de Entorno:**
-  - `AI_SERVICE_URL=https://<POD_ID>-8000.proxy.runpod.net` configurado en `deploy/backend.env`.
-  - `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` en `deploy/backend.env` y `deploy/ai-service.env`.
+### Requisitos Previos
+* **Docker y Docker Compose** instalados en el entorno de ejecución.
+* **Flutter SDK 3.24+** para compilar la aplicación cliente.
+* **Node.js 20+** y **Python 3.10+** (para desarrollo local sin contenedores).
+* Cuenta y proyecto configurado en **Supabase**.
 
-### Desarrollo Local Monolítico
+### Configuración de Variables de Entorno
+Copia los archivos de ejemplo en la carpeta `deploy/` y completa los valores correspondientes:
+
 ```bash
-# Copiar variables de entorno base
+cp deploy/.env.example deploy/.env
 cp deploy/backend.env.example deploy/backend.env
 cp deploy/ai-service.env.example deploy/ai-service.env
-cp deploy/.env.example deploy/.env
+```
 
-# Levantar todos los servicios en Docker
+### Ejecución en Entorno Local con Docker
+Para iniciar todos los servicios auxiliares (backend, proxy y automatizaciones):
+
+```bash
 docker compose --env-file deploy/.env up -d --build
 ```
 
+### Ejecución de la Aplicación Flutter
+Para ejecutar la aplicación en un emulador, dispositivo físico o navegador web:
+
+```bash
+cd frontend/flutter
+flutter pub get
+
+# Ejecución en modo depuración (móvil o web)
+flutter run -d chrome --dart-define=BIOMARK_API_URL=http://localhost:3000
+```
+
 ---
 
-## 5. Pruebas y Verificación
+## 5. Verificación y Pruebas del Sistema
 
-- **Frontend (Flutter):**
+El proyecto cuenta con suites de pruebas automatizadas en cada uno de sus niveles:
+
+* **Pruebas del cliente Flutter:**
   ```bash
   cd frontend/flutter
   flutter test
   flutter analyze
   ```
-- **Backend (Node.js):**
+
+* **Pruebas del backend (Node.js):**
   ```bash
   cd backend
   npm test
   ```
-- **AI Service (Python):**
+
+* **Pruebas del servicio de IA (Python):**
   ```bash
   cd ai-service
-  TESTING=1 python3 test_safety_and_evolution.py
+  TESTING=1 python3 -m unittest discover -s . -p "test_*.py"
   ```
+
+---
+
+## 6. Licencia y Cumplimiento Sanitario
+
+Este proyecto ha sido desarrollado como una herramienta tecnológica de apoyo preventivo y educación comunitaria. No sustituye la consulta médica presencial ni los criterios clínicos emitidos por profesionales de la salud colegiados.

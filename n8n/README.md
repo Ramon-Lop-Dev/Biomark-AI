@@ -1,18 +1,36 @@
-# n8n self-hosted
+# Biomark AI — Automatización de Tareas (n8n)
 
-El proyecto ya tiene n8n orquestado por Docker dentro de la red privada `biomark`, con volumen persistente `n8n_data` y acceso a través de nginx. Para dejarlo listo para local y luego para la VPN, la configuración debe centrarse en dos cosas: un dominio o host interno para n8n y un secreto compartido con el backend.
+Motor de automatización y orquestación de flujos de trabajo de salud preventiva autohospedado mediante Docker dentro de la red privada del sistema.
 
-## 1. Variables mínimas
+---
 
-Crea o edita `deploy/.env` a partir del ejemplo:
+## 1. Función dentro del Ecosistema
 
-```bash
-cp deploy/.env.example deploy/.env
+n8n se encarga de la ejecución asíncrona de eventos preventivos y la entrega de alertas programadas:
+
+1. **Recepción de Eventos:** Escucha los eventos emitidos por el backend cuando un paciente programa una toma de medicamento o una cita de vacunación.
+2. **Despacho de Alertas Push:** Conexión con **Firebase Cloud Messaging (FCM)** para enviar la notificación directamente al dispositivo móvil del paciente en el horario programado.
+3. **Confirmación de Entrega:** Llama al endpoint interno protegido del backend (`PATCH /internal/reminders/:id/sent`) para registrar la confirmación del aviso en el historial médico.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant B as Backend Node.js
+  participant N as n8n Automatizaciones
+  participant F as Firebase (FCM)
+  participant C as Dispositivo Paciente
+
+  B->>N: Webhook con evento de recordatorio (X-Webhook-Secret)
+  N->>F: Solicitud de envío de notificación push
+  F->>C: Alerta de dosis o jornada en pantalla
+  N->>B: Confirmación de envío (PATCH /internal/reminders/:id/sent)
 ```
 
-El workflow de notificaciones push necesita ademas `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FCM_PROJECT_ID`, `BACKEND_INTERNAL_URL` y `N8N_WEBHOOK_SECRET`. Configura una credencial **Google API** en n8n con una cuenta de servicio de Firebase que tenga el permiso `https://www.googleapis.com/auth/firebase.messaging`; no pegues la clave privada en el workflow ni en Flutter.
+---
 
-Valores recomendados para arranque local:
+## 2. Configuración y Variables de Entorno
+
+Las variables de conexión de n8n se definen en el archivo `deploy/.env`:
 
 ```env
 N8N_HOST=localhost
@@ -20,92 +38,46 @@ N8N_PROTOCOL=http
 WEBHOOK_URL=http://localhost:5678/
 N8N_EDITOR_BASE_URL=http://localhost:5678/
 N8N_SECURE_COOKIE=false
-N8N_ENCRYPTION_KEY=GENERATE_WITH_OPENSSL
+N8N_ENCRYPTION_KEY=tu_clave_de_encriptacion_permanente
 ```
 
-Cuando lo subas a la VPN o a un dominio privado:
+> **Aviso de persistencia:** La variable `N8N_ENCRYPTION_KEY` nunca debe modificarse después de haber configurado credenciales en el panel de n8n, ya que de ella depende el descifrado de las conexiones y cuentas almacenadas.
 
-```env
-N8N_HOST=vpn.internal.local
-N8N_PROTOCOL=https
-WEBHOOK_URL=https://vpn.internal.local/n8n/
-N8N_EDITOR_BASE_URL=https://vpn.internal.local/n8n/
-N8N_SECURE_COOKIE=true
-N8N_ENCRYPTION_KEY=tu_clave_larga_y_persistente
-```
+---
 
-Importante: nunca cambies la `N8N_ENCRYPTION_KEY` una vez creado el usuario y los credenciales, porque se perderán las conexiones guardadas.
+## 3. Puesta en Marcha
 
-## 2. Arrancar n8n en local
+Para iniciar el contenedor de n8n en el servidor:
 
 ```bash
 docker compose --env-file deploy/.env up -d n8n
 ```
 
-Y luego:
+* **Acceso local:** `http://localhost:5678`
+* **Acceso en producción:** A través de la ruta protegida configurada en Nginx (ej. `https://tu-dominio.com/n8n/`).
 
-- UI: http://localhost:5678
-- Si usas nginx: http://localhost/n8n/
+---
 
-La app queda dentro de la red Docker y no debe exponerse en Internet. La entrada pública es nginx, no el puerto 5678.
+## 4. Importación del Flujo de Notificaciones
 
-## 3. Flujo recomendado: recordatorio creado
+El repositorio incluye un flujo base listo para importar en `n8n/workflows/biomark-reminder-flow.json`:
 
-El backend ya publica el evento `recordatorio.creado` hacia `N8N_WEBHOOK_URL` usando el secreto `N8N_WEBHOOK_SECRET` y el endpoint interno `/internal/reminders/:id/sent` ya está protegido con `X-Webhook-Secret`.
+1. Iniciar sesión en el panel web de n8n.
+2. Seleccionar la opción **Import from File** y cargar el archivo `biomark-reminder-flow.json`.
+3. Configurar la credencial de cuenta de servicio de Firebase (permiso `https://www.googleapis.com/auth/firebase.messaging`).
+4. Asignar la variable de entorno interna `BIOMARK_WEBHOOK_SECRET` con el mismo valor configurado en el backend como `N8N_WEBHOOK_SECRET`.
+5. Activar el flujo (*Active*).
 
-El flujo de n8n que debes importar debe seguir este patrón:
+---
 
-1. Webhook trigger (`POST /webhook/eventos-backend`)
-2. Validar cabecera `X-Webhook-Secret`
-3. Comprobar que `body.evento === 'recordatorio.creado'`
-4. Extraer `recordatorio.id` y `usuario_id`
-5. Enviar notificación por FCM o Firebase Messaging
-6. Llamar a `PATCH /internal/reminders/:id/sent` con el mismo secreto
-7. Registrar respuesta y errores con reintentos
+## 5. Mantenimiento y Registros
 
-No expongas `/internal` ni los tokens FCM fuera de la red privada.
-
-## 4. Importar el flujo de ejemplo
-
-Hay un ejemplo listo en `n8n/workflows/biomark-reminder-flow.json` para importar desde la UI de n8n:
-
-- Abrir n8n
-- Crear el primer usuario administrador
-- Importar workflow
-- Ajustar credenciales de Firebase y URL del backend
-- Crear variables de entorno dentro de n8n:
-  - `BIOMARK_WEBHOOK_SECRET` = mismo valor que `N8N_WEBHOOK_SECRET` en backend
-  - `BACKEND_BASE_URL` = http://backend:3000 o http://localhost:3000 si lo pruebas localmente
-  - `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT` o la credencial que uses con Firebase
-
-## 5. Configuración para VPN
-
-Cuando pases la app a la VPN o al servidor privado:
-
-- mantén `n8n` dentro de la red Docker
-- usa nginx para servir `/n8n`
-- usa `N8N_EDITOR_BASE_URL=https://<vpn-host>/n8n/`
-- usa `WEBHOOK_URL=https://<vpn-host>/n8n/`
-- activa `N8N_SECURE_COOKIE=true`
-- deja `N8N_WEBHOOK_SECRET` igual en backend y n8n
-- no publiques `/internal` ni el puerto 5678 directamente
-
-## 6. Recomendaciones de producción
-
-- fija una versión del image en vez de `latest`
-- respalda el volumen `n8n_data` con copia cifrada
-- usa autenticación fuerte para el editor
-- conserva la clave de encriptación
-- usa HTTPS y proxy reverse por nginx
-
-## 7. Comandos útiles
+Comandos habituales para la administración del contenedor:
 
 ```bash
+# Ver registros en tiempo real
 docker compose --env-file deploy/.env logs -f n8n
 
-docker volume inspect biomark-ai_n8n_data
-
-docker compose --env-file deploy/.env up -d --force-recreate n8n
+# Reiniciar el servicio tras cambios de configuración
+docker compose --env-file deploy/.env restart n8n
 ```
-
-Si haces cambios en la configuración o en el workflow, reinicia solo el servicio `n8n` para probar sin afectar al resto.
