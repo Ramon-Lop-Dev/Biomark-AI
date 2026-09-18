@@ -300,6 +300,20 @@ const reviewPromoterRequest = async (adminId, requestId, estado) => {
 };
 
 const deleteAccount = async (usuarioId) => {
+  // Limpieza de archivos del usuario en Supabase Storage (fotos de perfil y médicas)
+  try {
+    const buckets = ['fotos-perfil', 'imagenes-medicas'];
+    for (const bucket of buckets) {
+      const { data: files } = await supabase.storage.from(bucket).list(usuarioId);
+      if (files && files.length > 0) {
+        const paths = files.map((f) => `${usuarioId}/${f.name}`);
+        await supabase.storage.from(bucket).remove(paths);
+      }
+    }
+  } catch (err) {
+    console.warn('[deleteAccount] Advertencia limpiando archivos de storage:', err?.message || err);
+  }
+
   const { data: authId, error } = await supabase.rpc('eliminar_cuenta_usuario', {
     p_usuario_id: usuarioId
   });

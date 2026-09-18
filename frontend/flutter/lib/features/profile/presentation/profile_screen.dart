@@ -33,6 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int? _edadUsuario; // viene de la encuesta hecha en el chat
   String? _fotoUrl;
   String? _generoUsuario;
+  bool _eliminandoCuenta = false;
 
   @override
   void initState() {
@@ -370,6 +371,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ]),
             const SizedBox(height: 28),
             _buildBotonCerrarSesion(context),
+            const SizedBox(height: 12),
+            _buildBotonEliminarCuenta(context),
           ],
         ),
       ),
@@ -686,6 +689,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildBotonEliminarCuenta(BuildContext context) {
+    return Center(
+      child: TextButton.icon(
+        onPressed: _eliminandoCuenta ? null : () => _confirmarEliminarCuenta(context),
+        icon: const Icon(
+          Icons.delete_forever_rounded,
+          color: Colors.redAccent,
+          size: 18,
+        ),
+        label: Text(
+          _eliminandoCuenta ? 'Eliminando cuenta...' : 'Eliminar mi cuenta y perfil',
+          style: const TextStyle(
+            color: Colors.redAccent,
+            fontWeight: FontWeight.w600,
+            fontSize: 13.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmarEliminarCuenta(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          '¿Eliminar tu cuenta y perfil?',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        ),
+        content: const Text(
+          'Esta acción es permanente e irreversible. Se darán de baja definitivamente '
+          'tus credenciales de acceso, tu perfil, tus antecedentes médicos y '
+          'todo tu historial en Biomark AI. No se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: _eliminandoCuenta
+                ? null
+                : () => _ejecutarEliminarCuenta(dialogContext),
+            child: const Text('Eliminar definitivamente'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _ejecutarEliminarCuenta(BuildContext dialogContext) async {
+    setState(() => _eliminandoCuenta = true);
+    try {
+      final token = AuthSession.instance.accessToken;
+      if (token == null || token.isEmpty) throw Exception('Sesión expirada.');
+      final authApi = AuthApi(baseUrl: AppConfig.apiUrl);
+      try {
+        await authApi.deleteAccount(accessToken: token);
+      } finally {
+        authApi.dispose();
+      }
+      await AuthSession.instance.clear();
+      if (!mounted) return;
+      if (dialogContext.mounted) {
+        Navigator.of(dialogContext).pop();
+      }
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _eliminandoCuenta = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo eliminar la cuenta: $error'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
 
