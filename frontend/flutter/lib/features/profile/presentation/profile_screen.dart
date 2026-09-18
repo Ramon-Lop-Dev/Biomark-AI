@@ -1,7 +1,8 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:flutter_biomark/biomark_brand.dart';
 import 'package:flutter_biomark/datos_personales.dart';
 import 'package:flutter_biomark/editar_perfil.dart';
@@ -36,6 +37,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    final cachedName = AuthSession.instance.userName;
+    final cachedEmail = AuthSession.instance.userEmail;
+    if (cachedName != null && cachedName.isNotEmpty) {
+      _nombreUsuario = cachedName;
+    }
+    if (cachedEmail != null && cachedEmail.isNotEmpty) {
+      _correoUsuario = cachedEmail;
+    }
     _cargarPerfil();
   }
 
@@ -43,6 +52,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final profile = await UserProfileApi.fetch();
       if (profile == null || !mounted) return;
+      await AuthSession.instance.updateProfile(
+        name: profile.displayName,
+        email: profile.email,
+      );
       setState(() {
         _nombreUsuario = profile.displayName;
         _correoUsuario = profile.email;
@@ -96,6 +109,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         body: jsonEncode(changes),
       );
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (values['nombre'] is String &&
+            (values['nombre'] as String).trim().isNotEmpty) {
+          await AuthSession.instance.updateProfile(
+            name: (values['nombre'] as String).trim(),
+          );
+        }
         if (mounted) await _cargarPerfil();
         return;
       }
@@ -119,9 +138,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _subirFoto(File foto) async {
+  Future<void> _subirFotoBytes(Uint8List bytes, String filename) async {
     final token = AuthSession.instance.accessToken;
     if (token == null || token.isEmpty) return;
+
+    final lowerName = filename.toLowerCase();
+    MediaType contentType;
+    if (lowerName.endsWith('.png')) {
+      contentType = MediaType('image', 'png');
+    } else if (lowerName.endsWith('.webp')) {
+      contentType = MediaType('image', 'webp');
+    } else {
+      contentType = MediaType('image', 'jpeg');
+    }
 
     final request =
         http.MultipartRequest(
@@ -131,28 +160,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           )
           ..headers['Authorization'] = 'Bearer $token'
-          ..files.add(await http.MultipartFile.fromPath('foto', foto.path));
+          ..files.add(
+            http.MultipartFile.fromBytes(
+              'foto',
+              bytes,
+              filename: filename,
+              contentType: contentType,
+            ),
+          );
 
     try {
-      final response = await request.send();
-      final body = await response.stream.bytesToString();
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
       if (!mounted) return;
       if (response.statusCode >= 200 && response.statusCode < 300) {
         await _cargarPerfil();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto de perfil actualizada correctamente.'),
+            backgroundColor: BiomarkColors.green,
+          ),
+        );
       } else {
         String mensaje = 'No se pudo guardar la foto de perfil.';
         try {
-          mensaje = _mensajeError(body, mensaje);
+          mensaje = _mensajeError(response.body, mensaje);
         } catch (_) {}
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(mensaje)));
+        ).showSnackBar(SnackBar(content: Text(mensaje), backgroundColor: Colors.red));
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo conectar para guardar la foto.'),
+          SnackBar(
+            content: Text('No se pudo conectar para guardar la foto: $e'),
+            backgroundColor: Colors.red,
           ),
         );
       }
@@ -355,8 +399,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _nombreUsuario = resultado['nombre'] ?? _nombreUsuario;
           });
           await _actualizarDatos(resultado);
-          final foto = resultado['foto'];
-          if (foto is File) await _subirFoto(foto);
+          final fotoBytes = resultado['fotoBytes'];
+          final fotoNombre = resultado['fotoNombre'] as String? ?? 'perfil.jpg';
+          if (fotoBytes is Uint8List) {
+            await _subirFotoBytes(fotoBytes, fotoNombre);
+          }
         }
       },
       child: Container(

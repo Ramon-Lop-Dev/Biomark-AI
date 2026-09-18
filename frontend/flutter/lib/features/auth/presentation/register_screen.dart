@@ -149,6 +149,8 @@ class _RegisterScreenState extends State<RegisterScreen>
           accessToken: result.token!,
           refreshToken: result.refreshToken,
           expiresIn: result.expiresIn ?? 3600,
+          userName: _nameController.text.trim(),
+          userEmail: _emailController.text.trim(),
         );
       }
       if (!mounted) return;

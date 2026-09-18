@@ -47,6 +47,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    final cached = AuthSession.instance.userName;
+    if (cached != null && cached.trim().isNotEmpty) {
+      _nombreUsuario = cached.trim().split(' ').first;
+    }
     _cargarNombreUsuario();
     _cargarUltimoSignoVital();
     _cargarPanoramaComunitario();
@@ -57,6 +61,10 @@ class _HomeScreenState extends State<HomeScreen> {
       final profile = await UserProfileApi.fetch();
       if (!mounted) return;
       if (profile != null) {
+        await AuthSession.instance.updateProfile(
+          name: profile.displayName,
+          email: profile.email,
+        );
         final firstName = profile.displayName.split(' ').first;
         setState(() => _nombreUsuario = firstName);
       }

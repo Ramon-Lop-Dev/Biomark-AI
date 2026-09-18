@@ -20,6 +20,16 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
+  if (err.name === 'MulterError') {
+    const mensaje = err.code === 'LIMIT_FILE_SIZE'
+      ? 'La imagen no debe superar los 5 MB'
+      : err.message;
+    return res.status(400).json({
+      error: mensaje,
+      code: '400'
+    });
+  }
+
   console.error('[ErrorHandler] Error no controlado:', err);
 
   return res.status(500).json({

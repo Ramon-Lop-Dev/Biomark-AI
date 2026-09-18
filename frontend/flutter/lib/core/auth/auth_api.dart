@@ -18,6 +18,8 @@ class AuthSessionResult {
   final int expiresIn;
   final bool isNewUser;
   final String role;
+  final String? email;
+  final String? fullName;
 
   const AuthSessionResult({
     required this.token,
@@ -25,6 +27,8 @@ class AuthSessionResult {
     required this.expiresIn,
     this.isNewUser = false,
     this.role = 'USUARIO',
+    this.email,
+    this.fullName,
   });
 }
 
@@ -33,12 +37,16 @@ class RegisterResult {
   final String? token;
   final String? refreshToken;
   final int? expiresIn;
+  final String? email;
+  final String? fullName;
 
   const RegisterResult({
     required this.userId,
     this.token,
     this.refreshToken,
     this.expiresIn,
+    this.email,
+    this.fullName,
   });
 
   bool get requiresEmailConfirmation => token == null;
@@ -140,6 +148,8 @@ class AuthApi {
       token: json['token'] as String?,
       refreshToken: json['refresh_token'] as String?,
       expiresIn: (json['expires_in'] as num?)?.toInt(),
+      email: json['email'] as String? ?? email,
+      fullName: json['nombre_completo'] as String? ?? fullName,
     );
   }
 
@@ -156,6 +166,8 @@ class AuthApi {
       refreshToken: json['refresh_token'] as String?,
       expiresIn: (json['expires_in'] as num?)?.toInt() ?? 3600,
       role: json['rol'] as String? ?? 'USUARIO',
+      email: json['email'] as String? ?? email,
+      fullName: json['nombre_completo'] as String?,
     );
   }
 
@@ -175,6 +187,8 @@ class AuthApi {
       expiresIn: (json['expires_in'] as num?)?.toInt() ?? 3600,
       isNewUser: json['is_new_user'] as bool? ?? false,
       role: json['rol'] as String? ?? 'USUARIO',
+      email: json['email'] as String?,
+      fullName: json['nombre_completo'] as String? ?? fullName,
     );
   }
 

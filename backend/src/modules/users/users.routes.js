@@ -9,6 +9,8 @@ const { getConsentimientos, putConsentimiento } = require('./consent.controller'
 const { consentSchema } = require('./consent.validator');
 const { registerToken, deleteToken } = require('./push.controller');
 const { pushTokenSchema } = require('./push.validator');
+const path = require('path');
+const AppError = require('../../utils/AppError');
 const router = express.Router();
 const uploadFoto = multer({
 	storage: multer.memoryStorage(),
@@ -19,10 +21,27 @@ const uploadFoto = multer({
             callback(null, true);
             return;
         }
-        callback(new Error('Formato de imagen no permitido. Usa JPG, PNG o WEBP.'));
+        const ext = path.extname(file.originalname || '').toLowerCase();
+        if (ext === '.jpg' || ext === '.jpeg') {
+            file.mimetype = 'image/jpeg';
+            callback(null, true);
+            return;
+        }
+        if (ext === '.png') {
+            file.mimetype = 'image/png';
+            callback(null, true);
+            return;
+        }
+        if (ext === '.webp') {
+            file.mimetype = 'image/webp';
+            callback(null, true);
+            return;
+        }
+        callback(new AppError('Formato de imagen no permitido. Usa JPG, PNG o WEBP.', 400));
 	}
 });
 
+router.get('/profile', verifyToken, getProfile);
 router.put('/profile', verifyToken, validate(updateProfileSchema), updateProfile);
 router.post('/profile/photo', verifyToken, uploadFoto.single('foto'), updateProfilePhoto);
 router.get('/consent', verifyToken, getConsentimientos);

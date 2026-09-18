@@ -9,28 +9,52 @@ const BUCKET_FOTOS_PERFIL = 'fotos-perfil';
 const FOTO_URL_SEGUNDOS = 60 * 60 * 24;
 
 const conUrlFoto = async (data) => {
-  const fotoPath = data?.perfiles?.foto_path;
-  if (!fotoPath) return data;
+  if (!data) return data;
+  const isArray = Array.isArray(data.perfiles);
+  const perfilObj = isArray ? (data.perfiles[0] || {}) : (data.perfiles || {});
+  const fotoPath = perfilObj?.foto_path;
+  if (!fotoPath) {
+    return {
+      ...data,
+      perfiles: perfilObj
+    };
+  }
 
   const { data: signed, error } = await supabase.storage
     .from(BUCKET_FOTOS_PERFIL)
     .createSignedUrl(fotoPath, FOTO_URL_SEGUNDOS);
   if (error) {
     console.error('[Users] No se pudo generar URL firmada de foto:', error.message);
-    return data;
+    return {
+      ...data,
+      perfiles: perfilObj
+    };
   }
 
   return {
     ...data,
-    perfiles: { ...data.perfiles, foto_url: signed.signedUrl }
+    perfiles: { ...perfilObj, foto_url: signed.signedUrl }
   };
 };
 
 const getProfile = async (usuarioId) => {
-  const { data, error } = await usersRepo.findUsuarioConPerfil(usuarioId);
+  let { data, error } = await usersRepo.findUsuarioConPerfil(usuarioId);
 
   if (error) {
     throw new AppError('No se pudo obtener el perfil', 500);
+  }
+
+  if (!data) {
+    throw new AppError('No se encontró el usuario', 404);
+  }
+
+  const isArray = Array.isArray(data.perfiles);
+  const perfilObj = isArray ? data.perfiles[0] : data.perfiles;
+  if (!perfilObj) {
+    const { data: nuevoPerfil } = await usersRepo.crearPerfil(usuarioId, {
+      nombre_completo: data.correo?.split('@')[0] || 'Usuario'
+    });
+    data = { ...data, perfiles: nuevoPerfil };
   }
 
   return conUrlFoto(data);
@@ -108,7 +132,8 @@ const updateProfilePhoto = async (usuarioId, file) => {
     throw new AppError(`No se pudo asociar la foto al perfil: ${updateError.message}`, 500);
   }
 
-  const fotoAnterior = current.perfiles?.foto_path;
+  const perfilObj = Array.isArray(current.perfiles) ? current.perfiles[0] : current.perfiles;
+  const fotoAnterior = perfilObj?.foto_path;
   if (fotoAnterior) {
     await supabase.storage.from(BUCKET_FOTOS_PERFIL).remove([fotoAnterior]);
   }

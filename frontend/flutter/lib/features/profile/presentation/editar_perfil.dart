@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_biomark/biomark_brand.dart';
@@ -22,7 +22,8 @@ class EditarPerfilScreen extends StatefulWidget {
 
 class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   late TextEditingController _nombreController;
-  File? _fotoSeleccionada;
+  Uint8List? _fotoBytes;
+  String? _fotoNombre;
 
   @override
   void initState() {
@@ -37,14 +38,19 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       imageQuality: 80,
     );
     if (imagen != null) {
-      setState(() => _fotoSeleccionada = File(imagen.path));
+      final bytes = await imagen.readAsBytes();
+      setState(() {
+        _fotoBytes = bytes;
+        _fotoNombre = imagen.name;
+      });
     }
   }
 
   void _guardarCambios() {
     Navigator.pop(context, {
       'nombre': _nombreController.text.trim(),
-      'foto': _fotoSeleccionada,
+      'fotoBytes': _fotoBytes,
+      'fotoNombre': _fotoNombre ?? 'perfil.jpg',
     });
   }
 
@@ -95,12 +101,12 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                       CircleAvatar(
                         radius: 50,
                         backgroundColor: BiomarkColors.blue.withValues(alpha: .12),
-                        backgroundImage: _fotoSeleccionada != null
-                          ? FileImage(_fotoSeleccionada!)
+                        backgroundImage: _fotoBytes != null
+                          ? MemoryImage(_fotoBytes!)
                           : widget.fotoUrl != null
                             ? NetworkImage(widget.fotoUrl!)
                             : null,
-                        child: _fotoSeleccionada == null && widget.fotoUrl == null
+                        child: _fotoBytes == null && widget.fotoUrl == null
                             ? const Icon(
                                 Icons.person_rounded,
                                 size: 50,

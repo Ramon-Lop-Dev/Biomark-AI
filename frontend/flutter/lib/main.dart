@@ -178,6 +178,8 @@ class _LoginScreenState extends State<LoginScreen>
         refreshToken: session.refreshToken,
         expiresIn: session.expiresIn,
         role: session.role,
+        userName: session.fullName,
+        userEmail: session.email ?? _emailController.text.trim(),
       );
       if (!mounted) return;
       await _showAuthDialog(
@@ -218,6 +220,8 @@ class _LoginScreenState extends State<LoginScreen>
         refreshToken: session.refreshToken,
         expiresIn: session.expiresIn,
         role: session.role,
+        userName: session.fullName,
+        userEmail: session.email,
       );
       if (!mounted) return;
       await _showAuthDialog(

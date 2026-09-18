@@ -56,31 +56,43 @@ const registerUser = async (email, password, fullName, tipoCuenta = 'PERSONAL') 
     accion: 'REGISTRO_EMAIL'
   });
 
-  return {
-    user_id: usuario.id,
-    token: data.session?.access_token || null,
-    refresh_token: data.session?.refresh_token || null,
-    expires_in: data.session?.expires_in || null
+    return {
+      user_id: usuario.id,
+      token: data.session?.access_token || null,
+      refresh_token: data.session?.refresh_token || null,
+      expires_in: data.session?.expires_in || null,
+      email: email,
+      nombre_completo: fullName || email.split('@')[0]
+    };
   };
-};
 
-const loginUser = async (email, password) => {
-  const { data, error } = await authRepo.signInWithPassword(email, password);
+  const loginUser = async (email, password) => {
+    const { data, error } = await authRepo.signInWithPassword(email, password);
 
-  if (error) {
-    throw new AppError('Credenciales inválidas', 401);
-  }
+    if (error) {
+      throw new AppError('Credenciales inválidas', 401);
+    }
 
-  const { data: usuario, error: usuarioError } = await authRepo.findUsuarioByAuthId(data.user.id);
-  if (usuarioError || !usuario) throw new AppError('No se pudo cargar el perfil de la cuenta', 500);
+    const { data: usuario, error: usuarioError } = await authRepo.findUsuarioByAuthId(data.user.id);
+    if (usuarioError || !usuario) throw new AppError('No se pudo cargar el perfil de la cuenta', 500);
 
-  return {
-    token: data.session.access_token,
-    refresh_token: data.session.refresh_token,
-    expires_in: data.session.expires_in || 3600,
-    rol: usuario.rol
+    const { data: perfil } = await supabase
+      .from('perfiles')
+      .select('nombre_completo')
+      .eq('usuario_id', usuario.id)
+      .maybeSingle();
+
+    const nombreCompleto = perfil?.nombre_completo || data.user?.user_metadata?.full_name || email.split('@')[0];
+
+    return {
+      token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_in: data.session.expires_in || 3600,
+      rol: usuario.rol,
+      email: usuario.correo,
+      nombre_completo: nombreCompleto
+    };
   };
-};
 
 /**
  * Login (o registro implícito, si es la primera vez) con Google.
@@ -130,12 +142,22 @@ const loginWithGoogle = async (idToken, accessToken, fullNameFallback) => {
     accion: esNuevo ? 'REGISTRO_GOOGLE' : 'LOGIN_GOOGLE'
   });
 
+  const { data: perfil } = await supabase
+    .from('perfiles')
+    .select('nombre_completo')
+    .eq('usuario_id', usuario.id)
+    .maybeSingle();
+
+  const nombreFinal = perfil?.nombre_completo || fullNameFallback || data.user?.user_metadata?.full_name || usuario.correo.split('@')[0];
+
   return {
     token: data.session.access_token,
     refresh_token: data.session.refresh_token,
     expires_in: data.session.expires_in || 3600,
     is_new_user: esNuevo,
-    rol: usuario.rol
+    rol: usuario.rol,
+    email: usuario.correo,
+    nombre_completo: nombreFinal
   };
 };
 
