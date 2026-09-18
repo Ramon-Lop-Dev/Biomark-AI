@@ -17,7 +17,8 @@ class DatosPersonalesScreen extends StatefulWidget {
 }
 
 class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
-  late TextEditingController _nombreController;
+  late final TextEditingController _nombreController;
+  late final FocusNode _nombreFocus;
   String? _generoSeleccionado;
 
   final List<String> _opcionesGenero = const [
@@ -31,6 +32,7 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
   void initState() {
     super.initState();
     _nombreController = TextEditingController(text: widget.nombreActual);
+    _nombreFocus = FocusNode();
     _generoSeleccionado = _normalizarGenero(widget.generoActual);
   }
 
@@ -47,6 +49,7 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
 
   @override
   void dispose() {
+    _nombreFocus.dispose();
     _nombreController.dispose();
     super.dispose();
   }
@@ -120,6 +123,7 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
                   child: Column(
                     children: [
                       TextField(
+                        focusNode: _nombreFocus,
                         controller: _nombreController,
                         decoration: const InputDecoration(
                           labelText: 'Nombre',

@@ -141,112 +141,26 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   Future<void> _showProgressDialog({String? initialStatus, String? initialSymptom}) async {
-    final symptomController = TextEditingController(text: initialSymptom ?? '');
-    final notesController = TextEditingController();
-    var status = initialStatus ?? 'MEJORO';
-    double intensity = 5.0;
-
-    final shouldSave = await showDialog<bool>(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: const Row(
-            children: [
-              Icon(Icons.insights_rounded, color: Color(0xFF1B8E44)),
-              SizedBox(width: 8),
-              Text('Registrar evolución'),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: symptomController,
-                  decoration: const InputDecoration(
-                    labelText: '¿Qué síntoma estás siguiendo?',
-                    hintText: 'Ej: Fiebre, dolor de cabeza...',
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text('Estado de evolución:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  initialValue: status,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
-                  items: const [
-                    DropdownMenuItem(value: 'MEJORO', child: Text('Mejoró (MEJORO)')),
-                    DropdownMenuItem(value: 'IGUAL', child: Text('Sigue igual (IGUAL)')),
-                    DropdownMenuItem(value: 'EMPEORO', child: Text('Empeoró (EMPEORO)')),
-                    DropdownMenuItem(value: 'NO_SEGURO', child: Text('No estoy seguro (NO_SEGURO)')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setDialogState(() => status = value);
-                  },
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Intensidad del síntoma:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                    Text('${intensity.round()}/10', style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1B8E44))),
-                  ],
-                ),
-                Slider(
-                  value: intensity,
-                  min: 0,
-                  max: 10,
-                  divisions: 10,
-                  activeColor: const Color(0xFF1B8E44),
-                  onChanged: (v) => setDialogState(() => intensity = v),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: notesController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Notas (opcional)',
-                    hintText: 'Detalles sobre cómo te sientes...',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1B8E44)),
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
+      builder: (context) => _EvolutionDialog(
+        initialStatus: initialStatus,
+        initialSymptom: initialSymptom,
       ),
     );
 
-    if (!mounted || shouldSave != true) {
-      symptomController.dispose();
-      notesController.dispose();
-      return;
-    }
-    if (symptomController.text.trim().isEmpty) {
-      symptomController.dispose();
-      notesController.dispose();
-      _showMessage('Escribe el síntoma que quieres seguir.');
-      return;
-    }
+    if (!mounted || result == null) return;
+    final symptom = result['symptom'] as String;
+    final status = result['status'] as String;
+    final intensity = result['intensity'] as int;
+    final notes = result['notes'] as String;
 
     try {
       await _progressApi.createProgress(
-        symptom: symptomController.text.trim(),
+        symptom: symptom,
         status: status,
-        intensity: intensity.round(),
-        notes: notesController.text.trim(),
+        intensity: intensity,
+        notes: notes,
       );
       if (mounted) {
         final statusMap = {
@@ -259,7 +173,7 @@ class _ChatScreenState extends State<ChatScreen>
         setState(() {
           _messages.add(
             ChatMessage(
-              '✅ Registraste tu evolución de "${symptomController.text.trim()}" como $label (Intensidad ${intensity.round()}/10). Puedes ver tu progreso en la pantalla de evolución/mejoría.',
+              '✅ Registraste tu evolución de "$symptom" como $label (Intensidad $intensity/10). Puedes ver tu progreso en la pantalla de evolución/mejoría.',
               false,
             ),
           );
@@ -269,9 +183,6 @@ class _ChatScreenState extends State<ChatScreen>
       }
     } catch (_) {
       if (mounted) _showMessage('No se pudo registrar la evolución.');
-    } finally {
-      symptomController.dispose();
-      notesController.dispose();
     }
   }
 
@@ -1745,6 +1656,132 @@ class _VoiceDraftPreview extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _EvolutionDialog extends StatefulWidget {
+  final String? initialStatus;
+  final String? initialSymptom;
+
+  const _EvolutionDialog({this.initialStatus, this.initialSymptom});
+
+  @override
+  State<_EvolutionDialog> createState() => _EvolutionDialogState();
+}
+
+class _EvolutionDialogState extends State<_EvolutionDialog> {
+  late final TextEditingController _symptomController;
+  late final TextEditingController _notesController;
+  late String _status;
+  double _intensity = 5.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _symptomController = TextEditingController(text: widget.initialSymptom ?? '');
+    _notesController = TextEditingController();
+    _status = widget.initialStatus ?? 'MEJORO';
+  }
+
+  @override
+  void dispose() {
+    _symptomController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: const Row(
+        children: [
+          Icon(Icons.insights_rounded, color: Color(0xFF1B8E44)),
+          SizedBox(width: 8),
+          Text('Registrar evolución'),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _symptomController,
+              decoration: const InputDecoration(
+                labelText: '¿Qué síntoma estás siguiendo?',
+                hintText: 'Ej: Fiebre, dolor de cabeza...',
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text('Estado de evolución:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              initialValue: _status,
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+              items: const [
+                DropdownMenuItem(value: 'MEJORO', child: Text('Mejoró (MEJORO)')),
+                DropdownMenuItem(value: 'IGUAL', child: Text('Sigue igual (IGUAL)')),
+                DropdownMenuItem(value: 'EMPEORO', child: Text('Empeoró (EMPEORO)')),
+                DropdownMenuItem(value: 'NO_SEGURO', child: Text('No estoy seguro (NO_SEGURO)')),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _status = value);
+              },
+            ),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Intensidad del síntoma:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                Text('${_intensity.round()}/10', style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1B8E44))),
+              ],
+            ),
+            Slider(
+              value: _intensity,
+              min: 0,
+              max: 10,
+              divisions: 10,
+              activeColor: const Color(0xFF1B8E44),
+              onChanged: (v) => setState(() => _intensity = v),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _notesController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Notas (opcional)',
+                hintText: 'Detalles sobre cómo te sientes...',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1B8E44)),
+          onPressed: () {
+            if (_symptomController.text.trim().isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Escribe el síntoma que quieres seguir.')),
+              );
+              return;
+            }
+            Navigator.pop(context, {
+              'symptom': _symptomController.text.trim(),
+              'status': _status,
+              'intensity': _intensity.round(),
+              'notes': _notesController.text.trim(),
+            });
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 }

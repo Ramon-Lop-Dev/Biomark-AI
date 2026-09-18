@@ -21,7 +21,10 @@ class EditarPerfilScreen extends StatefulWidget {
 }
 
 class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
-  late TextEditingController _nombreController;
+  late final TextEditingController _nombreController;
+  late final TextEditingController _correoController;
+  late final TextEditingController _edadController;
+  late final FocusNode _nombreFocus;
   Uint8List? _fotoBytes;
   String? _fotoNombre;
 
@@ -29,6 +32,11 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   void initState() {
     super.initState();
     _nombreController = TextEditingController(text: widget.nombreActual);
+    _correoController = TextEditingController(text: widget.correo);
+    _edadController = TextEditingController(
+      text: widget.edad != null ? widget.edad.toString() : '—',
+    );
+    _nombreFocus = FocusNode();
   }
 
   Future<void> _cambiarFoto() async {
@@ -137,6 +145,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                   ),
                   const SizedBox(height: 24),
                   TextField(
+                    focusNode: _nombreFocus,
                     controller: _nombreController,
                     decoration: const InputDecoration(
                       labelText: 'Nombre que se muestra en Inicio',
@@ -147,7 +156,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                   const SizedBox(height: 16),
                   TextField(
                     enabled: false,
-                    controller: TextEditingController(text: widget.correo),
+                    controller: _correoController,
                     decoration: const InputDecoration(
                       labelText: 'Correo',
                       border: OutlineInputBorder(),
@@ -157,9 +166,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                   const SizedBox(height: 16),
                   TextField(
                     enabled: false,
-                    controller: TextEditingController(
-                      text: widget.edad != null ? widget.edad.toString() : '—',
-                    ),
+                    controller: _edadController,
                     decoration: const InputDecoration(
                       labelText: 'Edad (según tu encuesta)',
                       border: OutlineInputBorder(),
@@ -177,7 +184,10 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
 
   @override
   void dispose() {
+    _nombreFocus.dispose();
     _nombreController.dispose();
+    _correoController.dispose();
+    _edadController.dispose();
     super.dispose();
   }
 }
