@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_biomark/core/design/app_themecontroller.dart';
 class AparienciaScreen extends StatefulWidget {
   const AparienciaScreen({super.key});
@@ -8,6 +9,29 @@ class AparienciaScreen extends StatefulWidget {
 }
 
 class _AparienciaScreenState extends State<AparienciaScreen> {
+  bool _mostrarBannerVoz = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarAjustes();
+  }
+
+  Future<void> _cargarAjustes() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _mostrarBannerVoz = prefs.getBool('mostrar_banner_asistente_voz') ?? true;
+      });
+    }
+  }
+
+  Future<void> _toggleBannerVoz(bool valor) async {
+    setState(() => _mostrarBannerVoz = valor);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('mostrar_banner_asistente_voz', valor);
+  }
+
   void _seleccionar(ModoApariencia modo) {
     AppThemeController.instance.cambiarModo(modo);
     setState(() {});
@@ -118,6 +142,56 @@ class _AparienciaScreenState extends State<AparienciaScreen> {
                         ],
                       );
                     }),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 10),
+                  child: Text(
+                    'Accesibilidad e Inclusión',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: tema.colorScheme.onSurface.withValues(alpha: .6),
+                    ),
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: tema.cardColor,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: .05),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: SwitchListTile(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    secondary: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: tema.colorScheme.primary.withValues(alpha: .12),
+                      ),
+                      child: Icon(
+                        Icons.mic_rounded,
+                        size: 18,
+                        color: tema.colorScheme.primary,
+                      ),
+                    ),
+                    title: const Text(
+                      'Sugerencia de Modo por Voz en Inicio',
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+                    ),
+                    subtitle: const Text(
+                      'Muestra una tarjeta accesible en la pantalla de inicio para personas con baja visión o que prefieren hablar.',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    value: _mostrarBannerVoz,
+                    onChanged: _toggleBannerVoz,
                   ),
                 ),
               ],

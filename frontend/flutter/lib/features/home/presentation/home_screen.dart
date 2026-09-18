@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../biomark_brand.dart';
 import '../../../core/auth/auth_session.dart';
@@ -44,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _communityError;
 
   List<HealthRecommendation> _recommendations = RecommendationsService.getRecommendations();
+  bool _mostrarBannerVoz = true;
 
   @override
   void initState() {
@@ -56,6 +58,17 @@ class _HomeScreenState extends State<HomeScreen> {
     _cargarUltimoSignoVital();
     _cargarPanoramaComunitario();
     _cargarRecomendaciones();
+    _cargarPreferenciaBannerVoz();
+  }
+
+  Future<void> _cargarPreferenciaBannerVoz() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      setState(() {
+        _mostrarBannerVoz = prefs.getBool('mostrar_banner_asistente_voz') ?? true;
+      });
+    } catch (_) {}
   }
 
   Future<void> _cargarRecomendaciones() async {
@@ -468,8 +481,10 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
             _buildGreetingHeader(),
-            const SizedBox(height: 14),
-            _buildVoiceAccessibilityBanner(),
+            if (_mostrarBannerVoz) ...[
+              const SizedBox(height: 14),
+              _buildVoiceAccessibilityBanner(),
+            ],
             const SizedBox(height: 16),
             _buildVitalPulseCard(),
             const SizedBox(height: 20),
@@ -485,6 +500,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildVoiceAccessibilityBanner() {
+    if (!_mostrarBannerVoz) return const SizedBox.shrink();
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Semantics(
@@ -585,11 +602,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 16,
-                  color: BiomarkColors.blue,
+                const SizedBox(width: 6),
+                IconButton(
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
+                  tooltip: 'Ocultar sugerencia',
+                  onPressed: () async {
+                    setState(() => _mostrarBannerVoz = false);
+                    try {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('mostrar_banner_asistente_voz', false);
+                    } catch (_) {}
+                  },
                 ),
               ],
             ),
