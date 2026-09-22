@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../biomark_brand.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/design/biomark_glass_surface.dart';
 import '../data/gis_api.dart';
 import '../domain/health_center.dart';
 
@@ -195,8 +196,11 @@ class _GisMapScreenState extends State<GisMapScreen>
           permission == LocationPermission.deniedForever) {
         throw const PermissionDeniedException('Ubicación denegada');
       }
-      final position = await Geolocator.getCurrentPosition().timeout(
-        const Duration(seconds: 5),
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 8),
+        ),
       );
       final location = LatLng(position.latitude, position.longitude);
       if (mounted) {
@@ -224,12 +228,42 @@ class _GisMapScreenState extends State<GisMapScreen>
     }
   }
 
+  int _filtroTipoIndex = 0; // 0: Todos, 1: Hospitales, 2: Centros de Salud, 3: Puestos Médicos
+
+  double _distanciaMetros(HealthCenter c) {
+    if (_userLocation == null) return c.distanceKm * 1000;
+    return const Distance().as(
+      LengthUnit.Meter,
+      _userLocation!,
+      LatLng(c.latitude, c.longitude),
+    );
+  }
+
   List<HealthCenter> get _visibleCenters {
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return _centers;
-    return _centers
-        .where((center) => center.name.toLowerCase().contains(query))
-        .toList();
+    var list = _centers;
+
+    if (query.isNotEmpty) {
+      list = list
+          .where((center) =>
+              center.name.toLowerCase().contains(query) ||
+              center.address.toLowerCase().contains(query))
+          .toList();
+    }
+
+    if (_filtroTipoIndex == 1) {
+      list = list.where((c) => c.level == 3 || c.name.toLowerCase().contains('hospital')).toList();
+    } else if (_filtroTipoIndex == 2) {
+      list = list.where((c) => c.level == 2 || c.name.toLowerCase().contains('centro')).toList();
+    } else if (_filtroTipoIndex == 3) {
+      list = list.where((c) => c.level == 1 || c.name.toLowerCase().contains('puesto')).toList();
+    }
+
+    if (_userLocation != null) {
+      list = List.of(list)..sort((a, b) => _distanciaMetros(a).compareTo(_distanciaMetros(b)));
+    }
+
+    return list;
   }
 
   void _selectCenter(HealthCenter center) {
@@ -445,38 +479,57 @@ class _GisMapScreenState extends State<GisMapScreen>
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: Material(
-                      elevation: 3,
-                      borderRadius: BorderRadius.circular(14),
-                      color: Colors.white.withValues(alpha: .94),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (_) => setState(() {}),
-                        decoration: const InputDecoration(
-                          hintText: 'Buscar centro',
-                          prefixIcon: Icon(Icons.search_rounded),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: BiomarkGlassSurface(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                          borderRadius: BorderRadius.circular(16),
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: (_) => setState(() {}),
+                            decoration: const InputDecoration(
+                              hintText: 'Buscar hospital o centro...',
+                              prefixIcon: Icon(Icons.search_rounded),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(vertical: 10),
+                            ),
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      _RoundControl(
+                        icon: _locating
+                            ? Icons.sync_rounded
+                            : Icons.my_location_rounded,
+                        tooltip: 'Mi ubicación exacta',
+                        onTap: _locate,
+                      ),
+                      const SizedBox(width: 8),
+                      _RoundControl(
+                        icon: Icons.layers_outlined,
+                        tooltip: 'Capas y reportes',
+                        onTap: _showLayerMenu,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildFilterChip('Todos', 0),
+                        const SizedBox(width: 6),
+                        _buildFilterChip('Hospitales', 1),
+                        const SizedBox(width: 6),
+                        _buildFilterChip('Centros de Salud', 2),
+                        const SizedBox(width: 6),
+                        _buildFilterChip('Puestos Médicos', 3),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  _RoundControl(
-                    icon: _locating
-                        ? Icons.sync_rounded
-                        : Icons.my_location_rounded,
-                    tooltip: 'Mi ubicación',
-                    onTap: _locate,
-                  ),
-                  const SizedBox(width: 8),
-                  _RoundControl(
-                    icon: Icons.layers_outlined,
-                    tooltip: 'Capas y reportes',
-                    onTap: _showLayerMenu,
                   ),
                 ],
               ),
@@ -505,6 +558,7 @@ class _GisMapScreenState extends State<GisMapScreen>
             ),
           _CenterSheet(
             centers: centers,
+            userLocation: _userLocation,
             selected: _selected,
             onSelected: _selectCenter,
             onClose: () => setState(() => _selected = null),
@@ -521,6 +575,46 @@ class _GisMapScreenState extends State<GisMapScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, int index) {
+    final selected = _filtroTipoIndex == index;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      onTap: () => setState(() => _filtroTipoIndex = index),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? BiomarkColors.blue
+              : (isDark ? Colors.black45 : Colors.white.withValues(alpha: 0.88)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? BiomarkColors.blue
+                : (isDark ? Colors.white24 : Colors.black12),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+            color: selected
+                ? Colors.white
+                : (isDark ? Colors.white : Colors.black87),
+          ),
+        ),
       ),
     );
   }
@@ -595,6 +689,7 @@ class _GisMapScreenState extends State<GisMapScreen>
 class _CenterSheet extends StatelessWidget {
   const _CenterSheet({
     required this.centers,
+    this.userLocation,
     required this.selected,
     required this.onSelected,
     required this.onClose,
@@ -602,11 +697,33 @@ class _CenterSheet extends StatelessWidget {
     required this.controller,
   });
   final List<HealthCenter> centers;
+  final LatLng? userLocation;
   final HealthCenter? selected;
   final ValueChanged<HealthCenter> onSelected;
   final VoidCallback onClose;
   final ValueChanged<HealthCenter> onDirections;
   final DraggableScrollableController controller;
+
+  String _formatDist(HealthCenter center) {
+    if (userLocation != null) {
+      final meters = const Distance().as(
+        LengthUnit.Meter,
+        userLocation!,
+        LatLng(center.latitude, center.longitude),
+      );
+      if (meters < 1000) {
+        return '${meters.round()} m';
+      } else {
+        return '${(meters / 1000).toStringAsFixed(1)} km';
+      }
+    }
+    if (center.distanceKm > 0) {
+      return center.distanceKm < 1
+          ? '${(center.distanceKm * 1000).round()} m'
+          : '${center.distanceKm.toStringAsFixed(1)} km';
+    }
+    return '';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -652,8 +769,8 @@ class _CenterSheet extends StatelessWidget {
                 ],
               ),
               Text(
-                '${_levelLabel(selected!.level)} · ${selected!.distanceKm.toStringAsFixed(1)} km',
-                style: const TextStyle(color: BiomarkColors.blue),
+                '${_levelLabel(selected!.level)}${_formatDist(selected!).isNotEmpty ? ' · ${_formatDist(selected!)}' : ''}',
+                style: const TextStyle(color: BiomarkColors.blue, fontWeight: FontWeight.w600),
               ),
               if (selected!.specialties.isNotEmpty) ...[
                 const SizedBox(height: 8),
@@ -697,18 +814,35 @@ class _CenterSheet extends StatelessWidget {
             ...centers
                 .take(8)
                 .map(
-                  (center) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: _CenterDot(center: center),
-                    title: Text(
-                      center.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(_levelLabel(center.level)),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => onSelected(center),
-                  ),
+                  (center) {
+                    final distStr = _formatDist(center);
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: _CenterDot(center: center),
+                      title: Text(
+                        center.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Row(
+                        children: [
+                          Text(_levelLabel(center.level)),
+                          if (distStr.isNotEmpty) ...[
+                            const Text(' · '),
+                            Text(
+                              distStr,
+                              style: const TextStyle(
+                                color: BiomarkColors.blue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => onSelected(center),
+                    );
+                  },
                 ),
           ],
         ),

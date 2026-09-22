@@ -17,6 +17,7 @@ import '../data/chat_api.dart';
 import '../../progress/data/progress_api.dart';
 import '../data/vision_api.dart';
 import '../data/voice_api.dart';
+import '../data/offline_chat_engine.dart';
 import '../domain/chat_message.dart';
 import '../../gis/presentation/gis_map_screen.dart';
 import '../../gis/domain/health_center.dart';
@@ -428,20 +429,38 @@ class _ChatScreenState extends State<ChatScreen>
         }
         _isSending = false;
       });
-    } on ChatApiException catch (error) {
+    } on ChatApiException catch (_) {
       if (!mounted) return;
-      setState(() {
-        _errorMessage = error.message;
-        _isSending = false;
-      });
+      _handleOfflineFallback(text);
     } catch (_) {
       if (!mounted) return;
-      setState(() {
-        _errorMessage = 'No se pudo conectar con Biomark AI.';
-        _isSending = false;
-      });
+      _handleOfflineFallback(text);
     }
     _scrollToBottom();
+  }
+
+  void _handleOfflineFallback(String userText) {
+    final offlineReply = OfflineChatEngine.processOfflineQuery(
+      query: userText,
+      sessionId: _sessionId,
+    );
+    final actionType = _mapSuggestedAction(offlineReply.suggestedAction);
+    setState(() {
+      _sessionId = offlineReply.sessionId;
+      _messages.add(
+        ChatMessage(
+          offlineReply.reply,
+          false,
+          riskLevel: offlineReply.riskLevel,
+          sources: offlineReply.sources,
+          actionType: actionType,
+          recommendedCenter: offlineReply.recommendedCenter,
+        ),
+      );
+      _errorMessage = null;
+      _isSending = false;
+    });
+    _showMessage('Respondido con la Guía Clínica Offline del MINSA (Sin Conexión).');
   }
 
   void _scrollToBottom() {
@@ -740,6 +759,30 @@ class _MessageBubble extends StatelessWidget {
                   _WhatsAppAudioBubble(
                     audioPath: message.audioPath!,
                     isUser: message.isUser,
+                  ),
+                if (!message.isUser && message.sources.any((s) => s.contains('Sin Conexión')))
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.45)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.wifi_off_rounded, size: 13, color: Color(0xFFD97706)),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Modo Sin Conexión · Guía Oficial MINSA',
+                          style: textTheme.labelSmall?.copyWith(
+                            color: const Color(0xFFD97706),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 if (message.text.isNotEmpty)
                   Padding(

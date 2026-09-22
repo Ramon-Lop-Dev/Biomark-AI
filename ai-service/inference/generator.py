@@ -177,10 +177,16 @@ class TextGenerator:
         # si no lo trae, se cae al formato de texto plano de siempre.
         chat_template = getattr(self.tokenizer, "chat_template", None)
         if chat_template:
+            # Los templates basados en Mistral / BioMistral únicamente aceptan
+            # roles 'user' y 'assistant' (lanzan excepción si reciben 'system').
+            # Pre-concatenamos las instrucciones del sistema dentro del turno del
+            # usuario para garantizar compatibilidad total sin alterar el formato instruct.
             try:
                 mensajes = [
-                    {"role": "system", "content": f"{PERSONA_BIOMARK}\n\n{reglas}"},
-                    {"role": "user", "content": cuerpo},
+                    {
+                        "role": "user",
+                        "content": f"{PERSONA_BIOMARK}\n\n{reglas}\n\n{cuerpo}",
+                    }
                 ]
                 return self.tokenizer.apply_chat_template(
                     mensajes, tokenize=False, add_generation_prompt=True

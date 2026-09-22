@@ -76,6 +76,28 @@ class SafetyAndEvolutionTests(unittest.TestCase):
         self.assertIn("CERO PRESCRIPCIONES", prompt)
         self.assertIn("PREGUNTAS EDUCATIVAS", prompt)
 
+    def test_construccion_de_prompt_con_mistral_chat_template(self):
+        class MockMistralTokenizer:
+            chat_template = "dummy_jinja_template"
+
+            def apply_chat_template(self, messages, tokenize=False, add_generation_prompt=True):
+                for m in messages:
+                    if m["role"] not in ("user", "assistant"):
+                        raise ValueError("Only user and assistant roles are supported!")
+                return f"[INST] {messages[0]['content']} [/INST]"
+
+        generator = TextGenerator(model=None, tokenizer=MockMistralTokenizer())
+        prompt = generator._construir_prompt(
+            mensaje_usuario="¿Cómo prevenir el dengue?",
+            contexto_rag="Eliminar criaderos de zancudos.",
+            medical_context=None,
+            conversation_history=[],
+        )
+        self.assertTrue(prompt.startswith("[INST]"))
+        self.assertTrue(prompt.endswith("[/INST]"))
+        self.assertIn("¿Cómo prevenir el dengue?", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()
+

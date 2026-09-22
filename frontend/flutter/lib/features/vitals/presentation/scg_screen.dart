@@ -8,6 +8,7 @@ import '../../../biomark_brand.dart';
 import '../domain/vital_measurement.dart';
 import '../data/vitals_storage.dart';
 import 'scg_processor.dart';
+import '../../../core/design/biomark_glass_surface.dart';
 
 class ScgScreen extends StatefulWidget {
   const ScgScreen({super.key});
@@ -293,68 +294,77 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
   }
 
   Widget _buildMeasuringView() {
-    return Column(
-      children: [
-        if (kIsWeb)
-          Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: BiomarkColors.blue.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.35)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.devices_other, color: BiomarkColors.blue, size: 22),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'La sismocardiografía torácica mide las micro-vibraciones cardíacas con el celular apoyado sobre tu pecho. Para registrar tu pulso en vivo, abre Biomark AI desde tu dispositivo móvil.',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 11.5,
-                      color: Colors.white,
-                      height: 1.35,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Column(
+                children: [
+                  if (kIsWeb)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: BiomarkColors.blue.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.35)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.devices_other, color: BiomarkColors.blue, size: 22),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'La sismocardiografía torácica mide las micro-vibraciones cardíacas con el celular apoyado sobre tu pecho. Para registrar tu pulso en vivo, abre Biomark AI desde tu dispositivo móvil.',
+                              style: TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 11.5,
+                                color: Colors.white,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-              ],
+
+                  // Selector de Postura
+                  _buildPostureSelector(),
+                  const SizedBox(height: 16),
+
+                  // Indicador de instrucciones
+                  _buildInstructionCard(),
+                  const Spacer(),
+
+                  // Visualizador Central: Corazón + Anillo de progreso / Conteo
+                  _buildCentralVisualizer(),
+                  const Spacer(),
+
+                  // Monitor en tiempo real de onda SCG
+                  _buildOscilloscopeCard(),
+                  const SizedBox(height: 16),
+
+                  // Botón de acción principal
+                  _buildActionButton(),
+                  const SizedBox(height: 12),
+                ],
+              ),
             ),
           ),
-
-        // Selector de Postura
-        _buildPostureSelector(),
-        const SizedBox(height: 16),
-
-        // Indicador de instrucciones
-        _buildInstructionCard(),
-        const Spacer(),
-
-        // Visualizador Central: Corazón + Anillo de progreso / Conteo
-        _buildCentralVisualizer(),
-        const Spacer(),
-
-        // Monitor en tiempo real de onda SCG
-        _buildOscilloscopeCard(),
-        const SizedBox(height: 16),
-
-        // Botón de acción principal
-        _buildActionButton(),
-        const SizedBox(height: 12),
-      ],
+        );
+      },
     );
   }
 
   Widget _buildPostureSelector() {
     final isLocked = _isMeasuring || _isPreparing;
-    return Container(
+    return BiomarkGlassSurface(
+      borderRadius: BorderRadius.circular(16),
+      blurSigma: 10,
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B2430),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
-      ),
       child: Row(
         children: [
           Expanded(
@@ -438,15 +448,11 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
 
   Widget _buildInstructionCard() {
     final isSupine = _selectedPosture == ScgPosture.supine;
-    return Container(
+    return BiomarkGlassSurface(
+      borderRadius: BorderRadius.circular(16),
+      borderColor: _isDisturbed ? const Color(0xFFFF9800) : null,
+      blurSigma: 10,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161F2A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _isDisturbed ? const Color(0xFFFF9800) : Colors.white12,
-        ),
-      ),
       child: Row(
         children: [
           Container(
@@ -616,62 +622,60 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
   }
 
   Widget _buildOscilloscopeCard() {
-    return Container(
-      height: 100,
-      width: double.infinity,
+    return BiomarkGlassSurface(
+      borderRadius: BorderRadius.circular(16),
+      blurSigma: 10,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF101720),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.show_chart, color: BiomarkColors.green, size: 16),
-                  SizedBox(width: 6),
+      child: SizedBox(
+        height: 80,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.show_chart, color: BiomarkColors.green, size: 16),
+                    SizedBox(width: 6),
+                    Text(
+                      'Micro-aceleraciones torácicas (SCG)',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 11,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_isMeasuring)
                   Text(
-                    'Micro-aceleraciones torácicas (SCG)',
+                    'Calidad: ${(_signalQuality * 100).toInt()}%',
                     style: TextStyle(
                       fontFamily: 'Poppins',
-                      fontSize: 11,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: _signalQuality > 0.6 ? BiomarkColors.green : const Color(0xFFFF9800),
                     ),
                   ),
-                ],
-              ),
-              if (_isMeasuring)
-                Text(
-                  'Calidad: ${(_signalQuality * 100).toInt()}%',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: _signalQuality > 0.6 ? BiomarkColors.green : const Color(0xFFFF9800),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CustomPaint(
+                  painter: _ScgOscilloscopePainter(
+                    samples: _processor.waveform,
+                    lineColor: _isDisturbed ? const Color(0xFFFF9800) : BiomarkColors.green,
                   ),
+                  child: const SizedBox.expand(),
                 ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CustomPaint(
-                painter: _ScgOscilloscopePainter(
-                  samples: _processor.waveform,
-                  lineColor: _isDisturbed ? const Color(0xFFFF9800) : BiomarkColors.green,
-                ),
-                child: const SizedBox.expand(),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -775,21 +779,11 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
           const SizedBox(height: 24),
 
           // Tarjeta Principal de BPM
-          Container(
-            width: double.infinity,
+          BiomarkGlassSurface(
+            borderRadius: BorderRadius.circular(24),
+            blurSigma: 14,
+            borderColor: statusColor.withValues(alpha: 0.3),
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF161F2A),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white10),
-              boxShadow: [
-                BoxShadow(
-                  color: statusColor.withValues(alpha: 0.1),
-                  blurRadius: 20,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
             child: Column(
               children: [
                 const Text(
@@ -856,13 +850,10 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
           const SizedBox(height: 20),
 
           // Aviso MINSA / Médico preventivo
-          Container(
+          BiomarkGlassSurface(
+            borderRadius: BorderRadius.circular(16),
+            blurSigma: 10,
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1B2430),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white12),
-            ),
             child: const Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
