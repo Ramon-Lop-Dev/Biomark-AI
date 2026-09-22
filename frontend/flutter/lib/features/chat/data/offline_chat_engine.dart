@@ -114,6 +114,15 @@ class OfflineChatEngine {
       }
     }
 
+    final isEvolutionQuery = normalized.contains('mejor') ||
+        normalized.contains('empeor') ||
+        normalized.contains('igual') ||
+        normalized.contains('progreso') ||
+        normalized.contains('evolucion') ||
+        normalized.contains('sigo con') ||
+        normalized.contains('todavia') ||
+        normalized.contains('como voy');
+
     // 4. Si encontramos una coincidencia relevante
     if (bestEntry != null && highestScore >= 2) {
       final isHigh = bestEntry.category == 'Cardiovascular' || bestEntry.category == 'Arbovirosis';
@@ -125,11 +134,32 @@ class OfflineChatEngine {
           'Guía Local MINSA (Sin Conexión)',
           bestEntry.normative,
         ],
-        suggestedAction: isHigh ? 'SHOW_NEAREST_CENTER' : null,
+        suggestedAction: isHigh
+            ? 'SHOW_NEAREST_CENTER'
+            : (isEvolutionQuery ? 'REGISTER_PROGRESS' : null),
       );
     }
 
-    // 5. Respuesta de orientación general cuando no hay coincidencia exacta
+    // 5. Si es una consulta de evolución de síntomas
+    if (isEvolutionQuery) {
+      return ChatReply(
+        sessionId: sid,
+        reply: '📈 **Seguimiento de Evolución de Síntomas (Modo Sin Conexión)**\n\n'
+            'He registrado tu actualización de estado. Para mantener tu historial clínico al día '
+            'y ayudar a tu centro de salud a evaluar tu progreso, puedes pulsar la opción que mejor '
+            'describa cómo te sientes en los botones de abajo.\n\n'
+            '• **Si mejoraste:** Mantén las pautas de reposo e hidratación.\n'
+            '• **Si sigues igual o empeoraste:** Permanece atento a signos de alarma y acude a tu unidad de salud MINSA si los síntomas no ceden.',
+        riskLevel: 'LOW',
+        sources: const [
+          'Protocolo de Seguimiento Clínico MINSA',
+          'Modo Local Autónomo',
+        ],
+        suggestedAction: 'REGISTER_PROGRESS',
+      );
+    }
+
+    // 6. Respuesta de orientación general cuando no hay coincidencia exacta
     return ChatReply(
       sessionId: sid,
       reply: '📋 **Orientación Preventiva General (Modo Sin Conexión)**\n\n'

@@ -97,6 +97,16 @@ class SafetyAndEvolutionTests(unittest.TestCase):
         self.assertTrue(prompt.endswith("[/INST]"))
         self.assertIn("¿Cómo prevenir el dengue?", prompt)
 
+    def test_sugerir_accion_detecta_progreso_y_evolucion(self):
+        from inference.service import ClinicalService
+        service = ClinicalService(retriever=None, generator=None)
+        self.assertEqual(service.sugerir_accion("Hoy ya me siento mejor de la fiebre"), "REGISTER_PROGRESS")
+        self.assertEqual(service.sugerir_accion("Sigo con dolor de garganta y malestar"), "REGISTER_PROGRESS")
+        self.assertEqual(service.sugerir_accion("No mejoro, me siento peor que ayer"), "REGISTER_PROGRESS")
+        self.assertEqual(service.sugerir_accion("Quiero registrar mi mejoría"), "REGISTER_PROGRESS")
+        self.assertEqual(service.sugerir_accion("¿Cómo registro mi progreso?"), "REGISTER_PROGRESS")
+        self.assertEqual(service.sugerir_accion("Aún me duele el estómago"), "REGISTER_PROGRESS")
+
 
 if __name__ == "__main__":
     unittest.main()

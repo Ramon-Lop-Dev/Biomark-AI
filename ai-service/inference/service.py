@@ -83,13 +83,21 @@ class ClinicalService:
         clara.
         """
         texto = mensaje_usuario.lower()
-        if any(term in texto for term in ("mejoré", "mejore", "estoy mejor", "empeoré", "empeore", "sigo igual")):
+        terminos_evolucion = (
+            "mejoré", "mejore", "estoy mejor", "me siento mejor", "ya no me duele",
+            "empeoré", "empeore", "estoy peor", "me siento peor", "no mejoro", "sigo mal",
+            "sigo igual", "estoy igual", "aún me duele", "aun me duele", "todavía tengo",
+            "todavia tengo", "sigo con", "mejoría", "mejoria", "progreso",
+            "evolución", "evolucion", "cómo voy", "como voy", "registrar síntoma",
+            "registrar sintoma", "registrar síntomas", "registrar sintomas",
+        )
+        if any(term in texto for term in terminos_evolucion):
             return "REGISTER_PROGRESS"
-        if any(term in texto for term in ("recordatorio", "cita médica", "cita medica", "que me recuerdes")):
+        if any(term in texto for term in ("recordatorio", "cita médica", "cita medica", "que me recuerdes", "ponme una alarma", "crear recordatorio")):
             return "REGISTER_REMINDER"
-        if any(term in texto for term in ("centro de salud", "hospital", "clínica", "clinica", "dónde atenderme", "donde atenderme")):
+        if any(term in texto for term in ("centro de salud", "hospital", "clínica", "clinica", "dónde atenderme", "donde atenderme", "urgencias")):
             return "SHOW_NEAREST_CENTER"
-        if any(term in texto for term in ("estoy tomando", "me recetaron", "medicamento", "pastilla", "medicina")):
+        if any(term in texto for term in ("estoy tomando", "me recetaron", "medicamento", "pastilla", "medicina", "registrar medicamento")):
             return "REGISTER_MEDICATION"
         return None
 

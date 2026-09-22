@@ -156,7 +156,9 @@ class TextGenerator:
             "en tono condicional ('podría deberse a', 'suele asociarse a'), indica medidas generales de cuidado "
             "(hidratación, reposo) y destaca las señales de alarma para acudir de urgencia a un centro de salud.\n"
             "5. SEGUIMIENTO DE EVOLUCIÓN (estados MEJORO, IGUAL, EMPEORO, NO_SEGURO): Valora la evolución en base al historial. "
-            "Si mejoró, refuerza el autocuidado; si empeoró o no está seguro, aconseja valoración presencial pronta.\n"
+            "Si mejoró, refuerza el autocuidado; si empeoró o no está seguro, aconseja valoración presencial pronta. "
+            "Si el paciente menciona cómo van sus molestias o cambios respecto a días anteriores, "
+            "pregúntale cordialmente si desea registrar su estado de mejoría en su seguimiento de salud.\n"
             "6. Saludos: responde cordialmente y pregunta en qué puedes orientar hoy.\n"
             "Responde SOLO por el Asistente en un único turno, en español claro, cálido y empático."
         )
