@@ -18,7 +18,7 @@ Para configurar o actualizar la base de datos en Supabase, ejecute las migracion
 | `migrations/007_solicitudes_roles.sql` | Gestión del ciclo de vida para solicitudes de ascenso a rol `PROMOTOR`. |
 | `migrations/008_flujo_promotor.sql` | Vínculos de pacientes asignados a promotores de salud comunitaria. |
 | `migrations/009_fotos_perfil.sql` | Metadatos y políticas para el bucket de avatares en Supabase Storage. |
-| `migrations/010_eliminar_cuenta_usuario.sql` | Procedimiento almacenado `dar_de_baja_usuario(user_id)` para borrado seguro en cascada y revocación de accesos. |
+| `migrations/010_eliminar_cuenta_usuario.sql` | Procedimiento almacenado `eliminar_cuenta_usuario(usuario_uuid)` para borrado seguro en cascada y revocación de accesos. |
 | `migrations/011_recordatorios_frecuencia.sql` | Parámetros de frecuencia horaria y diaria para tomas farmacológicas. |
 | `migrations/012_recordatorios_aviso_previo.sql` | Ventanas de aviso preventivo previo a la hora de medicación. |
 | `migrations/013_recomendaciones_salud.sql` | Esquema de pautas MINSA (`recomendaciones_salud`), validaciones de categorías sanitarias, enlaces normativos y semillas oficiales de prevención. |

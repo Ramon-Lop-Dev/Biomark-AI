@@ -34,7 +34,7 @@ flowchart TD
   end
 
   F -->|HTTPS| Nginx
-  Sensors -.->|Procesamiento DSP Local (SCG)| F
+  Sensors -.->|Procesamiento DSP Local SCG| F
   Nginx -->|Proxy Interno| Backend
   Backend -->|Consultas Seguras con RLS| DB
   Backend -->|X-Internal-Key| FastAPI
