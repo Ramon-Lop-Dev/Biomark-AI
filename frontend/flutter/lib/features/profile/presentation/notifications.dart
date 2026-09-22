@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_biomark/biomark_brand.dart';
 import 'package:flutter_biomark/core/notifications/push_notifications_service.dart';
+import 'notifications_inbox_screen.dart';
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -139,6 +140,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             fontSize: 18,
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Ver avisos',
+            icon: const Icon(Icons.mark_email_unread_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsInboxScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Center(
@@ -147,6 +160,52 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               children: [
+                _buildTarjeta(
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const NotificationsInboxScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: BiomarkColors.blue.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.inbox_rounded, color: BiomarkColors.blue),
+                          ),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Bandeja de Avisos y Alertas',
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Ver alertas MINSA, recordatorios y notificaciones',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 _buildTarjeta(
                   child: _buildFilaSwitch(
                     icono: Icons.notifications_active_rounded,

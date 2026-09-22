@@ -69,6 +69,7 @@ const progressRoutes = require('./modules/progress/progress.routes');
 const goalsRoutes = require('./modules/progress/goals.routes');
 const navigationRoutes = require('./modules/gis/navigation.routes');
 const recommendationsRoutes = require('./modules/recommendations/recommendations.routes');
+const notificationsRoutes = require('./modules/notifications/notifications.routes');
 const { markReminderSent } = require('./modules/reminders/internal.controller');
 const { verifyInternalWebhook } = require('./middleware/internalWebhook.middleware');
 // --- APLICAR RUTAS ---
@@ -83,6 +84,7 @@ app.use('/api/gis', gisRoutes);
 app.use('/api/navigation', navigationRoutes);
 app.use('/api/epidemiology', epidemiologyRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/vision', visionRoutes);

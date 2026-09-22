@@ -81,11 +81,22 @@ class _GisMapScreenState extends State<GisMapScreen>
         zoom: _zoom,
         forceRefresh: forceRefresh,
       );
+      List<HealthCenter> loaded = data.centers;
+      if (loaded.isEmpty && _centers.isEmpty) {
+        try {
+          final nearby = await _gisApi.fetchNearby(
+            latitude: _mapCenter.latitude,
+            longitude: _mapCenter.longitude,
+            radiusKm: 50,
+          );
+          loaded = nearby.centers;
+        } catch (_) {}
+      }
       if (!mounted) return;
       setState(() {
         final centersMap = <String, HealthCenter>{
           for (final c in _centers) c.id: c,
-          for (final c in data.centers) c.id: c,
+          for (final c in loaded) c.id: c,
         };
         _centers = centersMap.values.toList();
         _loading = false;
@@ -473,13 +484,12 @@ class _GisMapScreenState extends State<GisMapScreen>
                 ),
               MarkerLayer(markers: markers),
               MarkerLayer(markers: layerMarkers),
-              RichAttributionWidget(
-                alignment: AttributionAlignment.bottomLeft,
-                attributions: [
-                  TextSourceAttribution('OpenStreetMap contributors'),
-                  if (AppConfig.cartoApiKey.isNotEmpty)
-                    TextSourceAttribution('CARTO'),
-                ],
+              SimpleAttributionWidget(
+                source: const Text(
+                  '© OpenStreetMap contributors',
+                  style: TextStyle(fontSize: 10, color: Colors.white70),
+                ),
+                alignment: Alignment.bottomLeft,
               ),
             ],
           ),

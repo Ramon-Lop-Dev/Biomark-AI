@@ -33,11 +33,11 @@ class HealthCenter {
       id: '${json['id'] ?? ''}',
       name: '${json['nombre'] ?? 'Centro de salud'}',
       type: '${json['tipo'] ?? 'CENTRO_SALUD'}',
-      latitude: number(json['latitud']),
-      longitude: number(json['longitud']),
+      latitude: number(json['latitud'] ?? json['lat']),
+      longitude: number(json['longitud'] ?? json['lon']),
       address: '${json['direccion'] ?? 'Dirección no disponible'}',
       phone: '${json['telefono'] ?? ''}',
-      distanceKm: number(json['distancia_km']),
+      distanceKm: number(json['distancia_km'] ?? (json['metros'] != null ? (number(json['metros']) / 1000) : 0)),
       level: (json['nivel'] ?? json['nivel_atencion'] ?? 2) is num
           ? ((json['nivel'] ?? json['nivel_atencion'] ?? 2) as num).toInt()
           : int.tryParse('${json['nivel'] ?? json['nivel_atencion'] ?? 2}') ??

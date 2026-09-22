@@ -16,6 +16,7 @@ import '../../../core/design/biomark_glass_surface.dart';
 import '../domain/health_recommendation.dart';
 import '../data/recommendations_service.dart';
 import '../../community/recommendations_management_screen.dart';
+import '../../profile/presentation/notifications_inbox_screen.dart';
 import '../../../core/design/responsive_layout.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -492,6 +493,16 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+        ),
+        IconButton(
+          tooltip: 'Avisos y Alertas',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsInboxScreen()),
+            );
+          },
+          icon: const Icon(Icons.notifications_outlined),
         ),
         IconButton(
           tooltip: 'Actualizar',

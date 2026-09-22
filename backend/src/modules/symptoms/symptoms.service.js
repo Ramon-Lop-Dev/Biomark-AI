@@ -40,6 +40,22 @@ const addSymptom = async (usuarioId, { symptom, temperature, blood_pressure, not
     detalle: { nombre_sintoma: symptom }
   });
 
+  // Sincronización automática con la tabla canónica seguimiento_salud
+  try {
+    const progressRepo = require('../progress/progress.repository');
+    await progressRepo.crear(usuarioId, {
+      sintoma: symptom,
+      estado: 'NO_SEGURO',
+      intensidad: 5,
+      notas: notes || null,
+      temperatura: temperature || null,
+      presion_arterial: blood_pressure || null,
+      url_foto: photo_url || null
+    });
+  } catch (syncError) {
+    console.warn('[Symptoms] Nota de sincronización con seguimiento_salud:', syncError.message);
+  }
+
   return { sintoma_id: sintomaId, ...data[0] };
 };
 

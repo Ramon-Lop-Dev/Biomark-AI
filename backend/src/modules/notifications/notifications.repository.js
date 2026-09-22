@@ -1,15 +1,61 @@
-// Persiste notificaciones pendientes de entrega al usuario.
+// Persiste y consulta notificaciones del usuario desde Supabase.
 const supabase = require('../../config/supabase');
 
-// Columnas reales de notificaciones: usuario_id, tipo, mensaje, fecha_envio,
-// fecha_lectura, fecha_creacion (default now()). "fecha_envio" se deja NULL
-// aquí a propósito: se marcará cuando exista el envío real (push/SMS vía
-// n8n, Fase 7) — esta fila hoy solo dice "esto debería notificarse".
-const crear = ({ usuarioId, tipo, mensaje }) =>
+const crear = ({ usuarioId, tipo, mensaje, titulo, datosAdicionales }) =>
   supabase
     .from('notificaciones')
-    .insert({ usuario_id: usuarioId, tipo, mensaje })
+    .insert({
+      usuario_id: usuarioId,
+      tipo,
+      mensaje,
+      titulo: titulo || null,
+      datos_adicionales: datosAdicionales || {}
+    })
     .select()
     .single();
 
-module.exports = { crear };
+const listarPorUsuario = async (usuarioId, { limit = 30, offset = 0, soloNoLeidas = false } = {}) => {
+  let query = supabase
+    .from('notificaciones')
+    .select('*', { count: 'exact' })
+    .eq('usuario_id', usuarioId);
+
+  if (soloNoLeidas) {
+    query = query.is('fecha_lectura', null);
+  }
+
+  return query
+    .order('fecha_creacion', { ascending: false })
+    .range(offset, offset + limit - 1);
+};
+
+const marcarLeida = (usuarioId, notificacionId) =>
+  supabase
+    .from('notificaciones')
+    .update({ fecha_lectura: new Date().toISOString(), leida: true })
+    .eq('id', notificacionId)
+    .eq('usuario_id', usuarioId)
+    .select()
+    .single();
+
+const marcarTodasLeidas = (usuarioId) =>
+  supabase
+    .from('notificaciones')
+    .update({ fecha_lectura: new Date().toISOString(), leida: true })
+    .eq('usuario_id', usuarioId)
+    .is('fecha_lectura', null);
+
+const contarNoLeidas = (usuarioId) =>
+  supabase
+    .from('notificaciones')
+    .select('id', { count: 'exact', head: true })
+    .eq('usuario_id', usuarioId)
+    .is('fecha_lectura', null);
+
+module.exports = {
+  crear,
+  listarPorUsuario,
+  marcarLeida,
+  marcarTodasLeidas,
+  contarNoLeidas
+};

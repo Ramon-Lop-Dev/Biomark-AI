@@ -16,7 +16,35 @@ const getHealthCenters = async () => {
 const getCentersByViewport = async (params) => {
   const { data, error } = await gisRepo.listarCentrosEnBbox(params);
   if (error) throw new AppError('Error al obtener centros del viewport', 500);
-  return data || [];
+
+  let centers = data || [];
+
+  // Si el cuadrante actual no contiene centros en su recorte inmediato,
+  // consultamos automáticamente los más cercanos al centro visible
+  // para que el usuario nunca quede con un mapa vacío.
+  if (centers.length === 0 && params.min_lat && params.max_lat) {
+    const midLat = (Number(params.min_lat) + Number(params.max_lat)) / 2;
+    const midLon = (Number(params.min_lon) + Number(params.max_lon)) / 2;
+    const { data: nearby } = await gisRepo.listarCentrosCercanos({
+      lat: midLat,
+      lon: midLon,
+      servicio: null,
+      edad: null,
+      nivel_min: 1,
+      radio_m: 60000,
+      limite: 15
+    });
+    if (nearby && nearby.length > 0) {
+      centers = nearby;
+    }
+  }
+
+  return centers.map((center) => ({
+    ...center,
+    latitud: Number(center.latitud ?? center.lat),
+    longitud: Number(center.longitud ?? center.lon),
+    distancia_km: center.metros ? Math.round((Number(center.metros) / 1000) * 10) / 10 : undefined
+  }));
 };
 
 const getCentersNearby = async (params) => {
