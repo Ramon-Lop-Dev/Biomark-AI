@@ -25,7 +25,7 @@ flowchart TD
 
   subgraph InferenciaIA ["Servicio GPU Cloud (RunPod)"]
     FastAPI["AI Service FastAPI :8000"]
-    Models["BioMistral 7B, Whisper ASR, MMS-TTS y RAG ChromaDB"]
+    Models["BIOMARK AI, Whisper ASR, MMS-TTS y RAG ChromaDB"]
   end
 
   subgraph ServiciosCloud ["Servicios en la Nube"]
