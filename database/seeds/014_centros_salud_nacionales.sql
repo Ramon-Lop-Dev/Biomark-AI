@@ -8,6 +8,11 @@
 BEGIN;
 
 -- Ajuste de función centros_en_bbox para visualización fluida de puestos y centros
+DROP FUNCTION IF EXISTS public.centros_en_bbox(double precision, double precision, double precision, double precision, smallint, numeric) CASCADE;
+DROP FUNCTION IF EXISTS public.centros_en_bbox(float8, float8, float8, float8, smallint, numeric) CASCADE;
+DROP FUNCTION IF EXISTS public.centros_en_bbox(float8, float8, float8, float8) CASCADE;
+DROP FUNCTION IF EXISTS public.centros_en_bbox CASCADE;
+
 CREATE OR REPLACE FUNCTION public.centros_en_bbox(
   p_min_lon float8,
   p_min_lat float8,

@@ -98,6 +98,11 @@ WHERE geog IS NULL AND latitud IS NOT NULL AND longitud IS NOT NULL;
 UPDATE public.centros_salud
 SET geog = st_setsrid(st_makepoint(longitud::float8, latitud::float8), 4326)::geography
 WHERE geog IS NULL AND latitud IS NOT NULL AND longitud IS NOT NULL;
+-- Eliminar función previa si cambió su tipo de retorno (evita error 42P13)
+DROP FUNCTION IF EXISTS public.centros_en_bbox(double precision, double precision, double precision, double precision, smallint, numeric) CASCADE;
+DROP FUNCTION IF EXISTS public.centros_en_bbox(float8, float8, float8, float8, smallint, numeric) CASCADE;
+DROP FUNCTION IF EXISTS public.centros_en_bbox(float8, float8, float8, float8) CASCADE;
+DROP FUNCTION IF EXISTS public.centros_en_bbox CASCADE;
 
 -- Función centros_en_bbox optimizada para Managua: siempre devuelve centros sin importar umbral de zoom
 CREATE OR REPLACE FUNCTION public.centros_en_bbox(
