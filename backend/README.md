@@ -33,11 +33,12 @@ flowchart LR
 * `POST /api/voice`: Recibe grabaciones de audio (`.m4a` / `.wav`), ejecuta la transcripción con Whisper ASR y devuelve el texto con audio sintetizado (MMS-TTS) para su reproducción en la aplicación.
 * `POST /api/vision`: Envía imágenes para evaluación asistida de patologías cutáneas o faríngeas.
 
-### Gestión de Usuarios y Perfil
+### Gestión de Usuarios, Autenticación y Baja de Cuenta
 * `GET /api/users/profile` y `PUT /api/users/profile`: Consulta y actualización de datos personales y preferencias de salud.
 * `POST /api/users/avatar`: Subida de fotografía de perfil vinculada al bucket seguro de Supabase Storage.
 * `POST /api/users/push-token`: Registro de tokens de Firebase Cloud Messaging (FCM).
-* `DELETE /api/users/account`: Proceso de baja definitiva y eliminación segura en cascada del usuario mediante procedimiento almacenado (`dar_de_baja_usuario`).
+* `POST /api/auth/promotor/solicitud` y `GET /api/auth/promotor/solicitudes`: Solicitud y validación administrativa para rol de Promotor de Salud.
+* `DELETE /api/auth/account`: Proceso de baja definitiva y eliminación segura en cascada del usuario mediante procedimiento almacenado (`eliminar_cuenta_usuario`).
 
 ### Seguimiento de Evolución de Síntomas
 * `POST /api/progress`: Registro de la evolución sintomática con estados clínicos normalizados (`MEJORO`, `IGUAL`, `EMPEORO`, `NO_SEGURO`).

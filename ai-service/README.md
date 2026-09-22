@@ -15,11 +15,11 @@ ai-service/
 ├── safety/
 │   └── checker.py               # Capa determinista de seguridad clínica (bloqueo de prescripción y diagnóstico)
 ├── rag/
-│   └── retriever.py             # Sincronización con Supabase y recuperación de normativas MINSA
+│   └── retriever.py             # Persistencia incremental en ChromaDB (indexed_files.json) y normativas MINSA
 ├── inference/
-│   ├── model_loader.py          # Carga cuantizada del LLM (4-bit / 8-bit en GPU o modo CPU)
-│   ├── generator.py             # Construcción de prompts contextuales y generación determinista
-│   └── service.py               # Servicio unificado para chat, voz y visión
+│   ├── model_loader.py          # Carga cuantizada de BioMistral 7B (BiomarkAI/Biomark-AI-Produccion)
+│   ├── generator.py             # Construcción de prompts para Mistral Instruct y generación determinista
+│   └── service.py               # Servicio unificado para chat, detección de progreso (REGISTER_PROGRESS), voz y visión
 ├── voice/
 │   ├── asr.py                   # Whisper ASR para transcripción precisa de notas de voz
 │   └── tts.py                   # Facebook MMS-TTS para síntesis de voz natural en español
@@ -32,17 +32,15 @@ ai-service/
 
 ---
 
-## 2. Directrices de Seguridad Clínica y Accesibilidad
+## 2. Directrices de Seguridad Clínica, IA y Accesibilidad
 
 1. **Blindaje contra prescripción médica:** El modelo tiene terminantemente prohibido indicar nombres de fármacos, dosis o modificaciones de tratamientos médicos. Ante cualquier solicitud de recetas, orienta hacia la consulta médica presencial.
 2. **Orientación preventiva sin diagnóstico definitivo:** Las respuestas identifican posibilidades y medidas de autocuidado preventivo sin emitir un diagnóstico conclusivo.
 3. **Lenguaje claro y sin jerga técnica (Accesibilidad Universal):** Las respuestas se redactan en un lenguaje sencillo, comprensible para personas de cualquier nivel de alfabetización o familias de comunidades rurales, explicando términos médicos en palabras cotidianas.
 4. **Contextualización con antecedentes del paciente:** Si el backend provee el historial clínico (alergias, hipertensión, diabetes, medicamentos), el asistente adapta sus consejos para evitar recomendaciones contraproducentes.
-5. **Seguimiento de la evolución sintomática:** Clasifica el progreso del cuadro clínico del usuario en cuatro estados estandarizados:
-   * `MEJORO`: Disminución evidente de síntomas o malestar.
-   * `IGUAL`: Cuadro clínico estacionario sin cambios notorios.
-   * `EMPEORO`: Incremento de la intensidad o manifestación de signos de alarma.
-   * `NO_SEGURO`: Información insuficiente para determinar la trayectoria.
+5. **Detección proactiva de evolución de síntomas:** En `sugerir_accion()`, evalúa expresiones en lenguaje natural (*"ya mejoré"*, *"sigo igual"*, *"empeoré"*, *"aún me duele"*) y emite la acción sugerida `REGISTER_PROGRESS` para desplegar la tarjeta de registro interactivo en el cliente.
+6. **Persistencia incremental en ChromaDB:** Módulo RAG con manifiesto local (`chroma_db/indexed_files.json`) que omite la re-descarga y re-vectorización de documentos normativos ya procesados, reduciendo los tiempos de arranque a milisegundos.
+7. **Modelo clínico especializado:** Adaptado para el modelo de producción en Hugging Face [`BiomarkAI/Biomark-AI-Produccion`](https://huggingface.co/BiomarkAI/Biomark-AI-Produccion) con plantilla de turnos compatible con Mistral.
 
 ---
 

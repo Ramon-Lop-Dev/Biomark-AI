@@ -1,6 +1,6 @@
 # Biomark AI — Cliente Móvil y Web (Flutter)
 
-Aplicación multiplataforma (Android, iOS y Web) desarrollada con **Flutter 3.24+** y **Material Design 3**. Proporciona herramientas de salud preventiva, estimación de frecuencia cardíaca por sensores ópticos y mecánicos, pautas sanitarias basadas en normativas del MINSA, asistente de salud multimodal y gestión comunitaria.
+Aplicación multiplataforma (Android, iOS y Web) desarrollada con **Flutter 3.24+** y **Material Design 3**. Proporciona herramientas de salud preventiva, estimación biomecánica de signos vitales mediante Sismocardiografía (SCG), pautas sanitarias basadas en normativas del MINSA, asistente de salud multimodal con motor offline autónomo y gestión comunitaria.
 
 ---
 
@@ -13,20 +13,20 @@ lib/
 ├── core/                         # Utilidades y servicios transversales
 │   ├── auth/                     # Gestión de sesión, tokens JWT y autenticación
 │   ├── config/                   # Configuración de URLs de API y entornos
-│   ├── design/                   # Controlador de temas (AppThemeController) y paleta corporativa
+│   ├── design/                   # BiomarkGlassSurface, temas claro/oscuro y alto contraste
 │   ├── notifications/            # Integración con Firebase Cloud Messaging (FCM)
 │   └── profile/                  # Servicios transversales de perfil de usuario
 │
 ├── features/                     # Módulos funcionales desacoplados
-│   ├── vitals/                   # Medición y análisis de signos vitales
+│   ├── vitals/                   # Medición y análisis de signos vitales por SCG
 │   │   ├── domain/               # Modelos de pulso y mediciones (VitalMeasurement)
 │   │   ├── data/                 # Almacenamiento local (VitalsStorage)
-│   │   └── presentation/         # Procesador DSP (PpgProcessor, ScgProcessor) y pantallas
+│   │   └── presentation/         # Procesador biomecánico (ScgProcessor) y pantalla (ScgScreen)
 │   │
 │   ├── home/                     # Pantalla de inicio y centro de mando
 │   │   ├── domain/               # Entidad de recomendaciones (HealthRecommendation)
 │   │   ├── data/                 # Motor de priorización contextual (RecommendationsService)
-│   │   └── presentation/         # HomeScreen, carrusel de pautas y métricas comunitarias
+│   │   └── presentation/         # HomeScreen con Glassmorphism y tarjetas interactivas
 │   │
 │   ├── community/                # Gestión de salud comunitaria y pautas sanitarias
 │   │   ├── recommendations_management_screen.dart # Formulario de publicación con RBAC
@@ -34,13 +34,13 @@ lib/
 │   │
 │   ├── chat/                     # Asistente virtual de salud multimodal
 │   │   ├── domain/               # Modelos de mensajes y estados de conversación
-│   │   ├── data/                 # Clientes para chat, análisis visual y notas de voz
-│   │   └── presentation/         # ChatScreen con reproductor de audio integrado
+│   │   ├── data/                 # MinsaOfflineKnowledge, OfflineChatEngine y clientes API
+│   │   └── presentation/         # ChatScreen con seguimiento de síntomas (_FollowUpActionCard)
 │   │
 │   ├── progress/                 # Seguimiento de evolución clínica del paciente
 │   │   ├── domain/               # Estados de evolución (MEJORO, IGUAL, EMPEORO, NO_SEGURO)
 │   │   ├── data/                 # Cliente de persistencia y sincronización
-│   │   └── presentation/         # Gráficas de evolución y correlación con pulso
+│   │   └── presentation/         # Gráficas de evolución, metas e hitos de recuperación
 │   │
 │   ├── clinical/                 # Encuesta clínica inicial y antecedentes
 │   │   ├── data/                 # Servicio de sincronización de antecedentes
@@ -49,7 +49,7 @@ lib/
 │   ├── profile/                  # Administración del perfil y configuración
 │   │   └── presentation/         # Edición de perfil, avatar, apariencia y baja de cuenta
 │   │
-│   ├── gis/                      # Mapeo georreferenciado de unidades de salud MINSA
+│   ├── gis/                      # Mapeo georreferenciado con GPS de alta precisión y filtros
 │   └── reminders/                # Programación de medicamentos y citas médicas
 │
 ├── app_shell.dart                # Estructura principal de navegación inferior accesible
@@ -61,15 +61,15 @@ lib/
 
 ## 2. Módulos y Capacidades Principales
 
-### Medición de Signos Vitales (PPG y SCG)
-* **Fotopletismografía óptica (PPG):**
-  * Estimación de frecuencia cardíaca (BPM) a través de la cámara trasera y el flash.
-  * Procesamiento digital de señales (DSP): validación de contacto en lecho capilar, eliminación de deriva continua (DC-tracking) y filtro paso-bajo para supresión de ruido.
-  * Detección de sístoles con ventana refractaria fisiológica (40 a 180 BPM).
-  * Clasificación clínica de resultados: Ritmo normal (60-100 BPM), Bradicardia (<60 BPM) y Taquicardia (>100 BPM).
-* **Sismocardiografía mecánica (SCG):**
-  * Detección de micromovimientos cardíacos en reposo utilizando el acelerómetro y giroscopio.
-  * Filtro de rechazo para movimientos bruscos del usuario (motion artifacts).
+### Medición de Signos Vitales por Sismocardiografía (SCG)
+* **Sismocardiografía Mecánica (SCG):**
+  * Estimación de la frecuencia cardíaca (BPM) a partir de los micromovimientos transmitidos al esternón por la actividad cardíaca, empleando el acelerómetro y giroscopio del smartphone (`sensors_plus`).
+  * Procesamiento digital de señales (DSP): filtrado pasabanda digital de 10 a 30 Hz para capturar los ruidos valvulares aórtico y mitral, minimizando componentes de respiración y movimiento.
+  * Detección de picos sistólicos con umbral dinámico adaptativo y ventana refractaria mínima (250 ms) para evitar falsos positivos.
+  * Compatibilidad con posturas clínicas: acostado boca arriba (supina) y sentado con compensación del vector gravitatorio.
+  * Estimación de la calidad de señal (0% a 100%) y descarte automático ante perturbaciones corporales.
+  * Clasificación clínica inmediata del ritmo cardíaco: Normal (60-100 BPM), Bradicardia (<60 BPM) o Taquicardia (>100 BPM).
+  *(Nota: Se consolidó la sismocardiografía como método biométrico exclusivo, retirando la fotopletismografía óptica por cámara/flash).*
 
 ### Recomendaciones de Salud MINSA y Priorización Inteligente
 * **Estandarización visual y médica:** Las pautas incorporan colores e iconos normativos oficiales asignados a cada categoría sanitaria (Dengue, Golpe de Calor, Cardiovascular, Adherencia a Medicamentos, Diabetes y Salud Respiratoria).
@@ -80,16 +80,26 @@ lib/
   4. Indicación de tratamientos farmacológicos vigentes (+5 pts).
 * **Gestión autorizada por roles (RBAC):** Interfaz para promotores y personal médico que permite publicar nuevas recomendaciones verificadas, validando el respaldo de normativas técnicas del MINSA.
 
-### Accesibilidad Universal (WCAG 2.1 Nivel AA)
-* **Tema de Alto Contraste:** Modo opcional con contraste superior a 7:1 en fondos, bordes y textos para usuarios con déficit visual.
-* **Compatibilidad con lectores de pantalla:** Inclusión de etiquetas semánticas (`Semantics`) en botones, controles y tarjetas para TalkBack (Android) y VoiceOver (iOS), manteniendo total invisibilidad para usuarios estándar.
+### Asistente Clínico Multimodal con Motor Offline Autónomo
+* **Motor Clínico Offline (`OfflineChatEngine` y `MinsaOfflineKnowledge`):**
+  * Base de conocimiento oficial en memoria del MINSA (Dengue 004/073, Diarrea 153, Neumonía/IRA 028, Diabetes/Hipertensión 078, Esquema PAI y Alerta Térmica >30°C).
+  * Evaluador determinista de banderas rojas críticas (`CRITICAL`) y scoring semántico de síntomas.
+  * Funciona de manera transparente cuando el dispositivo se queda sin conexión, sin mostrar errores de red.
+* **Seguimiento Proactivo de Evolución de Síntomas:**
+  * Tarjeta interactiva `_FollowUpActionCard` en el chat cuando el paciente describe mejoría o empeoramiento.
+  * Opciones rápidas de un solo toque: *Mejoré*, *Sigo igual*, *Empeoré*, *No seguro* con guardado directo en el historial.
+
+### Accesibilidad Universal y Glassmorphism (WCAG 2.1 AAA)
+* **Diseño Glassmorphism Adaptativo (`BiomarkGlassSurface`):** Desenfoque gaussiano translúcido de fondo con bordes sutiles de 1.0 px, adaptados a modo claro y oscuro.
+* **Tema de Alto Contraste:** Modo conmutado a superficies 100% opacas con bordes nítidos de 2.0 px y contraste superior a 7:1 en fondos y textos para usuarios con déficit visual (cumplimiento WCAG AAA).
+* **Compatibilidad con lectores de pantalla:** Inclusión de etiquetas semánticas (`Semantics`) en botones, controles y tarjetas para TalkBack (Android) y VoiceOver (iOS).
 * **Sugerencia de modo por voz:** Notificación amigable en la pantalla de inicio para personas con baja alfabetización, con opción de cierre permanente (`[X]`) e interruptor en las preferencias de apariencia.
 * **Ergonomía de pulsación:** Elementos interactivos con dimensiones mínimas de 48x48 dp para prevenir pulsaciones erróneas.
-* **Resiliencia sin conexión:** Almacenamiento local mediante `SharedPreferences` para acceder a las pautas y datos vitales en puestos rurales sin cobertura de datos.
+* **Auditoría Antisolapamiento:** Widgets construidos con `LayoutBuilder` y restricciones flexibles para evitar desbordamientos `RenderFlex` en cualquier resolución de pantalla.
 
-### Adaptabilidad Responsive (Móvil y Web)
-* La interfaz se ajusta dinámicamente a pantallas de dispositivos móviles, tabletas y navegadores de escritorio.
-* Se utilizan límites de ancho de lectura optimizados, evitando estiramientos visuales en pantallas panorámicas.
+### Mapa GIS de Alta Precisión
+* **Localización de Alta Exactitud:** Configuración `LocationAccuracy.high` para cálculo exacto de distancia geodésica.
+* **Filtros por Nivel de Atención:** Chips rápidos de selección (*Todos*, *Hospitales*, *Centros de Salud*, *Puestos Médicos*).
 
 ---
 
@@ -131,7 +141,7 @@ flutter analyze
 
 ## 5. Permisos Requeridos del Dispositivo
 
-* **Cámara (`CAMERA`):** Requerida para la captura óptica del pulso capilar y registro de imágenes dermatológicas/orofaríngeas.
-* **Linterna (`FLASHLIGHT`):** Necesaria para iluminar el dedo durante la medición PPG.
+* **Sensores de Movimiento:** Utiliza el acelerómetro y giroscopio estándar del dispositivo para la sismocardiografía torácica (SCG).
+* **Cámara (`CAMERA`):** Requerida exclusivamente para la captura voluntaria de imágenes de piel o faringe en el módulo de teleorientación visual.
 * **Micrófono (`RECORD_AUDIO`):** Empleado para enviar consultas de voz al asistente clínico.
-* **Ubicación (`ACCESS_FINE_LOCATION`):** Utilizada únicamente con consentimiento del usuario para ordenar por proximidad los centros de salud del MINSA.
+* **Ubicación (`ACCESS_FINE_LOCATION`):** Utilizada con consentimiento para ordenar por proximidad los centros de salud del MINSA y orientar hacia la unidad más cercana.

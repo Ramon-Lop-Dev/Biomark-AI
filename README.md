@@ -14,7 +14,7 @@ La arquitectura está concebida de forma distribuida para optimizar el consumo d
 flowchart TD
   subgraph Clientes ["Clientes Multiplataforma"]
     F["Flutter (Android, iOS y Web)"]
-    Sensors["Sensores del Dispositivo (Cámara, Flash, Acelerómetro)"]
+    Sensors["Sensores del Dispositivo (Acelerómetro y Giroscopio)"]
   end
 
   subgraph ServidorVPS ["Servidor VPS (Contabo)"]
@@ -25,7 +25,7 @@ flowchart TD
 
   subgraph InferenciaIA ["Servicio GPU Cloud (RunPod)"]
     FastAPI["AI Service FastAPI :8000"]
-    Models["LLM Clínico, Whisper ASR y MMS-TTS"]
+    Models["BioMistral 7B, Whisper ASR, MMS-TTS y RAG ChromaDB"]
   end
 
   subgraph ServiciosCloud ["Servicios en la Nube"]
@@ -34,7 +34,7 @@ flowchart TD
   end
 
   F -->|HTTPS| Nginx
-  Sensors -.->|Procesamiento DSP Local| F
+  Sensors -.->|Procesamiento DSP Local (SCG)| F
   Nginx -->|Proxy Interno| Backend
   Backend -->|Consultas Seguras con RLS| DB
   Backend -->|X-Internal-Key| FastAPI
@@ -48,48 +48,59 @@ flowchart TD
 
 ## 2. Funcionalidades Principales
 
-### Medición de Signos Vitales en el Dispositivo
-* **Fotopletismografía óptica (PPG):** Estimación de la frecuencia cardíaca (BPM) en 20 segundos mediante la cámara y el flash LED del teléfono. Incorpora procesamiento digital de señales (DSP) en tiempo real con eliminación de derivas, control de contacto dérmico y clasificación clínica (ritmo normal, bradicardia o taquicardia).
-* **Sismocardiografía (SCG):** Registro de micromovimientos torácicos derivados de la actividad mecánica cardíaca empleando el acelerómetro y giroscopio del móvil, con detección automática de perturbaciones de movimiento.
+### Medición de Signos Vitales por Sismocardiografía (SCG)
+* **Sismocardiografía Torácica (SCG):** Estimación biomecánica de la frecuencia cardíaca (BPM) mediante el acelerómetro y giroscopio del teléfono móvil. Mide las micro-vibraciones esternales generadas por la contracción y eyección ventricular cardíaca:
+  * Filtrado digital pasabanda (10 a 30 Hz) para aislar las ondas mecánicas valvulares y atenuar ruidos respiratorios.
+  * Algoritmo de detección de picos sistólicos adaptativo con ventana refractaria de 250 ms.
+  * Soporte para posturas clínicas: acostado boca arriba (supina) o sentado en reposo.
+  * Cálculo de índice de calidad de señal (0% a 100%) y descarte automático de perturbaciones o movimientos bruscos.
+  * Clasificación clínica inmediata: ritmo normal (60-100 BPM), bradicardia (<60 BPM) o taquicardia (>100 BPM).
+  *(Nota: Se retiró el método óptico por cámara/flash PPG en favor de la precisión y comodidad del método biomecánico SCG).*
 
 ### Pautas de Salud MINSA y Priorización Inteligente
-* **Catálogo normativo oficial:** Tarjetas informativas de prevención respaldadas por normativas del MINSA de Nicaragua:
-  * Prevención y signos de alarma de dengue y arbovirosis (Normativa 004 del MINSA).
+* **Catálogo normativo oficial:** Tarjetas informativas de prevención validadas con directrices del Ministerio de Salud (MINSA) de Nicaragua:
+  * Prevención y signos de alarma de dengue y arbovirosis (Normativas 004 y 073 del MINSA).
   * Hidratación y protección ante olas de calor extremo (temperaturas superiores a 30 °C).
   * Cuidado y monitoreo de la salud cardiovascular.
   * Cumplimiento y adherencia al tratamiento farmacológico prescrito.
   * Manejo preventivo de diabetes y metabolismo (Normativa 078 del MINSA).
   * Protocolo de salud respiratoria e infecciones estacionales (Normativa 028 del MINSA).
 * **Motor de priorización contextual:** El sistema clasifica y ordena las recomendaciones automáticamente según:
-  1. Alertas epidemiológicas activas en el municipio del usuario.
-  2. Enfermedades crónicas declaradas en la encuesta clínica de salud.
-  3. Signos vitales alterados registrados en mediciones recientes de pulso.
-  4. Presencia de tratamientos farmacológicos continuos.
+  1. Alertas epidemiológicas activas en el municipio del usuario (+10 pts).
+  2. Enfermedades crónicas declaradas en la encuesta clínica de salud (+8 pts).
+  3. Signos vitales alterados registrados en mediciones recientes de pulso (+7 pts).
+  4. Presencia de tratamientos farmacológicos continuos (+5 pts).
 * **Gestión por roles (RBAC):** Promotores de salud y personal sanitario autorizado (`PROMOTOR`, `TRABAJADOR_SALUD`, `ADMIN`) disponen de un módulo de gestión para publicar y validar nuevas pautas sanitarias de acuerdo a los estándares oficiales.
 
-### Asistente Clínico Multimodal y Seguro
+### Asistente Clínico Multimodal, Seguro y con Soporte Offline
 * **Interacción integral:** Consultas mediante texto, mensajes de voz grabados y fotografías para orientación visual en piel o faringe.
 * **Seguridad clínica estricta:** La inteligencia artificial está programada para **no prescribir medicamentos** ni emitir diagnósticos definitivos. Ofrece orientación preventiva, detección de señales de alerta y canalización oportuna a centros de salud.
+* **Motor de Chat Offline con Guías Oficiales MINSA:** Capacidad de respuesta clínica autónoma directamente en el dispositivo móvil ante pérdida de conectividad (`OfflineChatEngine` y `MinsaOfflineKnowledge`). Incluye evaluador de banderas rojas críticas, scoring semántico y directrices oficiales de diarrea (Guía 153), dengue (004/073), neumonía (028), diabetes (078), vacunación PAI y glosario coloquial nicaragüense.
+* **Seguimiento Proactivo de Evolución de Síntomas:** Detección de lenguaje natural en consultas del usuario para identificar si sus molestias han mejorado, empeorado o continúan igual, desplegando acciones interactivas de un toque (`_FollowUpActionCard`) para registrar la evolución en su expediente.
 * **Lenguaje accesible y sin tecnicismos:** Respuestas adaptadas para su comprensión inmediata por familias y comunidades rurales, evitando jerga médica compleja.
 
-### Accesibilidad Universal (Estándares WCAG 2.1 AA)
-* **Diseño opcional y no intrusivo:** No afecta la experiencia limpia del usuario general.
-* **Tema de alto contraste:** Modo opcional con relación de contraste superior a 7:1 para personas con baja agudeza visual.
+### Accesibilidad Universal y Sistema de Diseño Glassmorphism
+* **Diseño Glassmorphism Adaptativo:** Componente de superficies translúcidas con desenfoque de fondo (`BiomarkGlassSurface`), integrado con soporte para modo claro y modo oscuro.
+* **Tema de Alto Contraste (WCAG AAA):** Modo accesible con contraste superior a 7:1 en fondos, bordes sólidos y textos de alto contraste para personas con baja agudeza visual.
 * **Compatibilidad con lectores de pantalla:** Integración completa de etiquetas de accesibilidad (`Semantics`) para TalkBack en Android y VoiceOver en iOS.
 * **Sugerencia de modo por voz:** Tarjeta de acceso rápido por voz en la pantalla principal con opción de descarte inmediato y control en los ajustes del perfil.
 * **Ergonomía táctil:** Áreas de interacción táctil con dimensiones mínimas de 48x48 dp para facilitar la pulsación.
-* **Modo sin conexión (Offline-first):** Respaldo en caché local de recomendaciones y datos de consulta para áreas con conectividad inestable.
+* **Auditoría Antisolapamiento:** Interfaz responsiva con controles de scroll y restricciones de altura para evitar errores de desbordamiento en cualquier pantalla.
 
 ### Panorama Comunitario y Geolocalización Sanitaria
-* Mapeo georreferenciado de centros de salud, puestos médicos y hospitales del MINSA.
-* Visualización de jornadas de vacunación, abatización y fumigación en el sector.
-* Registro del historial y evolución de síntomas (*Mejoró*, *Igual*, *Empeoró*).
+* **Mapa GIS de Alta Precisión:** Geolocalización con precisión en metros (`LocationAccuracy.high`), cálculo geodésico de distancias en tiempo real y chips de filtrado rápido por nivel de unidad (Hospitales, Centros de Salud, Puestos Médicos).
+* **Alertas y Eventos Comunitarios:** Visualización de jornadas de vacunación, abatización y fumigación en el sector.
+* **Historial de Progreso:** Registro de evolución de síntomas (*Mejoró*, *Igual*, *Empeoró*, *No seguro*) con metas e hitos de recuperación.
+
+### Módulo RAG con Persistencia Incremental
+* **Persistencia Inteligente en ChromaDB:** Manifiesto de control local (`chroma_db/indexed_files.json`) que almacena fragmentos de normativas MINSA con metadatos de fuente, página y chunk. Evita re-descargas o cálculos redundantes de embeddings al iniciar el servicio.
+* **Modelo Especializado BioMistral 7B:** Total compatibilidad con el modelo de producción en Hugging Face (`BiomarkAI/Biomark-AI-Produccion`) adaptado con plantilla de instrucciones clínicas.
 
 ### Gestión de Cuenta y Privacidad
 * Autenticación segura mediante correo electrónico o inicio de sesión con Google.
 * Gestión de perfil de usuario y avatar alojado en Supabase Storage.
 * Encuesta clínica inicial de antecedentes personales y factores de riesgo.
-* Eliminación definitiva y segura de cuenta con baja de datos en cascada mediante procedimientos almacenados.
+* Eliminación definitiva y segura de cuenta con baja de datos en cascada mediante procedimientos almacenados (`eliminar_cuenta_usuario`).
 
 ---
 
