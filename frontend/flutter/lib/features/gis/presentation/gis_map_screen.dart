@@ -61,10 +61,12 @@ class _GisMapScreenState extends State<GisMapScreen>
         widget.initialCenter!.longitude,
       );
       _zoom = 16.0;
-      _loadViewport();
-      _loadLayersOnce();
-    } else {
-      // Localizar primero para no duplicar peticiones de Managua + ubicación real
+    }
+    // Cargar inmediatamente los centros de Managua para que el mapa nunca aparezca desierto
+    _loadViewport();
+    _loadLayersOnce();
+
+    if (widget.initialCenter == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _locate());
     }
   }
@@ -175,18 +177,18 @@ class _GisMapScreenState extends State<GisMapScreen>
     final newZoom = event.camera.zoom;
 
     final distanceMoved = const Distance().as(LengthUnit.Meter, _mapCenter, newCenter);
-    final zoomChanged = (newZoom - _zoom).abs() > 0.8;
+    final zoomChanged = (newZoom - _zoom).abs() > 0.4;
 
     _mapCenter = newCenter;
     _zoom = newZoom;
 
-    // Si el movimiento es leve (< 800m) y el zoom no cambió sustancialmente, no disparar petición
-    if (distanceMoved < 800 && !zoomChanged) {
+    // Si el movimiento es muy leve (< 120m) y el zoom no cambió sustancialmente, no disparar petición
+    if (distanceMoved < 120 && !zoomChanged) {
       return;
     }
 
     _viewportTimer?.cancel();
-    _viewportTimer = Timer(const Duration(milliseconds: 700), () {
+    _viewportTimer = Timer(const Duration(milliseconds: 250), () {
       _loadViewport(event.camera.visibleBounds);
     });
   }
@@ -211,36 +213,37 @@ class _GisMapScreenState extends State<GisMapScreen>
           timeLimit: Duration(seconds: 8),
         ),
       );
-      var location = LatLng(position.latitude, position.longitude);
+      final realGpsLocation = LatLng(position.latitude, position.longitude);
       final distToManaguaKm = const Distance().as(
         LengthUnit.Kilometer,
-        location,
+        realGpsLocation,
         _managua,
       );
-      // En emuladores o entornos fuera de Nicaragua (ej. California a 9600 km),
-      // normalizar la ubicación a Managua para distancias y centros coherentes.
-      if (distToManaguaKm > 500) {
-        location = _managua;
-      }
+
+      // Si el usuario está probando fuera de Managua (ej. Corinto a 115 km),
+      // guardamos su GPS real para distancias y marcador, pero enfocamos la cámara
+      // en Managua para que vea y navegue inmediatamente todos los centros hospitalarios.
+      final cameraTarget = distToManaguaKm <= 35 ? realGpsLocation : _managua;
+
       if (mounted) {
         setState(() {
-          _userLocation = location;
-          _mapCenter = location;
-          _zoom = 15.5;
+          _userLocation = realGpsLocation;
+          _mapCenter = cameraTarget;
+          _zoom = 14.5;
         });
       }
-      _mapController.move(location, 15.5);
-      unawaited(_loadViewport(_boundsAround(location, 15.5)));
+      _mapController.move(cameraTarget, 14.5);
+      unawaited(_loadViewport(_boundsAround(cameraTarget, 14.5)));
       unawaited(_loadLayersOnce());
     } catch (_) {
-      _mapController.move(_managua, 15.5);
+      _mapController.move(_managua, 14.5);
       if (mounted) {
         setState(() {
           _mapCenter = _managua;
-          _zoom = 15.5;
+          _zoom = 14.5;
         });
       }
-      unawaited(_loadViewport(_boundsAround(_managua, 15.5)));
+      unawaited(_loadViewport(_boundsAround(_managua, 14.5)));
       unawaited(_loadLayersOnce());
     } finally {
       if (mounted) setState(() => _locating = false);
@@ -345,28 +348,9 @@ class _GisMapScreenState extends State<GisMapScreen>
   Widget build(BuildContext context) {
     final centers = _visibleCenters;
 
-    // Filtramos los centros que caen en el viewport visible con un margen suave ("efecto neblina progresivo")
-    final bounds = _boundsAround(_mapCenter, _zoom);
-    final latPad = (bounds.north - bounds.south) * 0.25;
-    final lonPad = (bounds.east - bounds.west) * 0.25;
-    final south = bounds.south - latPad;
-    final north = bounds.north + latPad;
-    final west = bounds.west - lonPad;
-    final east = bounds.east + lonPad;
-
-    final inViewportCenters = centers.where((center) {
-      return center.latitude >= south &&
-          center.latitude <= north &&
-          center.longitude >= west &&
-          center.longitude <= east;
-    }).toList();
-
-    // Si por el zoom muy cercano no hay centros en ese radio inmediato, mostrar los más próximos
-    final displayCenters = inViewportCenters.isNotEmpty
-        ? inViewportCenters
-        : centers.take(15).toList();
-
-    final markers = displayCenters
+    // FlutterMap optimiza el culling nativamente; no recortamos la lista para que
+    // los centros aparezcan de forma fluida y progresiva conforme el usuario recorre el mapa.
+    final markers = centers
         .map(
           (center) => Marker(
             point: LatLng(center.latitude, center.longitude),
@@ -519,10 +503,23 @@ class _GisMapScreenState extends State<GisMapScreen>
                       ),
                       const SizedBox(width: 8),
                       _RoundControl(
+                        icon: Icons.location_city_rounded,
+                        tooltip: 'Centrar en Managua',
+                        onTap: () {
+                          _mapController.move(_managua, 14.5);
+                          setState(() {
+                            _mapCenter = _managua;
+                            _zoom = 14.5;
+                          });
+                          _loadViewport(_boundsAround(_managua, 14.5), true);
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      _RoundControl(
                         icon: _locating
                             ? Icons.sync_rounded
                             : Icons.my_location_rounded,
-                        tooltip: 'Mi ubicación exacta',
+                        tooltip: 'Mi ubicación GPS',
                         onTap: _locate,
                       ),
                       const SizedBox(width: 8),

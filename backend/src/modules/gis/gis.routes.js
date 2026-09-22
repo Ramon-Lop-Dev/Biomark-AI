@@ -23,7 +23,7 @@ const validateCenterId = (req, res, next) => {
 	next();
 };
 
-router.use(verifyToken);
+// Endpoints públicos para consulta de centros de salud y mapa
 router.get('/', getHealthCenters);
 
 // GET /api/gis/nearby?latitude=..&longitude=..&radius_km=.. (radius_km opcional, default 15)
