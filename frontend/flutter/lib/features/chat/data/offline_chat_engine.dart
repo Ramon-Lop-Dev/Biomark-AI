@@ -51,15 +51,15 @@ class OfflineChatEngine {
     if (tokens.length == 1 && greetings.contains(tokens.first)) {
       return ChatReply(
         sessionId: sid,
-        reply: 'Hola. Estás en el **Modo Asistente Sin Conexión** de Biomark AI.\n\n'
+        reply: 'Hola. Estás en el Modo Asistente Sin Conexión de Biomark AI.\n\n'
             'Aunque no tengas internet, puedo orientarte con las guías oficiales del MINSA sobre:\n'
-            '• **Dengue y fiebres** (Normativa 004/073)\n'
-            '• **Atención de niños, vómito y diarrea** (Normativa 153)\n'
-            '• **Golpe de calor y deshidratación**\n'
-            '• **Salud del corazón y pulso**\n'
-            '• **Gripe y tos** (Normativa 028)\n'
-            '• **Diabetes y glucosa** (Normativa 078)\n'
-            '• **Primeros auxilios básicos**\n\n'
+            '• Dengue y fiebres (Normativa 004/073)\n'
+            '• Atención de niños, vómito y diarrea (Normativa 153)\n'
+            '• Golpe de calor y deshidratación\n'
+            '• Salud del corazón y pulso\n'
+            '• Gripe y tos (Normativa 028)\n'
+            '• Diabetes y glucosa (Normativa 078)\n'
+            '• Primeros auxilios básicos\n\n'
             '¿Qué síntoma o molestia estás sintiendo?',
         riskLevel: 'LOW',
         sources: const ['Guía Local MINSA (Sin Conexión)'],

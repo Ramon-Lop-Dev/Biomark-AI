@@ -13,7 +13,9 @@ import '../../../biomark_brand.dart';
 import '../../../core/auth/auth_session.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/design/biomark_clay.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/chat_api.dart';
+import '../data/chat_storage.dart';
 import '../../progress/data/progress_api.dart';
 import '../data/vision_api.dart';
 import '../data/voice_api.dart';
@@ -52,12 +54,17 @@ class _ChatScreenState extends State<ChatScreen>
   String? _sessionId;
   String? _errorMessage;
   bool _isSending = false;
+  bool _hasText = false;
   bool _isRecording = false;
   bool _audioDraftReady = false;
   bool _audioDraftPaused = false;
   String? _audioDraftPath;
   double _audioLevel = 0.0;
   StreamSubscription<Amplitude>? _amplitudeSub;
+
+  void _persistMessages() {
+    ChatStorage.saveMessages(_messages, sessionId: _sessionId);
+  }
   late final AnimationController _entryController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 520),
@@ -179,11 +186,19 @@ class _ChatScreenState extends State<ChatScreen>
             ),
           );
         });
+        _persistMessages();
         _scrollToBottom();
         _showMessage('Evolución registrada correctamente.');
       }
     } catch (_) {
       if (mounted) _showMessage('No se pudo registrar la evolución.');
+    }
+  }
+
+  void _onTextChanged() {
+    final has = _controller.text.trim().isNotEmpty;
+    if (has != _hasText && mounted) {
+      setState(() => _hasText = has);
     }
   }
 
@@ -195,43 +210,64 @@ class _ChatScreenState extends State<ChatScreen>
     _voiceApi = VoiceApi(baseUrl: _apiUrl, accessToken: _accessToken);
     _visionApi = VisionApi(baseUrl: _apiUrl, accessToken: _accessToken);
     _progressApi = ProgressApi();
+    _controller.addListener(_onTextChanged);
     _entryController.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _showHealthDisclaimer();
         _loadChatHistory();
+        _showHealthDisclaimer();
         _getChatLocation();
       }
     });
   }
 
   Future<void> _loadChatHistory() async {
+    // 1. Cargar caché persistente local de inmediato para que el usuario no pierda su historial
+    final cached = await ChatStorage.loadMessages();
+    if (cached.messages.isNotEmpty && mounted) {
+      setState(() {
+        if (cached.sessionId != null) _sessionId = cached.sessionId;
+        _messages
+          ..clear()
+          ..addAll(cached.messages);
+      });
+      _scrollToBottom();
+    }
+
+    // 2. Sincronizar con el historial remoto del backend si está disponible
     try {
       final history = await _chatApi.loadHistory();
       if (!mounted) return;
-      setState(() {
-        if (history.sessionId != null) _sessionId = history.sessionId;
-        _messages
-          ..clear()
-          ..addAll(history.messages.map((message) => ChatMessage(
-                message.text,
-                message.isUser,
-                riskLevel: message.riskLevel,
-              )));
-        if (_messages.isEmpty) {
-          _messages.add(const ChatMessage(
-            '¡Hola! Soy Biomark AI. ¿En qué puedo ayudarte hoy con tu salud?',
-            false,
-          ));
-        }
-      });
-      _scrollToBottom();
+      if (history.messages.isNotEmpty) {
+        setState(() {
+          if (history.sessionId != null) _sessionId = history.sessionId;
+          _messages
+            ..clear()
+            ..addAll(history.messages.map((message) => ChatMessage(
+                  message.text,
+                  message.isUser,
+                  riskLevel: message.riskLevel,
+                )));
+          if (_messages.isEmpty) {
+            _messages.add(const ChatMessage(
+              '¡Hola! Soy Biomark AI. ¿En qué puedo ayudarte hoy con tu salud?',
+              false,
+            ));
+          }
+        });
+        _persistMessages();
+        _scrollToBottom();
+      }
     } catch (_) {
-      // El chat sigue disponible aunque todavía no exista historial.
+      // El chat sigue disponible con el historial local aunque no haya conexión.
     }
   }
 
   Future<void> _showHealthDisclaimer() async {
+    final prefs = await SharedPreferences.getInstance();
+    final alreadyAccepted = prefs.getBool('biomark_health_disclaimer_accepted') ?? false;
+    if (alreadyAccepted || !mounted) return;
+
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -259,7 +295,10 @@ class _ChatScreenState extends State<ChatScreen>
         ),
         actions: [
           FilledButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              prefs.setBool('biomark_health_disclaimer_accepted', true);
+              Navigator.pop(context);
+            },
             child: const Text('Aceptar'),
           ),
         ],
@@ -352,6 +391,7 @@ class _ChatScreenState extends State<ChatScreen>
       _errorMessage = null;
       _isSending = true;
     });
+    _persistMessages();
     _scrollToBottom();
 
     try {
@@ -374,6 +414,7 @@ class _ChatScreenState extends State<ChatScreen>
         );
         _isSending = false;
       });
+      _persistMessages();
     } on ChatApiException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -400,6 +441,7 @@ class _ChatScreenState extends State<ChatScreen>
       _errorMessage = null;
       _isSending = true;
     });
+    _persistMessages();
     _scrollToBottom();
 
     try {
@@ -429,6 +471,7 @@ class _ChatScreenState extends State<ChatScreen>
         }
         _isSending = false;
       });
+      _persistMessages();
     } on ChatApiException catch (_) {
       if (!mounted) return;
       _handleOfflineFallback(text);
@@ -460,6 +503,7 @@ class _ChatScreenState extends State<ChatScreen>
       _errorMessage = null;
       _isSending = false;
     });
+    _persistMessages();
     _showMessage('Respondido con la Guía Clínica Offline del MINSA (Sin Conexión).');
   }
 
@@ -567,6 +611,7 @@ class _ChatScreenState extends State<ChatScreen>
         );
         _isSending = false;
       });
+      _persistMessages();
       if (audioPath != null) await _playAudioFile(audioPath);
     } on ChatApiException catch (error) {
       if (!mounted) return;
@@ -643,6 +688,7 @@ class _ChatScreenState extends State<ChatScreen>
                   _ChatInput(
                     controller: _controller,
                     enabled: !_isSending,
+                    hasText: _hasText,
                     isRecording: _isRecording,
                     isAudioDraftReady: _audioDraftReady,
                     audioDraftPaused: _audioDraftPaused,
@@ -670,6 +716,7 @@ class _ChatScreenState extends State<ChatScreen>
 
   @override
   void dispose() {
+    _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _scrollController.dispose();
     _amplitudeSub?.cancel();
@@ -789,8 +836,8 @@ class _MessageBubble extends StatelessWidget {
                     padding: message.imagePath != null
                         ? const EdgeInsets.fromLTRB(12, 10, 12, 10)
                         : EdgeInsets.zero,
-                    child: Text(
-                      message.text,
+                    child: _FormattedMessageText(
+                      text: message.text,
                       style: textTheme.bodyMedium?.copyWith(
                         color: message.isUser
                             ? BiomarkColors.white
@@ -836,6 +883,69 @@ class _MessageBubble extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Renderiza texto con formato limpio, convirtiendo markdown de negrita (** o ***) en
+/// texto enriquecido real y eliminando cualquier asterisco o símbolo residual.
+class _FormattedMessageText extends StatelessWidget {
+  final String text;
+  final TextStyle? style;
+
+  const _FormattedMessageText({required this.text, this.style});
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = style ?? DefaultTextStyle.of(context).style;
+    final spans = _parseSpans(text, baseStyle);
+    return Text.rich(
+      TextSpan(children: spans),
+      style: baseStyle,
+    );
+  }
+
+  static List<InlineSpan> _parseSpans(String rawText, TextStyle baseStyle) {
+    if (rawText.isEmpty) return const [];
+
+    // Limpiar secuencias accidentales o defectuosas como /**, /**/, */
+    var cleanText = rawText
+        .replaceAll('/**', '')
+        .replaceAll('/**/', '')
+        .replaceAll('*/', '');
+
+    // Expresión regular que detecta negritas marcadas con ***...*** o **...**
+    final regex = RegExp(r'(\*{2,3})([^\*]+?)(\1)');
+    final spans = <InlineSpan>[];
+    int currentIndex = 0;
+
+    for (final match in regex.allMatches(cleanText)) {
+      if (match.start > currentIndex) {
+        final normalChunk = cleanText.substring(currentIndex, match.start);
+        // Eliminar asteriscos sueltos o residuales
+        final sanitizedNormal = normalChunk.replaceAll(RegExp(r'\*{2,}'), '');
+        if (sanitizedNormal.isNotEmpty) {
+          spans.add(TextSpan(text: sanitizedNormal, style: baseStyle));
+        }
+      }
+
+      final boldContent = match.group(2) ?? '';
+      spans.add(TextSpan(
+        text: boldContent,
+        style: baseStyle.copyWith(fontWeight: FontWeight.w800),
+      ));
+
+      currentIndex = match.end;
+    }
+
+    if (currentIndex < cleanText.length) {
+      final remaining = cleanText.substring(currentIndex);
+      final sanitizedRemaining = remaining.replaceAll(RegExp(r'\*{2,}'), '');
+      if (sanitizedRemaining.isNotEmpty) {
+        spans.add(TextSpan(text: sanitizedRemaining, style: baseStyle));
+      }
+    }
+
+    return spans;
   }
 }
 
@@ -1381,6 +1491,7 @@ class _ErrorBanner extends StatelessWidget {
 class _ChatInput extends StatelessWidget {
   final TextEditingController controller;
   final bool enabled;
+  final bool hasText;
   final bool isRecording;
   final bool isAudioDraftReady;
   final bool audioDraftPaused;
@@ -1396,6 +1507,7 @@ class _ChatInput extends StatelessWidget {
   const _ChatInput({
     required this.controller,
     required this.enabled,
+    required this.hasText,
     required this.isRecording,
     required this.isAudioDraftReady,
     required this.audioDraftPaused,
@@ -1415,99 +1527,159 @@ class _ChatInput extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 850),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: isRecording
-                ? _VoiceRecordingPanel(onVoice: onVoice, audioLevel: audioLevel)
-                : isAudioDraftReady
-                ? _VoiceDraftPreview(
-                    paused: audioDraftPaused,
-                    onPause: onPauseAudio ?? () {},
-                    onDelete: onDeleteAudio ?? () {},
-                    onSend: onSendAudio ?? () {},
-                  )
-                : Row(
-                    children: [
-                      IconButton.filledTonal(
-                        tooltip: 'Registrar evolución',
-                        onPressed: enabled && onLogEvolution != null ? onLogEvolution : null,
-                        icon: const Icon(Icons.insights_rounded, size: 20),
-                      ),
-                      const SizedBox(width: 4),
-                      IconButton.filledTonal(
-                        tooltip: 'Subir imagen',
-                        onPressed: enabled ? onOpenImagePicker : null,
-                        icon: const Icon(Icons.camera_alt_rounded, size: 20),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: TextField(
-                          controller: controller,
-                          enabled: enabled,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => onSend(),
-                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                          decoration: InputDecoration(
-                            hintText: 'Describe cómo te sientes...',
-                            hintStyle: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+          child: isRecording
+              ? _VoiceRecordingPanel(onVoice: onVoice, audioLevel: audioLevel)
+              : isAudioDraftReady
+                  ? _VoiceDraftPreview(
+                      paused: audioDraftPaused,
+                      onPause: onPauseAudio ?? () {},
+                      onDelete: onDeleteAudio ?? () {},
+                      onSend: onSendAudio ?? () {},
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Cápsula estilo WhatsApp para el campo de texto y adjuntos
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(26),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(
+                                    alpha: isDark ? 0.25 : 0.05,
+                                  ),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            filled: true,
-                            fillColor: Theme.of(context).cardColor,
-                            border: const OutlineInputBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(30),
-                              ),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: const OutlineInputBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(30),
-                              ),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: const OutlineInputBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(30),
-                              ),
-                              borderSide: BorderSide.none,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Registrar evolución médica',
+                                  onPressed: enabled && onLogEvolution != null
+                                      ? onLogEvolution
+                                      : null,
+                                  icon: const Icon(
+                                    Icons.insights_rounded,
+                                    size: 22,
+                                    color: BiomarkColors.blue,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TextField(
+                                    controller: controller,
+                                    enabled: enabled,
+                                    textInputAction: TextInputAction.send,
+                                    keyboardType: TextInputType.multiline,
+                                    minLines: 1,
+                                    maxLines: 4,
+                                    onSubmitted: (_) {
+                                      if (hasText) onSend();
+                                    },
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                      fontSize: 15,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: 'Mensaje',
+                                      hintStyle: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.5),
+                                        fontSize: 15,
+                                      ),
+                                      isDense: true,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                        vertical: 12,
+                                      ),
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  tooltip: 'Tomar o adjuntar foto',
+                                  onPressed:
+                                      enabled ? onOpenImagePicker : null,
+                                  icon: Icon(
+                                    Icons.camera_alt_rounded,
+                                    size: 22,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      IconButton.filled(
-                        tooltip: 'Enviar mensaje',
-                        onPressed: enabled ? onSend : null,
-                        style: IconButton.styleFrom(
-                          backgroundColor: BiomarkColors.blue,
-                          foregroundColor: Colors.white,
+                        const SizedBox(width: 6),
+                        // Botón circular independiente estilo WhatsApp (Micrófono <-> Enviar según haya texto)
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00A884), // WhatsApp green
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF00A884)
+                                    .withValues(alpha: 0.35),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: enabled
+                                  ? (hasText ? onSend : onVoice)
+                                  : null,
+                              child: Center(
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 200),
+                                  transitionBuilder: (child, animation) =>
+                                      ScaleTransition(
+                                    scale: animation,
+                                    child: child,
+                                  ),
+                                  child: hasText
+                                      ? const Icon(
+                                          Icons.send_rounded,
+                                          key: ValueKey('chat_send_icon'),
+                                          color: Colors.white,
+                                          size: 22,
+                                        )
+                                      : const Icon(
+                                          Icons.mic_rounded,
+                                          key: ValueKey('chat_mic_icon'),
+                                          color: Colors.white,
+                                          size: 24,
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                        icon: const Icon(Icons.send_rounded, size: 20),
-                      ),
-                      const SizedBox(width: 4),
-                      IconButton.filledTonal(
-                        tooltip: 'Grabar audio',
-                        onPressed: enabled ? onVoice : null,
-                        icon: const Icon(Icons.mic_rounded, size: 20),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
-                  ),
-          ),
+                      ],
+                    ),
         ),
       ),
     );

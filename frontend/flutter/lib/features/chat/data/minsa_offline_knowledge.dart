@@ -30,21 +30,21 @@ class MinsaOfflineEntry {
 
   String formatResponse() {
     final buffer = StringBuffer();
-    buffer.writeln('📋 **$title**');
-    buffer.writeln('🏛️ *Respaldo: $normative*\n');
+    buffer.writeln('📋 $title');
+    buffer.writeln('🏛️ Respaldo: $normative\n');
     buffer.writeln(summary);
     buffer.writeln();
 
     if (isEmergency) {
-      buffer.writeln('🚨 **ATENCIÓN INMEDIATA - SEÑAL DE ALERTA CRÍTICA:**');
+      buffer.writeln('🚨 ATENCIÓN INMEDIATA - SEÑAL DE ALERTA CRÍTICA:');
       for (final sign in alarmSigns) {
         buffer.writeln('• $sign');
       }
-      buffer.writeln('\n⚠️ **Acción requerida:** Acude de inmediato al centro de salud u hospital más cercano.\n');
+      buffer.writeln('\n⚠️ Acción requerida: Acude de inmediato al centro de salud u hospital más cercano.\n');
     }
 
     if (immediateCare.isNotEmpty) {
-      buffer.writeln('💧 **Medidas de autocuidado inmediato:**');
+      buffer.writeln('💧 Medidas de autocuidado inmediato:');
       for (final care in immediateCare) {
         buffer.writeln('• $care');
       }
@@ -52,7 +52,7 @@ class MinsaOfflineEntry {
     }
 
     if (contraindications.isNotEmpty) {
-      buffer.writeln('🚫 **Lo que NO debes hacer (Contraindicaciones MINSA):**');
+      buffer.writeln('🚫 Lo que NO debes hacer (Contraindicaciones MINSA):');
       for (final contra in contraindications) {
         buffer.writeln('• $contra');
       }
@@ -60,14 +60,14 @@ class MinsaOfflineEntry {
     }
 
     if (!isEmergency && alarmSigns.isNotEmpty) {
-      buffer.writeln('🚩 **Signos de alarma para acudir a urgencias:**');
+      buffer.writeln('🚩 Signos de alarma para acudir a urgencias:');
       for (final sign in alarmSigns) {
         buffer.writeln('• $sign');
       }
       buffer.writeln();
     }
 
-    buffer.writeln('🏥 **Siguiente paso recomendado:**');
+    buffer.writeln('🏥 Siguiente paso recomendado:');
     buffer.writeln(nextSteps);
 
     return buffer.toString().trim();

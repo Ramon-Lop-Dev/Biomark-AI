@@ -46,6 +46,16 @@ class HealthCenterRecommendation {
       longitude: lon is num ? lon.toDouble() : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        if (id != null) 'id': id,
+        'nombre': name,
+        'distancia_km': distanceKm,
+        if (address != null) 'direccion': address,
+        if (specialty != null) 'especialidad_coincidente': specialty,
+        if (latitude != null) 'latitud': latitude,
+        if (longitude != null) 'longitud': longitude,
+      };
 }
 
 class ChatReply {

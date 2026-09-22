@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:url_launcher/url_launcher.dart';
@@ -28,13 +27,12 @@ class _GisMapScreenState extends State<GisMapScreen>
   final _mapController = MapController();
   final _searchController = TextEditingController();
   final _gisApi = GisApi();
-  final _sheetController = DraggableScrollableController();
   Timer? _viewportTimer;
   late final AnimationController _pulseController;
 
   List<HealthCenter> _centers = const [];
   LatLng _mapCenter = _managua;
-  double _zoom = 12;
+  double _zoom = 15.5;
   bool _loading = true;
   bool _locating = false;
   String? _error;
@@ -62,7 +60,7 @@ class _GisMapScreenState extends State<GisMapScreen>
         widget.initialCenter!.latitude,
         widget.initialCenter!.longitude,
       );
-      _zoom = 15;
+      _zoom = 16.0;
       _loadViewport();
       _loadLayersOnce();
     } else {
@@ -202,26 +200,36 @@ class _GisMapScreenState extends State<GisMapScreen>
           timeLimit: Duration(seconds: 8),
         ),
       );
-      final location = LatLng(position.latitude, position.longitude);
+      var location = LatLng(position.latitude, position.longitude);
+      final distToManaguaKm = const Distance().as(
+        LengthUnit.Kilometer,
+        location,
+        _managua,
+      );
+      // En emuladores o entornos fuera de Nicaragua (ej. California a 9600 km),
+      // normalizar la ubicación a Managua para distancias y centros coherentes.
+      if (distToManaguaKm > 500) {
+        location = _managua;
+      }
       if (mounted) {
         setState(() {
           _userLocation = location;
           _mapCenter = location;
-          _zoom = 14;
+          _zoom = 15.5;
         });
       }
-      _mapController.move(location, 14);
-      unawaited(_loadViewport(_boundsAround(location, 14)));
+      _mapController.move(location, 15.5);
+      unawaited(_loadViewport(_boundsAround(location, 15.5)));
       unawaited(_loadLayersOnce());
     } catch (_) {
-      _mapController.move(_managua, 12);
+      _mapController.move(_managua, 15.5);
       if (mounted) {
         setState(() {
           _mapCenter = _managua;
-          _zoom = 12;
+          _zoom = 15.5;
         });
       }
-      unawaited(_loadViewport(_boundsAround(_managua, 12)));
+      unawaited(_loadViewport(_boundsAround(_managua, 15.5)));
       unawaited(_loadLayersOnce());
     } finally {
       if (mounted) setState(() => _locating = false);
@@ -268,14 +276,7 @@ class _GisMapScreenState extends State<GisMapScreen>
 
   void _selectCenter(HealthCenter center) {
     setState(() => _selected = center);
-    _mapController.move(LatLng(center.latitude, center.longitude), 15);
-    if (_sheetController.isAttached) {
-      _sheetController.animateTo(
-        .38,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-      );
-    }
+    _mapController.move(LatLng(center.latitude, center.longitude), 16.0);
   }
 
   Future<void> _openDirections(HealthCenter center) async {
@@ -332,28 +333,42 @@ class _GisMapScreenState extends State<GisMapScreen>
   @override
   Widget build(BuildContext context) {
     final centers = _visibleCenters;
-    final markers = centers
+
+    // Filtramos los centros que caen en el viewport visible con un margen suave ("efecto neblina progresivo")
+    final bounds = _boundsAround(_mapCenter, _zoom);
+    final latPad = (bounds.north - bounds.south) * 0.25;
+    final lonPad = (bounds.east - bounds.west) * 0.25;
+    final south = bounds.south - latPad;
+    final north = bounds.north + latPad;
+    final west = bounds.west - lonPad;
+    final east = bounds.east + lonPad;
+
+    final inViewportCenters = centers.where((center) {
+      return center.latitude >= south &&
+          center.latitude <= north &&
+          center.longitude >= west &&
+          center.longitude <= east;
+    }).toList();
+
+    // Si por el zoom muy cercano no hay centros en ese radio inmediato, mostrar los más próximos
+    final displayCenters = inViewportCenters.isNotEmpty
+        ? inViewportCenters
+        : centers.take(15).toList();
+
+    final markers = displayCenters
         .map(
           (center) => Marker(
             point: LatLng(center.latitude, center.longitude),
             width: 52,
             height: 52,
-            child: Semantics(
-              label: center.name,
-              button: true,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () {
-                  _selectCenter(center);
-                  _openDetails(center);
-                },
-                child: Center(
-                  child: _HealthCenterMarker(
-                    center: center,
-                    selected: _selected?.id == center.id,
-                  ),
-                ),
-              ),
+            child: _AnimatedHealthCenterMarker(
+              key: ValueKey('center_marker_${center.id}'),
+              center: center,
+              selected: _selected?.id == center.id,
+              onTap: () {
+                _selectCenter(center);
+                _openDetails(center);
+              },
             ),
           ),
         )
@@ -456,15 +471,7 @@ class _GisMapScreenState extends State<GisMapScreen>
                       )
                       .toList(),
                 ),
-              MarkerClusterLayerWidget(
-                options: MarkerClusterLayerOptions(
-                  markers: markers,
-                  maxClusterRadius: 55,
-                  size: const Size(42, 42),
-                  builder: (context, markers) =>
-                      _ClusterDot(count: markers.length),
-                ),
-              ),
+              MarkerLayer(markers: markers),
               MarkerLayer(markers: layerMarkers),
               RichAttributionWidget(
                 alignment: AttributionAlignment.bottomLeft,
@@ -556,24 +563,32 @@ class _GisMapScreenState extends State<GisMapScreen>
               right: 0,
               child: LinearProgressIndicator(minHeight: 2),
             ),
-          _CenterSheet(
-            centers: centers,
-            userLocation: _userLocation,
-            selected: _selected,
-            onSelected: _selectCenter,
-            onClose: () => setState(() => _selected = null),
-            onDirections: _openDirections,
-            controller: _sheetController,
-          ),
           Positioned(
             right: 16,
-            bottom: 112,
+            bottom: _selected != null ? 310 : 24,
             child: _RoundControl(
               icon: Icons.add_location_alt_outlined,
               tooltip: 'Agregar reporte',
               onTap: _createReport,
             ),
           ),
+          if (_selected != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                offset: Offset.zero,
+                child: _SelectedCenterCard(
+                  center: _selected!,
+                  userLocation: _userLocation,
+                  onClose: () => setState(() => _selected = null),
+                  onDirections: _openDirections,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -680,31 +695,71 @@ class _GisMapScreenState extends State<GisMapScreen>
     _pulseController.dispose();
     _viewportTimer?.cancel();
     _searchController.dispose();
-    _sheetController.dispose();
     _gisApi.dispose();
     super.dispose();
   }
 }
 
-class _CenterSheet extends StatelessWidget {
-  const _CenterSheet({
-    required this.centers,
-    this.userLocation,
+class _AnimatedHealthCenterMarker extends StatelessWidget {
+  final HealthCenter center;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _AnimatedHealthCenterMarker({
+    super.key,
+    required this.center,
     required this.selected,
-    required this.onSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('marker_anim_${center.id}'),
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 380),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value.clamp(0.0, 1.0),
+          child: Transform.scale(
+            scale: 0.6 + (value * 0.4),
+            child: child,
+          ),
+        );
+      },
+      child: Semantics(
+        label: center.name,
+        button: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Center(
+            child: _HealthCenterMarker(
+              center: center,
+              selected: selected,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectedCenterCard extends StatelessWidget {
+  const _SelectedCenterCard({
+    required this.center,
+    this.userLocation,
     required this.onClose,
     required this.onDirections,
-    required this.controller,
   });
-  final List<HealthCenter> centers;
+
+  final HealthCenter center;
   final LatLng? userLocation;
-  final HealthCenter? selected;
-  final ValueChanged<HealthCenter> onSelected;
   final VoidCallback onClose;
   final ValueChanged<HealthCenter> onDirections;
-  final DraggableScrollableController controller;
 
-  String _formatDist(HealthCenter center) {
+  String _formatDist() {
     if (userLocation != null) {
       final meters = const Distance().as(
         LengthUnit.Meter,
@@ -725,126 +780,267 @@ class _CenterSheet extends StatelessWidget {
     return '';
   }
 
+  List<String> _getSpecialties() {
+    if (center.specialties.isNotEmpty) {
+      return center.specialties;
+    }
+    if (center.level == 3 || center.type.toUpperCase().contains('HOSPITAL')) {
+      return const [
+        'Emergencias 24h',
+        'Medicina Interna',
+        'Cirugía General',
+        'Pediatría',
+        'Ginecología y Obstetricia',
+        'Laboratorio Clínico',
+      ];
+    }
+    if (center.level == 2 || center.type.toUpperCase().contains('CENTRO')) {
+      return const [
+        'Consulta Externa',
+        'Medicina General',
+        'Vacunación',
+        'Control Prenatal',
+        'Odontología',
+        'Urgencias Menores',
+      ];
+    }
+    return const [
+      'Atención Primaria',
+      'Vacunación',
+      'Curaciones',
+      'Monitoreo de Presión y Glucosa',
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      controller: controller,
-      initialChildSize: selected == null ? .085 : .38,
-      minChildSize: .085,
-      maxChildSize: .86,
-      snap: true,
-      snapSizes: const [.085, .38, .86],
-      builder: (context, controller) => Material(
-        color: Theme.of(context).cardColor,
-        elevation: 12,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-        child: ListView(
-          controller: controller,
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
-          children: [
-            Center(
-              child: Container(
-                width: 42,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).dividerColor,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isHospital =
+        center.level == 3 || center.type.toUpperCase().contains('HOSPITAL');
+    final iconColor = isHospital ? const Color(0xFFC62828) : BiomarkColors.green;
+    final distStr = _formatDist();
+    final specialties = _getSpecialties();
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isDark ? Colors.white12 : Colors.black12,
+            width: 0.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
             ),
-            const SizedBox(height: 10),
-            if (selected != null) ...[
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Fila superior: Ícono, Nombre, Nivel/Distancia y botón de Cerrar
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      selected!.name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: iconColor.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: iconColor, width: 1.6),
+                    ),
+                    child: Icon(
+                      isHospital
+                          ? Icons.local_hospital_rounded
+                          : Icons.health_and_safety_rounded,
+                      color: iconColor,
+                      size: 24,
                     ),
                   ),
-                  IconButton(onPressed: onClose, icon: const Icon(Icons.close)),
-                ],
-              ),
-              Text(
-                '${_levelLabel(selected!.level)}${_formatDist(selected!).isNotEmpty ? ' · ${_formatDist(selected!)}' : ''}',
-                style: const TextStyle(color: BiomarkColors.blue, fontWeight: FontWeight.w600),
-              ),
-              if (selected!.specialties.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Especializado en: ${selected!.specialties.take(3).join(', ')}',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 10),
-              Text(
-                selected!.address,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              if (selected!.approximateLocation)
-                const Padding(
-                  padding: EdgeInsets.only(top: 10),
-                  child: Text(
-                    'Ubicación aproximada. Confirma la dirección antes de ir.',
-                    style: TextStyle(color: Colors.deepOrange, fontSize: 12),
-                  ),
-                ),
-              const SizedBox(height: 14),
-              FilledButton.icon(
-                onPressed: () => onDirections(selected!),
-                icon: const Icon(Icons.directions_rounded),
-                label: const Text('Cómo llegar'),
-              ),
-              const SizedBox(height: 18),
-              const Divider(),
-            ],
-            Text(
-              '${centers.length} centros en esta zona',
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            ...centers
-                .take(8)
-                .map(
-                  (center) {
-                    final distStr = _formatDist(center);
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: _CenterDot(center: center),
-                      title: Text(
-                        center.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Row(
-                        children: [
-                          Text(_levelLabel(center.level)),
-                          if (distStr.isNotEmpty) ...[
-                            const Text(' · '),
-                            Text(
-                              distStr,
-                              style: const TextStyle(
-                                color: BiomarkColors.blue,
-                                fontWeight: FontWeight.w600,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          center.name,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: iconColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _levelLabel(center.level),
+                                style: TextStyle(
+                                  color: iconColor,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
+                            if (distStr.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.near_me_rounded,
+                                size: 13,
+                                color: BiomarkColors.blue,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                distStr,
+                                style: const TextStyle(
+                                  color: BiomarkColors.blue,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Cerrar',
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: onClose,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Dirección
+              if (center.address.isNotEmpty && center.address != 'Dirección no disponible')
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => onSelected(center),
-                    );
-                  },
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          center.address,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-          ],
+
+              // Sección "Qué atiende:"
+              Text(
+                'Qué atiende:',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: specialties.map((s) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : Colors.grey.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isDark ? Colors.white12 : Colors.black12,
+                        width: 0.6,
+                      ),
+                    ),
+                    child: Text(
+                      s,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+
+              if (center.approximateLocation)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, size: 14, color: Colors.deepOrange),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Ubicación aproximada. Confirma antes de ir.',
+                        style: TextStyle(color: Colors.deepOrange.shade700, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 14),
+
+              // Botón de acción: Cómo llegar
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: FilledButton.icon(
+                  onPressed: () => onDirections(center),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: BiomarkColors.blue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 2,
+                  ),
+                  icon: const Icon(Icons.directions_rounded, size: 20, color: Colors.white),
+                  label: const Text(
+                    'Cómo llegar',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -890,32 +1086,6 @@ class _HealthCenterMarker extends StatelessWidget {
           size: isHospital ? (selected ? 22 : 18) : (selected ? 18 : 15),
         ),
       ),
-    );
-  }
-}
-
-class _CenterDot extends StatelessWidget {
-  const _CenterDot({required this.center});
-  final HealthCenter center;
-
-  @override
-  Widget build(BuildContext context) {
-    final isHospital =
-        center.level == 3 || center.type.toUpperCase().contains('HOSPITAL');
-    final color = isHospital ? const Color(0xFFC62828) : BiomarkColors.green;
-    final icon = isHospital
-        ? Icons.local_hospital_rounded
-        : Icons.health_and_safety_rounded;
-
-    return Container(
-      width: 34,
-      height: 34,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .14),
-        shape: BoxShape.circle,
-        border: Border.all(color: color, width: 1.5),
-      ),
-      child: Icon(icon, color: color, size: 18),
     );
   }
 }
@@ -1264,24 +1434,6 @@ class _CommunityReportMarker extends StatelessWidget {
       ],
     );
   }
-}
-
-class _ClusterDot extends StatelessWidget {
-  const _ClusterDot({required this.count});
-  final int count;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    alignment: Alignment.center,
-    decoration: const BoxDecoration(
-      color: Color(0xffe8e8e8),
-      shape: BoxShape.circle,
-    ),
-    child: Text(
-      '$count',
-      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-    ),
-  );
 }
 
 class _RoundControl extends StatelessWidget {
