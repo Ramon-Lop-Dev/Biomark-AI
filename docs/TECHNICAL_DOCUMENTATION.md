@@ -109,6 +109,102 @@ Flutter activa o desactiva cada capa con controles pequeños. Los reportes no ap
 
 La propuesta operativa para jornadas es que un promotor o líder comunitario cree el evento con fecha, descripción, ubicación textual y coordenadas; n8n puede notificar a usuarios cercanos, mientras el evento futuro aparece como marcador azul en el mapa. Los reportes validados aparecen como círculos cuya intensidad/tamaño representa la cantidad agregada de casos.
 
+### 4.8 Motor de Chat Offline y Base de Conocimiento MINSA
+
+Para garantizar atención continua en zonas rurales o ante interrupciones de conectividad móvil, el frontend de Flutter cuenta con un motor clínico autónomo en memoria (`OfflineChatEngine` y `MinsaOfflineKnowledge`):
+
+- **Catálogo normativo oficial:** Incluye directrices del Ministerio de Salud de Nicaragua:
+  - *Normativa 004 y 073:* Abordaje integral del Dengue y signos de alarma (dolor abdominal continuo, vómitos persistentes, sangrado de mucosas, decaimiento extremo). Contraindicación estricta de aspirina y AINEs.
+  - *Guía Clínica 153:* Enfermedad Diarreica Aguda (EDA), planes A, B y C de rehidratación oral con sales MINSA y uso de zinc.
+  - *Normativa 028:* Infecciones Respiratorias Agudas (IRA), prevención de neumonía y manejo ambulatorio.
+  - *Normativa 078:* Control y manejo de la Diabetes Mellitus e Hipertensión Arterial.
+  - *Esquema Nacional PAI:* Calendario de vacunación infantil y del adulto.
+  - *Emergencias Climáticas:* Protocolo de hidratación ante temperaturas superiores a 30°C y golpe de calor.
+  - *Glosario nicaragüense y Primeros Auxilios:* Normalización de términos coloquiales (*"calentura"*, *"chavalo"*, *"sofocado"*, *"acabangado"*).
+- **Algoritmo de triaje local:**
+  1. *Evaluador de Banderas Rojas:* Detección de síntomas críticos inmediatos (dolor opresivo de pecho, hemorragia activa, convulsiones, disnea grave); genera alerta roja instantánea (`CRITICAL`) y orienta acudir al hospital más cercano.
+  2. *Scoring semántico:* Pondera palabras clave simples y frases compuestas con coincidencia exacta y tokens lematizados.
+  3. *Fallback transparente:* Si la API externa no responde o falla por timeout/red, `ChatScreen` captura la excepción sin mostrar mensajes de error molestos y presenta la respuesta con el distintivo: `Modo Sin Conexión · Guía Oficial MINSA`.
+
+### 4.9 Sismocardiografía Torácica (SCG) para Signos Vitales
+
+Se eliminó la fotopletismografía por linterna/cámara (PPG) y se consolidó la **Sismocardiografía (SCG)** como el método biométrico principal de la aplicación:
+
+- **Mecanismo:** Captura las micro-vibraciones mecánicas transmitidas por la contracción ventricular al esternón utilizando el acelerómetro tridimensional y giroscopio del smartphone (`sensors_plus`).
+- **Procesamiento de señal (`ScgProcessor`):**
+  - Aplica un filtro pasabanda digital (10 a 30 Hz) que aísla los componentes de cierre valvular cardíaco (componentes aórtico y mitral).
+  - Detección de picos sistólicos con umbral dinámico adaptativo y ventana refractaria mínima (250 ms) para prevenir dobles conteos.
+  - Estimación espectral de la frecuencia cardíaca en latidos por minuto (BPM) y cálculo de índice de calidad de señal (0% a 100%).
+  - Detección de perturbaciones y artefactos de movimiento del usuario.
+- **Posturas clínicas:** Soporte de postura supina (acostado boca arriba, teléfono plano en el pecho) y postura sentada (con compensación del vector de gravedad estática).
+- **Salida y almacenamiento:** Los resultados se clasifican clínicamente en *Normal* (60-100 BPM), *Bradicardia* (<60 BPM) o *Taquicardia* (>100 BPM), persistiendo la medición en `vitals_storage` con el método `SCG`.
+
+### 4.10 Recomendaciones de Salud Dinámicas e Inteligentes
+
+El módulo de recomendaciones sanitarias (`RecommendationsService` en Flutter y `/api/recommendations` en Backend) opera con un motor de priorización contextual:
+
+- **Algoritmo de relevancia ponderada (`getPrioritized`):**
+  1. *Alertas epidemiológicas territoriales activas (+10 puntos):* Cruza los brotes activos en el municipio del usuario con las categorías de la recomendación (ej. alerta de dengue en Managua eleva la tarjeta preventiva).
+  2. *Padecimientos crónicos del usuario (+8 puntos):* Cruza las respuestas de la encuesta médica (`enfermedadesCronicas`) con los padecimientos objetivo de la guía (hipertensión, diabetes, asma, etc.).
+  3. *Signos vitales alterados (+7 puntos):* Si la última medición de SCG detectó pulso superior a 100 o inferior a 60 BPM, prioriza automáticamente la tarjeta cardiovascular.
+  4. *Tratamiento farmacológico activo (+5 puntos):* Eleva pautas de adherencia si el usuario tiene medicamentos registrados.
+  5. *Geolocalización municipal (+4 puntos):* Relevancia específica para municipios con clima o condiciones particulares.
+- **Insignias dinámicas:** Asigna distintivos contextuales en tiempo real (`⭐ Prioritario para tu salud`, `🚨 Alerta comunitaria activa`, `❤️ Atención a tu pulso reciente`).
+- **Administración y validación:** El endpoint `POST/PUT /api/recommendations` exige rol `TRABAJADOR_SALUD`, `PROMOTOR` o `ADMIN`, garantizando que todas las tarjetas públicas estén validadas con su respectiva normativa MINSA.
+
+### 4.11 Seguimiento Proactivo de Evolución de Síntomas
+
+Permite al paciente registrar cómo evolucionan sus molestias a lo largo del tiempo:
+
+- **Detección en lenguaje natural:** En `ai-service/inference/service.py`, la función `sugerir_accion()` evalúa expresiones de mejoría, persistencia o deterioro (*"ya me siento mejor"*, *"no mejoro"*, *"aún me duele"*, *"sigo con fiebre"*, *"noto mejoría"*, *"quiero registrar mi progreso"*).
+- **Acción sugerida `REGISTER_PROGRESS`:** Cuando se detecta evolución, el backend emite `suggested_action: 'REGISTER_PROGRESS'`.
+- **Tarjeta interactiva en el Chat:** Flutter renderiza la tarjeta interactiva `_FollowUpActionCard` con opciones de un solo toque:
+  - *Mejoré* (`MEJORO`)
+  - *Sigo igual* (`IGUAL`)
+  - *Empeoré* (`EMPEORO`)
+  - *No seguro* (`NO_SEGURO`)
+- **Persistencia y retroalimentación:** Al presionar una opción, se abre el diálogo de registro y se persiste en la tabla `seguimiento_salud`. El historial de evolución previa se inyecta en el prompt del LLM en futuras sesiones para evaluar la tendencia del paciente.
+
+### 4.12 Módulo RAG con Persistencia Incremental en ChromaDB
+
+El componente RAG (`RagRetriever`) sincroniza documentos normativos oficiales de Supabase Storage e indexa su contenido en ChromaDB:
+
+- **Control de Manifiesto (`chroma_db/indexed_files.json`):** Almacena el hash, timestamp (`updated_at`), tamaño en bytes y cantidad de fragmentos por archivo.
+- **Metadatos por fragmento:** Cada vector almacena `{"source": nombre_archivo, "page": page_num, "chunk": chunk_id}`.
+- **Persistencia diferencial (Zero Re-download / Zero Re-embedding):** Antes de descargar un PDF del bucket `documentos-minsa`, `_esta_indexado()` verifica si el archivo ya fue procesado y si permanece inalterado. En tal caso, omite completamente la descarga y el cálculo de embeddings con `SentenceTransformer`, reduciendo el tiempo de inicialización del servicio de varios segundos a milisegundos.
+- **Actualización atómica:** Si un archivo cambia en Supabase, el sistema purga los fragmentos obsoletos mediante `collection.delete(where={"source": nombre_archivo})` y re-indexa únicamente la nueva versión.
+
+### 4.13 Integración del Modelo Hugging Face (`BiomarkAI/Biomark-AI-Produccion`)
+
+El servicio de inferencia está adaptado al modelo especializado `BiomarkAI/Biomark-AI-Produccion` (basado en BioMistral 7B / Mistral Instruct):
+
+- **Plantilla de chat Jinja estricta:** La plantilla del tokenizador de Mistral solo admite roles `user` y `assistant`, lanzando una excepción si recibe un rol `system`.
+- **Compatibilidad del prompt:** En `generator.py`, se consolidan las instrucciones de la persona clínica (`PERSONA_BIOMARK`), las 6 reglas obligatorias de triaje y el contexto médico del paciente directamente dentro del primer turno `user`.
+- **Generación:** `tokenizer.apply_chat_template` produce de forma limpia el bloque `<s>[INST] ... [/INST]`, evitando la alucinación de tokens de control o falsos turnos adicionales.
+
+### 4.14 Sistema de Diseño Glassmorphism y Accesibilidad (WCAG AAA)
+
+La interfaz gráfica incorpora un lenguaje de diseño moderno basado en superficies translúcidas con desenfoque de fondo:
+
+- **Componente `BiomarkGlassSurface`:** Emplea `BackdropFilter` con desenfoque gaussiano (`sigma: 12.0`), tintes translúcidos adaptativos a modo claro y oscuro, bordes pulidos de 1.0 px y sombras suaves.
+- **Accesibilidad y Alto Contraste:** Si el usuario activa el modo de **Alto Contraste** en `AppThemeController`, el componente conmuta automáticamente a fondos 100% sólidos con bordes nítidos de 2.0 px en blanco o negro, garantizando un ratio de contraste superior a 7:1 (cumplimiento WCAG AAA).
+- **Auditoría Antisolapamiento:** Se integraron `LayoutBuilder`, `SingleChildScrollView`, `IntrinsicHeight` y restricciones de altura mínima para asegurar que ningún dispositivo sufra errores de `RenderFlex overflowed`.
+
+### 4.15 Mapa GIS de Alta Precisión y Centros de Salud
+
+El módulo GIS (`GisMapScreen`) optimiza la ubicación y acceso a servicios médicos:
+
+- **GPS de alta precisión:** Configuración `LocationAccuracy.high` en `Geolocator` para obtener coordenadas exactas en metros.
+- **Filtros rápidos:** Chips interactivos para filtrar por categoría: *Todos*, *Hospitales* (Nivel 3), *Centros de Salud* (Nivel 2) y *Puestos Médicos* (Nivel 1).
+- **Distancia geodésica en tiempo real:** Cálculo de distancia Haversine exacta al usuario y formateo inteligente (`250 m` o `1.4 km`) visible en el marcador y en el panel deslizable inferior (`_CenterSheet`).
+
+### 4.16 Baja y Eliminación Completa de Cuenta de Usuario
+
+Para dar estricto cumplimiento a los derechos de privacidad y protección de datos sanitarios (RGPD y normativas locales):
+
+- **Procedimiento en Base de Datos:** La función `eliminar_cuenta_usuario(usuario_uuid)` en `010_eliminar_cuenta_usuario.sql` ejecuta un borrado transaccional en cascada de: `perfiles`, `historial_medico`, `alergias`, `medicamentos`, `antecedentes_familiares`, `vacunas`, `sintomas`, `seguimiento_salud`, `recordatorios`, `sesiones_chat`, `mensajes_chat`, `consentimientos`, `dispositivos_push` y la cuenta de `auth.users`.
+- **Endpoint seguro:** Expuesto en `DELETE /api/auth/account`, protegido con JWT del usuario activo.
+
 ## 5. Estructura modular
 
 ```text
@@ -118,12 +214,14 @@ backend/src/
   config/                        Supabase, AI Service y n8n
   middleware/                    JWT, RBAC, validación, errores y webhooks
   modules/
-    auth/                        Registro, login, Google, refresh y logout
-    users/                       Perfil, consentimiento y tokens push
+    auth/                        Registro, login, Google, refresh, logout y eliminación de cuenta
+    users/                       Perfil, foto de perfil, consentimiento y tokens push
     medical/                     Historial, alergias, medicamentos y familia
     symptoms/                    Síntomas y registros asociados
     vaccines/                    Vacunas y recomendaciones
-    reminders/                   Recordatorios y eventos n8n
+    reminders/                   Recordatorios, frecuencias, aviso previo y eventos n8n
+    recommendations/             Recomendaciones comunitarias, validación MINSA y scoring
+    progress/                    Evolución de síntomas, metas e hitos
     chat/                        Sesiones, contexto y conversación
     voice/                       ASR/TTS y conversación por voz
     vision/                      Análisis de piel/garganta y Storage
@@ -137,16 +235,37 @@ ai-service/
   main.py                        API FastAPI interna
   config.py                      Entorno y configuración de modelos
   safety/                        Safety Layer y validación de respuesta
-  inference/                     Modelo, generación y servicio clínico
-  rag/                            Recuperación de documentos MINSA
+  inference/                     Modelo BioMistral 7B, generación y servicio clínico
+  rag/                           Recuperación con persistencia incremental en ChromaDB
   voice/                         ASR y TTS
   vision/                        Clasificadores
-  gis/                            Centros cercanos
+  gis/                           Centros cercanos y mapper de especialidades
 
-database/migrations/             Migraciones aplicadas en Supabase
-docs/                            OpenAPI, Postman y manuales
+frontend/flutter/lib/
+  core/
+    design/                      BiomarkGlassSurface, responsive layout, tema y colores
+    auth/                        Sesión y autenticación
+    config/                      Configuración de endpoints
+  features/
+    chat/
+      data/                      MinsaOfflineKnowledge, OfflineChatEngine y API
+      presentation/              ChatScreen, burbujas y tarjetas interactivas
+    vitals/
+      data/                      VitalsStorage
+      domain/                    VitalMeasurement (SCG)
+      presentation/              ScgScreen y ScgProcessor
+    home/
+      data/                      RecommendationsService (priorización contextual)
+      presentation/              HomeScreen y tarjetas glassmorphism
+    gis/
+      presentation/              GisMapScreen (filtros y geolocalización de precisión)
+    progress/
+      presentation/              ProgressScreen (evolución de síntomas e hitos)
+
+database/migrations/             Migraciones aplicadas en Supabase (001 a 013)
+docs/                            OpenAPI, Postman y manuales técnicos
 docker-compose.contabo.yml       Compose de producción para Contabo
-database/seeds/                   Datasets iniciales controlados
+database/seeds/                  Datasets iniciales controlados
 ```
 
 Cada archivo de código incluye un encabezado breve con su responsabilidad.
@@ -180,9 +299,23 @@ Antes de VPS, rotar las claves que hayan estado en archivos locales o conversaci
 
 ## 8. Base de datos
 
-Las tablas principales son `usuarios`, `perfiles`, `historial_medico`, `alergias`, `medicamentos`, `antecedentes_familiares`, `vacunas`, `sintomas`, `registros_sintomas`, `eventos_medicos`, `imagenes_medicas`, `recordatorios`, `notificaciones`, `sesiones_chat`, `mensajes_chat`, `centros_salud`, `eventos_comunitarios`, `zonas_riesgo`, `reportes_epidemiologicos`, `alertas_epidemiologicas`, `reportes_comunitarios`, `registros_auditoria`, `consentimientos` y `dispositivos_push`.
+Las tablas principales son `usuarios`, `perfiles`, `historial_medico`, `alergias`, `medicamentos`, `antecedentes_familiares`, `vacunas`, `sintomas`, `registros_sintomas`, `seguimiento_salud`, `objetivos_salud`, `hitos_objetivo`, `recomendaciones_salud`, `solicitudes_rol_promotor`, `eventos_medicos`, `imagenes_medicas`, `recordatorios`, `notificaciones`, `sesiones_chat`, `mensajes_chat`, `centros_salud`, `eventos_comunitarios`, `zonas_riesgo`, `reportes_epidemiologicos`, `alertas_epidemiologicas`, `reportes_comunitarios`, `registros_auditoria`, `consentimientos` y `dispositivos_push`.
 
-Las migraciones `002_auditoria_operativa.sql`, `003_dispositivos_push.sql`, `004_seguimiento_evolucion.sql` y `005_centros_salud_recomendador.sql` agregan auditoría, push, seguimiento y campos de centros enriquecidos. Después de `005` debe cargarse `database/seeds/seed_centros_salud_managua.sql`.
+Las migraciones aplicadas de forma secuencial en Supabase son:
+- `002_auditoria_operativa.sql`: Auditoría de operaciones críticas.
+- `003_dispositivos_push.sql`: Registro de tokens FCM para notificaciones.
+- `004_seguimiento_evolucion.sql`: Tabla `seguimiento_salud` para evolución de síntomas (`MEJORO`, `IGUAL`, `EMPEORO`, `NO_SEGURO`).
+- `005_centros_salud_recomendador.sql`: Campos enriquecidos para centros y geolocalización.
+- `006_objetivos_mejoria.sql`: Metas de salud e hitos interactivos.
+- `007_solicitudes_roles.sql`: Solicitudes y revisión administrativa para rol de Promotor de Salud.
+- `008_flujo_promotor.sql`: Permisos y asignación territorial para promotores.
+- `009_fotos_perfil.sql`: Soporte de avatar y fotos de perfil en Storage.
+- `010_eliminar_cuenta_usuario.sql`: Función RPC transaccional para baja definitiva de cuenta y borrado en cascada de datos de salud.
+- `011_recordatorios_frecuencia.sql`: Frecuencias avanzadas de recordatorios (`DIARIA`, `SEMANAL`, etc.).
+- `012_recordatorios_aviso_previo.sql`: Anticipación configurable para notificaciones.
+- `013_recomendaciones_salud.sql`: Catálogo y administración de recomendaciones de salud con validación normativa MINSA.
+
+Después de `005` debe cargarse `database/seeds/seed_centros_salud_managua.sql`.
 
 `centros_salud.tipo` usa el enum `tipo_centro_salud`; `tipo_unidad` conserva la descripción operativa, por ejemplo `Hospital Referencia Nacional`. `especialidades` es un array de texto y debe mantenerse sincronizado con `ai-service/gis/specialty_mapper.py`.
 

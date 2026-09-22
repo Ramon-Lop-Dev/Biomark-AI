@@ -19,6 +19,7 @@ tags:
   - name: Comunidad
   - name: GIS
   - name: Epidemiología
+  - name: Recomendaciones
 paths:
   /health:
     get:
@@ -106,6 +107,72 @@ paths:
       tags: [Auth]
       summary: Cierra la sesión actual
       responses: { '204': { description: Sesión cerrada } }
+  /api/auth/account:
+    delete:
+      tags: [Auth]
+      summary: Elimina definitivamente la cuenta del usuario y todos sus datos en cascada
+      description: Invoca la función RPC eliminar_cuenta_usuario en Supabase eliminando en cascada perfil, historial médico, consentimientos, sesiones y credenciales de autenticación.
+      responses:
+        '200':
+          description: Cuenta eliminada satisfactoriamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: 'Cuenta eliminada satisfactoriamente' }
+        '401':
+          description: No autorizado
+  /api/auth/promotor/solicitud:
+    post:
+      tags: [Auth]
+      summary: Solicita asignación del rol de promotor de salud
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [motivo, organizacion]
+              properties:
+                motivo: { type: string }
+                organizacion: { type: string }
+      responses:
+        '201': { description: Solicitud enviada }
+    get:
+      tags: [Auth]
+      summary: Consulta el estado de la solicitud de promotor del usuario
+      responses:
+        '200': { description: Estado de la solicitud de promotor }
+  /api/auth/promotor/solicitudes:
+    get:
+      tags: [Auth]
+      summary: Lista solicitudes de rol promotor pendientes de revisión
+      description: Requiere rol ADMIN.
+      responses:
+        '200': { description: Listado de solicitudes }
+  /api/auth/promotor/solicitudes/{id}:
+    patch:
+      tags: [Auth]
+      summary: Aprueba o rechaza una solicitud de promotor
+      description: Requiere rol ADMIN.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estado]
+              properties:
+                estado: { type: string, enum: [APROBADA, RECHAZADA] }
+                notas_revision: { type: string }
+      responses:
+        '200': { description: Solicitud actualizada }
   /api/users/profile:
     get:
       tags: [Usuario]
@@ -377,6 +444,96 @@ paths:
       summary: Reporta casos comunitarios
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [latitude, longitude], properties: { case_count: { type: integer, minimum: 1 }, description: { type: string }, latitude: { type: number }, longitude: { type: number }, zona_riesgo_id: { type: string, format: uuid } } } } } }
       responses: { '201': { description: Reporte pendiente de validación } }
+  /api/recommendations:
+    get:
+      tags: [Recomendaciones]
+      summary: Obtiene lista de recomendaciones de salud preventiva validadas
+      parameters:
+        - name: categoria
+          in: query
+          required: false
+          schema: { type: string, enum: [dengue, heatWave, cardiovascular, treatment, minsaNotice, diabetes, respiratory] }
+        - name: estado
+          in: query
+          required: false
+          schema: { type: string, enum: [BORRADOR, PUBLICADO, ARCHIVADO], default: PUBLICADO }
+      responses:
+        '200':
+          description: Lista de recomendaciones
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/HealthRecommendation' }
+    post:
+      tags: [Recomendaciones]
+      summary: Crea una recomendación de salud validada según normativa MINSA
+      description: Requiere rol TRABAJADOR_SALUD, PROMOTOR o ADMIN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateRecommendationRequest' }
+      responses:
+        '201':
+          description: Recomendación creada exitosamente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthRecommendation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { description: Permisos insuficientes }
+  /api/recommendations/{id}:
+    get:
+      tags: [Recomendaciones]
+      summary: Consulta una recomendación por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Detalle de la recomendación
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthRecommendation' }
+        '404': { description: Recomendación no encontrada }
+    put:
+      tags: [Recomendaciones]
+      summary: Actualiza una recomendación existente
+      description: Requiere rol TRABAJADOR_SALUD, PROMOTOR o ADMIN.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateRecommendationRequest' }
+      responses:
+        '200':
+          description: Recomendación actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthRecommendation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { description: Permisos insuficientes }
+        '404': { description: Recomendación no encontrada }
+    delete:
+      tags: [Recomendaciones]
+      summary: Elimina una recomendación de salud
+      description: Requiere rol TRABAJADOR_SALUD, PROMOTOR o ADMIN.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Recomendación eliminada }
+        '403': { description: Permisos insuficientes }
+        '404': { description: Recomendación no encontrada }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
@@ -394,5 +551,64 @@ components:
     VoiceResponse: { type: object, properties: { session_id: { type: string, format: uuid }, transcription: { type: string }, reply: { type: string }, risk_level: { type: string }, sources: { type: array, items: { type: string } }, audio_base64: { type: string, format: byte }, audio_content_type: { type: string, example: audio/wav } } }
     GoalRequest: { type: object, required: [titulo, periodicidad, fecha_inicio, fecha_fin], properties: { titulo: { type: string }, descripcion: { type: string }, periodicidad: { type: string, enum: [SEMANAL, QUINCENAL, MENSUAL, TRIMESTRAL, SEMESTRAL, ANUAL] }, fecha_inicio: { type: string, format: date }, fecha_fin: { type: string, format: date } } }
     HealthCenterRecommendation: { type: object, nullable: true, properties: { id: { type: string, format: uuid }, nombre: { type: string }, direccion: { type: string, nullable: true }, distancia_km: { type: number }, especialidad_coincidente: { type: string, nullable: true }, tipo_unidad: { type: string, nullable: true } } }
+    HealthRecommendation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        categoria: { type: string, enum: [dengue, heatWave, cardiovascular, treatment, minsaNotice, diabetes, respiratory] }
+        titulo: { type: string }
+        resumen: { type: string }
+        detalle_clinico: { type: string }
+        normativa_minsa: { type: string }
+        etiqueta: { type: string }
+        icono: { type: string }
+        color_hex: { type: string }
+        puntos_clave: { type: array, items: { type: string } }
+        condiciones_diana: { type: array, items: { type: string } }
+        alertas_diana: { type: array, items: { type: string } }
+        municipios_objetivo: { type: array, items: { type: string } }
+        edad_minima: { type: integer, nullable: true }
+        edad_maxima: { type: integer, nullable: true }
+        estado: { type: string, enum: [BORRADOR, PUBLICADO, ARCHIVADO] }
+        creado_por: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateRecommendationRequest:
+      type: object
+      required: [categoria, titulo, resumen, detalle_clinico, normativa_minsa, etiqueta, puntos_clave]
+      properties:
+        categoria: { type: string, enum: [dengue, heatWave, cardiovascular, treatment, minsaNotice, diabetes, respiratory] }
+        titulo: { type: string, minLength: 5, maxLength: 200 }
+        resumen: { type: string, minLength: 10 }
+        detalle_clinico: { type: string, minLength: 15 }
+        normativa_minsa: { type: string, minLength: 5 }
+        etiqueta: { type: string, minLength: 3, maxLength: 100 }
+        icono: { type: string }
+        color_hex: { type: string }
+        puntos_clave: { type: array, items: { type: string }, minItems: 1 }
+        condiciones_diana: { type: array, items: { type: string } }
+        alertas_diana: { type: array, items: { type: string } }
+        municipios_objetivo: { type: array, items: { type: string } }
+        edad_minima: { type: integer, minimum: 0, maximum: 120, nullable: true }
+        edad_maxima: { type: integer, minimum: 0, maximum: 120, nullable: true }
+        estado: { type: string, enum: [BORRADOR, PUBLICADO, ARCHIVADO], default: PUBLICADO }
+    UpdateRecommendationRequest:
+      type: object
+      properties:
+        categoria: { type: string, enum: [dengue, heatWave, cardiovascular, treatment, minsaNotice, diabetes, respiratory] }
+        titulo: { type: string, minLength: 5, maxLength: 200 }
+        resumen: { type: string, minLength: 10 }
+        detalle_clinico: { type: string, minLength: 15 }
+        normativa_minsa: { type: string, minLength: 5 }
+        etiqueta: { type: string, minLength: 3, maxLength: 100 }
+        icono: { type: string }
+        color_hex: { type: string }
+        puntos_clave: { type: array, items: { type: string }, minItems: 1 }
+        condiciones_diana: { type: array, items: { type: string } }
+        alertas_diana: { type: array, items: { type: string } }
+        municipios_objetivo: { type: array, items: { type: string } }
+        edad_minima: { type: integer, minimum: 0, maximum: 120, nullable: true }
+        edad_maxima: { type: integer, minimum: 0, maximum: 120, nullable: true }
+        estado: { type: string, enum: [BORRADOR, PUBLICADO, ARCHIVADO] }
   responses:
     BadRequest: { description: Datos inválidos }
