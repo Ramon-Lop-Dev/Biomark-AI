@@ -13,9 +13,20 @@ import '../data/gis_api.dart';
 import '../domain/health_center.dart';
 
 class GisMapScreen extends StatefulWidget {
-  const GisMapScreen({super.key, this.initialCenter});
+  const GisMapScreen({
+    super.key,
+    this.initialCenter,
+    this.initialLocation,
+    this.focusRiskZones = false,
+    this.focusEvents = false,
+    this.highlightTitle,
+  });
 
   final HealthCenter? initialCenter;
+  final LatLng? initialLocation;
+  final bool focusRiskZones;
+  final bool focusEvents;
+  final String? highlightTitle;
 
   @override
   State<GisMapScreen> createState() => _GisMapScreenState();
@@ -42,7 +53,7 @@ class _GisMapScreenState extends State<GisMapScreen>
   List<CommunityReportPoint> _reports = const [];
   LatLng? _userLocation;
   bool _showEvents = true;
-  bool _showRisk = false;
+  bool _showRisk = true; // Activo por defecto para que las geocercas rojas sean visibles
   bool _showReports = true;
   bool _layersLoaded = false;
   bool _layersLoading = false;
@@ -55,18 +66,30 @@ class _GisMapScreenState extends State<GisMapScreen>
       duration: const Duration(milliseconds: 2000),
     )..repeat();
 
-    if (widget.initialCenter != null) {
+    if (widget.initialLocation != null) {
+      _mapCenter = widget.initialLocation!;
+      _zoom = 16.0;
+    } else if (widget.initialCenter != null) {
       _mapCenter = LatLng(
         widget.initialCenter!.latitude,
         widget.initialCenter!.longitude,
       );
       _zoom = 16.0;
     }
+
+    if (widget.focusRiskZones) {
+      _showRisk = true;
+      _showReports = true;
+    }
+    if (widget.focusEvents) {
+      _showEvents = true;
+    }
+
     // Cargar inmediatamente los centros de Managua para que el mapa nunca aparezca desierto
     _loadViewport();
     _loadLayersOnce();
 
-    if (widget.initialCenter == null) {
+    if (widget.initialCenter == null && widget.initialLocation == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _locate());
     }
   }
@@ -344,6 +367,475 @@ class _GisMapScreenState extends State<GisMapScreen>
     }
   }
 
+  void _showEventDetails(CommunityEvent event) {
+    final visual = _getEventVisual(event);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 20,
+                offset: Offset(0, -4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).dividerColor.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: visual.color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(visual.icon, size: 16, color: visual.color),
+                          const SizedBox(width: 6),
+                          Text(
+                            visual.category.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: visual.color,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  event.title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.location_on_rounded, size: 18, color: Color(0xFF0284C7)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        event.location,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.schedule_rounded, size: 18, color: Color(0xFFF59E0B)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Horario / Fecha: ${event.date.day}/${event.date.month}/${event.date.year} (Jornada oficial MINSA)',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Theme.of(ctx).dividerColor.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'De qué se trata:',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        event.description.isNotEmpty
+                            ? event.description
+                            : 'Atención médica y preventiva gratuita organizada por brigadas del MINSA. Acuda con su cédula o tarjeta de salud.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _mapController.move(LatLng(event.latitude, event.longitude), 17.0);
+                        },
+                        icon: const Icon(Icons.filter_center_focus_rounded, size: 18),
+                        label: const Text('Centrar'),
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: FilledButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.parse(
+                            'https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}',
+                          );
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          }
+                        },
+                        icon: const Icon(Icons.directions_rounded, size: 18),
+                        label: const Text('Cómo Llegar', style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: visual.color,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showRiskZoneDetails(RiskZone zone) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).dividerColor.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.shield_rounded, size: 16, color: Color(0xFFEF4444)),
+                          SizedBox(width: 6),
+                          Text(
+                            'ZONA DE VIGILANCIA MINSA',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFEF4444),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  zone.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(Icons.radar_rounded, size: 18, color: Color(0xFFEF4444)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Radio epidemiológico de cobertura: ${zone.radiusKm.toStringAsFixed(1)} km',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.15 : 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Medidas Preventivas Oficiales (MINSA):',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFEF4444)),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        '• Elimine recipientes con agua estancada y lave pilas/barriles con cloro o cepillo.\n• Permita el ingreso de los brigadistas de salud para la aplicación de BTI o fumigación.\n• Si presenta fiebre repentina, dolor en el cuerpo o sarpullido, acuda de inmediato a su centro de salud.',
+                        style: TextStyle(fontSize: 12.5, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _mapController.move(LatLng(zone.latitude, zone.longitude), 15.5);
+                    },
+                    icon: const Icon(Icons.center_focus_strong_rounded, size: 18),
+                    label: const Text('Centrar en Zona de Vigilancia'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showReportDetails(CommunityReportPoint report) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Theme.of(ctx).dividerColor.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFEF4444)),
+                          SizedBox(width: 6),
+                          Text(
+                            'ALERTA COMUNITARIA',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFEF4444),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '${report.caseCount} ${report.caseCount == 1 ? 'Caso Sospechoso Reportado' : 'Casos Sospechosos Reportados'}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  report.description.isNotEmpty
+                      ? report.description
+                      : 'Zona bajo vigilancia comunitaria por reporte de cuadros febriles o respiratorios en el vecindario.',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    height: 1.4,
+                    color: Theme.of(ctx).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.15 : 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Recomendaciones del MINSA:',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFEF4444)),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        '• Elimine recipientes con agua estancada y mantenga depósitos bien tapados.\n• Si presenta síntomas de alarma acuda al centro de salud más cercano. No se automedique.',
+                        style: TextStyle(fontSize: 12.5, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _mapController.move(LatLng(report.latitude, report.longitude), 17.0);
+                    },
+                    icon: const Icon(Icons.center_focus_strong_rounded, size: 18),
+                    label: const Text('Centrar en el Punto'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final centers = _visibleCenters;
@@ -386,11 +878,38 @@ class _GisMapScreenState extends State<GisMapScreen>
             width: 44,
             height: 44,
             child: GestureDetector(
-              onTap: () {
-                final visual = _getEventVisual(event);
-                setState(() => _error = '[${visual.category}] ${event.title} · ${event.location}');
-              },
+              onTap: () => _showEventDetails(event),
               child: _CommunityEventMarker(event: event),
+            ),
+          ),
+        ),
+      if (_showRisk)
+        ..._riskZones.map(
+          (zone) => Marker(
+            point: LatLng(zone.latitude, zone.longitude),
+            width: 44,
+            height: 44,
+            child: GestureDetector(
+              onTap: () => _showRiskZoneDetails(zone),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 5,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
             ),
           ),
         ),
@@ -402,10 +921,7 @@ class _GisMapScreenState extends State<GisMapScreen>
             height: 56,
             alignment: Alignment.center,
             child: GestureDetector(
-              onTap: () => setState(
-                () => _error =
-                    '${report.caseCount} ${report.caseCount == 1 ? 'caso' : 'casos'} reportados: ${report.description.isNotEmpty ? report.description : "Zona con reporte comunitario"}',
-              ),
+              onTap: () => _showReportDetails(report),
               child: _CommunityReportMarker(
                 report: report,
                 pulseAnimation: _pulseController,
@@ -436,6 +952,21 @@ class _GisMapScreenState extends State<GisMapScreen>
                 userAgentPackageName: 'com.biomark.ai',
                 retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
               ),
+              if (_showEvents && _events.isNotEmpty)
+                CircleLayer(
+                  circles: _events
+                      .map(
+                        (event) => CircleMarker(
+                          point: LatLng(event.latitude, event.longitude),
+                          radius: 260,
+                          useRadiusInMeter: true,
+                          color: const Color(0x220284C7),
+                          borderColor: const Color(0x880284C7),
+                          borderStrokeWidth: 1.5,
+                        ),
+                      )
+                      .toList(),
+                ),
               if (_showReports && _reports.isNotEmpty)
                 CircleLayer(
                   circles: _reports
@@ -444,8 +975,8 @@ class _GisMapScreenState extends State<GisMapScreen>
                           point: LatLng(report.latitude, report.longitude),
                           radius: 350,
                           useRadiusInMeter: true,
-                          color: const Color(0x33FF1744),
-                          borderColor: const Color(0xCCFF1744),
+                          color: const Color(0x33EF4444),
+                          borderColor: const Color(0xFFEF4444),
                           borderStrokeWidth: 2,
                         ),
                       )
@@ -457,11 +988,11 @@ class _GisMapScreenState extends State<GisMapScreen>
                       .map(
                         (zone) => CircleMarker(
                           point: LatLng(zone.latitude, zone.longitude),
-                          radius: zone.radiusKm * 1000,
+                          radius: (zone.radiusKm * 1000).clamp(400, 3000),
                           useRadiusInMeter: true,
-                          color: Colors.red.withValues(alpha: .15),
-                          borderColor: Colors.red.withValues(alpha: .5),
-                          borderStrokeWidth: 2,
+                          color: const Color(0x33EF4444),
+                          borderColor: const Color(0xFFEF4444),
+                          borderStrokeWidth: 2.2,
                         ),
                       )
                       .toList(),

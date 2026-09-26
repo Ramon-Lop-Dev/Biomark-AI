@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:latlong2/latlong.dart';
+
 import '../../../biomark_brand.dart';
 import '../../../core/auth/auth_session.dart';
 import '../../../core/profile/user_profile_api.dart';
@@ -14,6 +16,9 @@ import '../../profile/presentation/notifications_inbox_screen.dart';
 import '../../../survey_service.dart';
 import '../data/health_content_api.dart';
 import '../domain/health_content_item.dart';
+import '../../gis/data/gis_api.dart';
+import '../../gis/domain/health_center.dart';
+import '../../gis/presentation/gis_map_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -43,6 +48,12 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loadingContent = true;
   String _selectedSegmentFilter = 'Todos';
 
+  // Capas GIS dinámicas (Jornadas, Brotes y Reportes de vigilancia comunitaria)
+  final _gisApi = GisApi();
+  List<CommunityEvent> _communityEvents = const [];
+  List<RiskZone> _riskZones = const [];
+  List<CommunityReportPoint> _communityReports = const [];
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +66,13 @@ class _HomeScreenState extends State<HomeScreen> {
     _cargarUltimoSignoVital();
     _cargarPreferenciaBannerVoz();
     _cargarContenidoSalud();
+    _cargarCapasGis();
+  }
+
+  @override
+  void dispose() {
+    _gisApi.dispose();
+    super.dispose();
   }
 
   void _cargarCondicionesUsuario() {
@@ -140,6 +158,26 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _cargarCapasGis() async {
+    try {
+      final layers = await _gisApi.fetchLayers(
+        latitude: 12.1364,
+        longitude: -86.2514,
+      );
+      List<CommunityReportPoint> reports = const [];
+      try {
+        reports = await _gisApi.fetchValidatedReports();
+      } catch (_) {}
+
+      if (!mounted) return;
+      setState(() {
+        _communityEvents = layers.events;
+        _riskZones = layers.riskZones;
+        _communityReports = reports;
+      });
+    } catch (_) {}
+  }
+
   Future<void> _openScgScreen() async {
     final result = await Navigator.push<VitalMeasurement?>(
       context,
@@ -166,6 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _cargarNombreUsuario(),
               _cargarUltimoSignoVital(),
               _cargarContenidoSalud(),
+              _cargarCapasGis(),
             ]);
           },
           child: ListView(
@@ -416,41 +455,50 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.favorite_rounded, color: Color(0xFFEF4444), size: 24),
                     ),
-                    child: const Icon(Icons.favorite_rounded, color: Color(0xFFEF4444), size: 24),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Monitor de Ritmo Cardíaco',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Monitor de Ritmo Cardíaco',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Sismocardiografía (SCG Pecho)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Sismocardiografía (SCG Pecho)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-              if (vital != null)
+              if (vital != null) ...[
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -479,6 +527,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
@@ -842,32 +891,74 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCommunityJornadasSection() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final jornadas = [
-      {
-        'tipo': 'CLÍNICA MÓVIL Y VACUNACIÓN',
-        'barrio': 'Barrio San Judas (Cancha Comunal)',
-        'fecha': 'Sábado, 8:00 AM - 1:00 PM',
-        'detalle': 'Medicina general, odontología, ultrasonidos y actualización del esquema de vacunas.',
-        'color': const Color(0xFF10B981),
-        'icon': Icons.local_hospital_rounded,
-      },
-      {
-        'tipo': 'JORNADA DE ABATIZACIÓN',
-        'barrio': 'Barrio Altagracia (Sector Puesto Médico)',
-        'fecha': 'Hoy, 7:30 AM - 12:00 PM',
-        'detalle': 'Brigadistas del SILAIS aplicando abate e inspección casa a casa para eliminar criaderos.',
-        'color': const Color(0xFF0284C7),
-        'icon': Icons.sanitizer_rounded,
-      },
-      {
-        'tipo': 'FERIA DE MEDICINA NATURAL',
-        'barrio': 'Barrio Batahola Sur (Parque Central)',
-        'fecha': 'Domingo, 9:00 AM - 2:00 PM',
-        'detalle': 'Atención con fitoterapia, terapias complementarias y toma de presión arterial.',
-        'color': const Color(0xFF8B5CF6),
-        'icon': Icons.eco_rounded,
-      },
-    ];
+    final jornadas = _communityEvents.isNotEmpty
+        ? _communityEvents
+        : [
+            CommunityEvent(
+              id: 'ev-seed-01',
+              title: 'Clínica Móvil y Atención Médica Integral',
+              description: 'Consultas de medicina general, odontología, ultrasonidos y entrega gratuita de medicamentos esenciales.',
+              date: DateTime.now().add(const Duration(days: 1)),
+              location: 'Barrio San Judas (Cancha Comunal Central)',
+              latitude: 12.1185,
+              longitude: -86.2890,
+              distanceKm: 1.5,
+            ),
+            CommunityEvent(
+              id: 'ev-seed-02',
+              title: 'Jornada Nacional de Vacunación Esquema 2026',
+              description: 'Inmunización contra neumococo, influenza, sarampión y refuerzos para niños y adultos mayores.',
+              date: DateTime.now().add(const Duration(days: 2)),
+              location: 'Barrio Altagracia (Centro de Salud)',
+              latitude: 12.1382,
+              longitude: -86.2815,
+              distanceKm: 0.8,
+            ),
+            CommunityEvent(
+              id: 'ev-seed-03',
+              title: 'Jornada de Abatización y Fumigación BTI',
+              description: 'Brigadas epidemiológicas del SILAIS Managua para control de larvas y eliminación de criaderos del mosquito transmisor.',
+              date: DateTime.now().add(const Duration(days: 3)),
+              location: 'Barrio Batahola Sur (Sector Los Robles)',
+              latitude: 12.1465,
+              longitude: -86.2940,
+              distanceKm: 2.1,
+            ),
+            CommunityEvent(
+              id: 'ev-seed-04',
+              title: 'Feria de Medicina Natural y Salud Integral',
+              description: 'Atención con fitoterapia, terapias complementarias, toma de presión arterial y pruebas de glucosa.',
+              date: DateTime.now().add(const Duration(days: 4)),
+              location: 'Barrio Camilo Ortega (Parque Comunal)',
+              latitude: 12.1090,
+              longitude: -86.2990,
+              distanceKm: 3.0,
+            ),
+          ];
+
+    Color getEventColor(String title) {
+      final t = title.toLowerCase();
+      if (t.contains('vacun')) return const Color(0xFF10B981);
+      if (t.contains('fumig') || t.contains('abatiz')) return const Color(0xFF0284C7);
+      if (t.contains('natural') || t.contains('feria')) return const Color(0xFF8B5CF6);
+      return const Color(0xFF0D9488);
+    }
+
+    IconData getEventIcon(String title) {
+      final t = title.toLowerCase();
+      if (t.contains('vacun')) return Icons.vaccines_rounded;
+      if (t.contains('fumig') || t.contains('abatiz')) return Icons.sanitizer_rounded;
+      if (t.contains('natural') || t.contains('feria')) return Icons.eco_rounded;
+      return Icons.local_hospital_rounded;
+    }
+
+    String getEventCategory(String title) {
+      final t = title.toLowerCase();
+      if (t.contains('vacun')) return 'VACUNACIÓN';
+      if (t.contains('fumig') || t.contains('abatiz')) return 'CONTROL VECTORIAL';
+      if (t.contains('natural') || t.contains('feria')) return 'MEDICINA NATURAL';
+      return 'CLÍNICA MÓVIL';
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -875,22 +966,36 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.campaign_rounded, size: 20, color: Color(0xFF0284C7)),
-                const SizedBox(width: 8),
-                Text(
-                  'Jornadas en Barrios Cercanos',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    color: Theme.of(context).colorScheme.onSurface,
+            Expanded(
+              child: Row(
+                children: [
+                  const Icon(Icons.campaign_rounded, size: 20, color: Color(0xFF0284C7)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Jornadas en Barrios Cercanos',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             TextButton.icon(
-              onPressed: () => widget.onNavigateToTab?.call(2),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const GisMapScreen(focusEvents: true),
+                  ),
+                );
+              },
               icon: const Icon(Icons.map_rounded, size: 16),
               label: const Text('Ver Mapa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               style: TextButton.styleFrom(
@@ -919,9 +1024,12 @@ class _HomeScreenState extends State<HomeScreen> {
             separatorBuilder: (_, _) => const SizedBox(width: 14),
             itemBuilder: (context, index) {
               final j = jornadas[index];
-              final color = j['color'] as Color;
+              final color = getEventColor(j.title);
+              final icon = getEventIcon(j.title);
+              final category = getEventCategory(j.title);
+
               return Container(
-                width: 280,
+                width: 285,
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
                   color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -949,12 +1057,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: color.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Icon(j['icon'] as IconData, size: 16, color: color),
+                          child: Icon(icon, size: 16, color: color),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            j['tipo'] as String,
+                            category,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w900,
@@ -968,14 +1076,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      j['barrio'] as String,
+                      j.location,
                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      j['fecha'] as String,
+                      '${j.date.day}/${j.date.month}/${j.date.year} · Atención en jornada',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -985,7 +1093,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 6),
                     Expanded(
                       child: Text(
-                        j['detalle'] as String,
+                        j.description,
                         style: TextStyle(
                           fontSize: 11.5,
                           height: 1.3,
@@ -1000,7 +1108,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: double.infinity,
                       height: 32,
                       child: OutlinedButton.icon(
-                        onPressed: () => widget.onNavigateToTab?.call(2),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => GisMapScreen(
+                                initialLocation: LatLng(j.latitude, j.longitude),
+                                focusEvents: true,
+                                highlightTitle: j.title,
+                              ),
+                            ),
+                          );
+                        },
                         icon: const Icon(Icons.near_me_rounded, size: 14),
                         label: const Text('Ubicar en Mapa', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                         style: OutlinedButton.styleFrom(
@@ -1028,24 +1147,67 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildNeighborhoodOutbreaksSection() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final brotes = [
-      {
-        'alerta': 'VIGILANCIA DE DENGUE ACTIVA',
-        'distrito': 'Distrito III: San Judas, Altagracia y Camilo Ortega',
-        'nivel': 'Alerta Amarilla Barrial',
-        'casos': 'Incremento de casos sospechosos en la última semana',
-        'recomendacion': 'Elimine recipientes con agua estancada. Acuda al puesto de salud si presenta fiebre repentina.',
-        'color': const Color(0xFFF59E0B),
-      },
-      {
-        'alerta': 'VIGILANCIA RESPIRATORIA ESTACIONAL',
-        'distrito': 'Distrito II: Batahola Sur y Linda Vista',
-        'nivel': 'Vigilancia Preventiva',
-        'casos': 'Circulación de virus respiratorios en menores de 5 años',
-        'recomendacion': 'Vigile dificultad para respirar y tos persistente. Mantenga hidratación y lavado de manos.',
-        'color': const Color(0xFF3B82F6),
-      },
-    ];
+    final brotes = <_OutbreakItem>[];
+
+    for (final z in _riskZones) {
+      final isHigh = z.name.toLowerCase().contains('dengue') || z.name.toLowerCase().contains('alerta');
+      brotes.add(
+        _OutbreakItem(
+          alerta: z.name.toUpperCase(),
+          distrito: 'Distrito de Cobertura Sanitaria (Radio ${z.radiusKm.toStringAsFixed(1)} km)',
+          nivel: isHigh ? 'Alerta Amarilla Barrial' : 'Vigilancia Preventiva',
+          casos: 'Monitoreo activo de casos en el sector por brigadas SILAIS',
+          recomendacion: 'Elimine recipientes con agua estancada. Acuda al centro de salud si presenta fiebre repentina.',
+          color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+          latitude: z.latitude,
+          longitude: z.longitude,
+          title: z.name,
+        ),
+      );
+    }
+
+    for (final r in _communityReports) {
+      brotes.add(
+        _OutbreakItem(
+          alerta: 'REPORTE COMUNITARIO DE SALUD',
+          distrito: 'Managua (Punto Georreferenciado)',
+          nivel: '${r.caseCount} ${r.caseCount == 1 ? 'Caso Sospechoso' : 'Casos Sospechosos'}',
+          casos: r.description.isNotEmpty ? r.description : 'Reporte validado de síntomas en la comunidad',
+          recomendacion: 'Refuerce medidas higiénicas y consulte de inmediato ante signos de alarma.',
+          color: const Color(0xFFEF4444),
+          latitude: r.latitude,
+          longitude: r.longitude,
+          title: 'Reporte Comunitario',
+        ),
+      );
+    }
+
+    if (brotes.isEmpty) {
+      brotes.addAll([
+        const _OutbreakItem(
+          alerta: 'VIGILANCIA DE DENGUE ACTIVA',
+          distrito: 'Distrito III: San Judas, Altagracia y Camilo Ortega',
+          nivel: 'Alerta Amarilla Barrial',
+          casos: 'Incremento de casos sospechosos en la última semana',
+          recomendacion: 'Elimine recipientes con agua estancada. Acuda al puesto de salud si presenta fiebre repentina.',
+          color: Color(0xFFF59E0B),
+          latitude: 12.1220,
+          longitude: -86.2880,
+          title: 'Vigilancia Activa de Dengue',
+        ),
+        const _OutbreakItem(
+          alerta: 'VIGILANCIA RESPIRATORIA ESTACIONAL',
+          distrito: 'Distrito II: Batahola Sur y Linda Vista',
+          nivel: 'Vigilancia Preventiva',
+          casos: 'Circulación de virus respiratorios en menores de 5 años',
+          recomendacion: 'Vigile dificultad para respirar y tos persistente. Mantenga hidratación y lavado de manos.',
+          color: Color(0xFF3B82F6),
+          latitude: 12.1450,
+          longitude: -86.2920,
+          title: 'Vigilancia Respiratoria Estacional',
+        ),
+      ]);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1053,22 +1215,36 @@ class _HomeScreenState extends State<HomeScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.health_and_safety_rounded, size: 20, color: Color(0xFFEF4444)),
-                const SizedBox(width: 8),
-                Text(
-                  'Alertas y Reportes Comunitarios',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    color: Theme.of(context).colorScheme.onSurface,
+            Expanded(
+              child: Row(
+                children: [
+                  const Icon(Icons.health_and_safety_rounded, size: 20, color: Color(0xFFEF4444)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Alertas y Reportes Comunitarios',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
             TextButton.icon(
-              onPressed: () => widget.onNavigateToTab?.call(2),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const GisMapScreen(focusRiskZones: true),
+                  ),
+                );
+              },
               icon: const Icon(Icons.travel_explore_rounded, size: 16),
               label: const Text('Ver Brotes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               style: TextButton.styleFrom(
@@ -1089,7 +1265,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 14),
 
         ...brotes.map((b) {
-          final color = b['color'] as Color;
+          final color = b.color;
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(16),
@@ -1114,23 +1290,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        b['alerta'] as String,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          color: color,
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          b.alerta,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            color: color,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
-                      b['nivel'] as String,
+                      b.nivel,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
@@ -1141,12 +1322,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  b['distrito'] as String,
+                  b.distrito,
                   style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  b['casos'] as String,
+                  b.casos,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -1155,7 +1336,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  b['recomendacion'] as String,
+                  b.recomendacion,
                   style: TextStyle(
                     fontSize: 12,
                     height: 1.35,
@@ -1167,7 +1348,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: () => widget.onNavigateToTab?.call(2),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => GisMapScreen(
+                              initialLocation: LatLng(b.latitude, b.longitude),
+                              focusRiskZones: true,
+                              highlightTitle: b.title,
+                            ),
+                          ),
+                        );
+                      },
                       icon: const Icon(Icons.map_rounded, size: 14),
                       label: const Text('Ver Mapa de Vigilancia', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
                       style: OutlinedButton.styleFrom(
@@ -1347,4 +1539,28 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+}
+
+class _OutbreakItem {
+  final String alerta;
+  final String distrito;
+  final String nivel;
+  final String casos;
+  final String recomendacion;
+  final Color color;
+  final double latitude;
+  final double longitude;
+  final String title;
+
+  const _OutbreakItem({
+    required this.alerta,
+    required this.distrito,
+    required this.nivel,
+    required this.casos,
+    required this.recomendacion,
+    required this.color,
+    required this.latitude,
+    required this.longitude,
+    required this.title,
+  });
 }
