@@ -62,8 +62,18 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   final Set<String> _alergiasSeleccionadas = {};
   final TextEditingController _medicamentosController = TextEditingController();
   final TextEditingController _edadController = TextEditingController();
+  DateTime? _fechaNacimiento;
   String? _sexoSeleccionado;
   bool _consentimientoMedico = true;
+
+  int _calcularEdad(DateTime birth) {
+    final now = DateTime.now();
+    var age = now.year - birth.year;
+    if (now.month < birth.month || (now.month == birth.month && now.day < birth.day)) {
+      age--;
+    }
+    return age;
+  }
 
   @override
   void initState() {
@@ -77,8 +87,17 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     if (!mounted) return;
     final answers = SurveyService.respuestas;
     setState(() {
+      if (answers['fechaNacimiento'] is DateTime) {
+        _fechaNacimiento = answers['fechaNacimiento'] as DateTime;
+      }
       final age = answers['edad'];
-      if (age is num) _edadController.text = '${age.toInt()}';
+      if (_fechaNacimiento != null) {
+        final calc = _calcularEdad(_fechaNacimiento!);
+        _edadController.text = '$calc';
+      } else if (age is num) {
+        _edadController.text = '${age.toInt()}';
+        _fechaNacimiento = DateTime(DateTime.now().year - age.toInt(), 1, 1);
+      }
       _sexoSeleccionado = answers['sexo'] is String ? answers['sexo'] as String : null;
       _cronicasSeleccionadas.addAll(List<String>.from(answers['enfermedadesCronicas'] ?? const []));
       _hereditariasSeleccionadas.addAll(List<String>.from(answers['antecedentesHereditarios'] ?? const []));
@@ -101,8 +120,9 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   bool get _puedeAvanzar {
     switch (_paso) {
       case _PasoEncuesta.datosPersonales:
-        final edad = int.tryParse(_edadController.text.trim());
-        return edad != null && edad > 0 && edad <= 120 && _sexoSeleccionado != null;
+        if (_fechaNacimiento == null) return false;
+        final edad = _calcularEdad(_fechaNacimiento!);
+        return edad >= 0 && edad <= 120 && _sexoSeleccionado != null;
       case _PasoEncuesta.cronicas:
         return _cronicasSeleccionadas.isNotEmpty;
       case _PasoEncuesta.hereditarias:
@@ -160,15 +180,17 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   }
 
   Future<void> _finalizar() async {
-    final edad = int.tryParse(_edadController.text.trim());
+    final fecha = _fechaNacimiento;
     final sexo = _sexoSeleccionado;
-    if (edad == null || sexo == null) return;
+    if (fecha == null || sexo == null) return;
+    final edad = _calcularEdad(fecha);
 
     setState(() => _isLoading = true);
 
     try {
       if (widget.editing) {
         await SurveyService.reemplazarEncuesta(
+          fechaNacimiento: fecha,
           edad: edad,
           sexo: sexo,
           enfermedadesCronicas: _cronicasSeleccionadas.toList(),
@@ -179,6 +201,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
         ).timeout(const Duration(seconds: 15), onTimeout: () {});
       } else {
         await SurveyService.guardarRespuestas(
+          fechaNacimiento: fecha,
           edad: edad,
           sexo: sexo,
           enfermedadesCronicas: _cronicasSeleccionadas.toList(),
@@ -452,23 +475,118 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
           ),
           child: Column(
             children: [
-              TextField(
-                controller: _edadController,
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
-                style: TextStyle(color: textDark, fontWeight: FontWeight.w600),
-                decoration: InputDecoration(
-                  labelText: 'Edad *',
-                  hintText: 'Ej. 28',
-                  suffixText: 'años',
-                  prefixIcon: const Icon(Icons.cake_outlined, color: BiomarkColors.primary),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  focusedBorder: OutlineInputBorder(
+              InkWell(
+                onTap: () async {
+                  final now = DateTime.now();
+                  final initial = _fechaNacimiento ?? DateTime(2000, 1, 1);
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: initial.isAfter(now) ? now : initial,
+                    firstDate: DateTime(1900),
+                    lastDate: now,
+                    helpText: 'Selecciona tu fecha de nacimiento',
+                    cancelText: 'Cancelar',
+                    confirmText: 'Confirmar',
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _fechaNacimiento = picked;
+                      _edadController.text = '${_calcularEdad(picked)}';
+                    });
+                  }
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: BiomarkColors.primary, width: 2),
+                    border: Border.all(
+                      color: _fechaNacimiento != null
+                          ? BiomarkColors.primary
+                          : (isDark ? Colors.white24 : Colors.black26),
+                      width: _fechaNacimiento != null ? 1.5 : 1,
+                    ),
+                    color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_month_rounded, color: BiomarkColors.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Fecha de nacimiento *',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              _fechaNacimiento != null
+                                  ? '${_fechaNacimiento!.day.toString().padLeft(2, '0')}/${_fechaNacimiento!.month.toString().padLeft(2, '0')}/${_fechaNacimiento!.year}'
+                                  : 'Toca para seleccionar fecha',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: _fechaNacimiento != null
+                                    ? textDark
+                                    : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.edit_calendar_rounded, size: 20, color: Colors.grey),
+                    ],
                   ),
                 ),
               ),
+              if (_fechaNacimiento != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: BiomarkColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: BiomarkColors.primary.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cake_rounded, size: 20, color: BiomarkColors.primary),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Edad calculada: ${_calcularEdad(_fechaNacimiento!)} años',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 13,
+                                color: BiomarkColors.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Se actualizará de forma automática cada año según el calendario.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 18),
               DropdownButtonFormField<String>(
                 initialValue: _sexoSeleccionado,
@@ -680,7 +798,10 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
         _buildResumenTarjeta(
           'Datos Personales',
           {
-            '${_edadController.text.trim()} años',
+            if (_fechaNacimiento != null)
+              'Nacimiento: ${_fechaNacimiento!.day.toString().padLeft(2, '0')}/${_fechaNacimiento!.month.toString().padLeft(2, '0')}/${_fechaNacimiento!.year} (${_calcularEdad(_fechaNacimiento!)} años)'
+            else
+              '${_edadController.text.trim()} años',
             _sexoSeleccionado ?? 'Sin especificar',
           },
           Icons.person_rounded,

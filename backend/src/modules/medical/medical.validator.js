@@ -40,7 +40,8 @@ const replaceSurveySchema = z.object({
 });
 
 const interviewSchema = z.object({
-  edad: z.number().int().min(1).max(120),
+  fecha_nacimiento: z.string().date('fecha_nacimiento debe tener formato YYYY-MM-DD').optional(),
+  edad: z.number().int().min(0).max(120).optional(),
   sexo: z.string().trim().min(1),
   peso: z.number().min(1).max(500).optional(),
   altura: z.number().min(30).max(300).optional(),

@@ -6,6 +6,7 @@ class EditarPerfilScreen extends StatefulWidget {
   final String nombreActual;
   final String correo;
   final int? edad;
+  final DateTime? fechaNacimiento;
   final String? fotoUrl;
   final String? generoActual;
 
@@ -14,6 +15,7 @@ class EditarPerfilScreen extends StatefulWidget {
     required this.nombreActual,
     required this.correo,
     this.edad,
+    this.fechaNacimiento,
     this.fotoUrl,
     this.generoActual,
   });
@@ -27,6 +29,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   late final TextEditingController _correoController;
   late final TextEditingController _edadController;
   late final FocusNode _nombreFocus;
+  DateTime? _fechaNacimiento;
   Uint8List? _fotoBytes;
   String? _fotoNombre;
   String? _generoSeleccionado;
@@ -38,13 +41,27 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     'Prefiero no decir',
   ];
 
+  int? get _edadCalculada {
+    if (_fechaNacimiento != null) {
+      final now = DateTime.now();
+      var age = now.year - _fechaNacimiento!.year;
+      if (now.month < _fechaNacimiento!.month ||
+          (now.month == _fechaNacimiento!.month && now.day < _fechaNacimiento!.day)) {
+        age--;
+      }
+      return age;
+    }
+    return widget.edad;
+  }
+
   @override
   void initState() {
     super.initState();
     _nombreController = TextEditingController(text: widget.nombreActual);
     _correoController = TextEditingController(text: widget.correo);
+    _fechaNacimiento = widget.fechaNacimiento;
     _edadController = TextEditingController(
-      text: widget.edad != null ? widget.edad.toString() : '—',
+      text: _edadCalculada != null ? _edadCalculada.toString() : '—',
     );
     _nombreFocus = FocusNode();
     _generoSeleccionado = _normalizarGenero(widget.generoActual);
@@ -80,6 +97,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     Navigator.pop(context, {
       'nombre': _nombreController.text.trim(),
       'genero': _generoSeleccionado,
+      'fechaNacimiento': _fechaNacimiento,
       'fotoBytes': _fotoBytes,
       'fotoNombre': _fotoNombre ?? 'perfil.jpg',
     });
@@ -202,13 +220,46 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
-                    enabled: false,
-                    controller: _edadController,
-                    decoration: const InputDecoration(
-                      labelText: 'Edad (según tu encuesta)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.cake_outlined),
+                  InkWell(
+                    onTap: () async {
+                      final now = DateTime.now();
+                      final initial = _fechaNacimiento ?? DateTime(2000, 1, 1);
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: initial.isAfter(now) ? now : initial,
+                        firstDate: DateTime(1900),
+                        lastDate: now,
+                        helpText: 'Selecciona tu fecha de nacimiento',
+                        cancelText: 'Cancelar',
+                        confirmText: 'Confirmar',
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          _fechaNacimiento = picked;
+                          _edadController.text = '${_edadCalculada ?? '—'}';
+                        });
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Fecha de nacimiento',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.cake_outlined),
+                        suffixIcon: Icon(Icons.edit_calendar_rounded, size: 20),
+                        helperText: 'Tu edad se actualiza de forma automática cada año según el calendario.',
+                        helperMaxLines: 2,
+                      ),
+                      child: Text(
+                        _fechaNacimiento != null
+                            ? '${_fechaNacimiento!.day.toString().padLeft(2, '0')}/${_fechaNacimiento!.month.toString().padLeft(2, '0')}/${_fechaNacimiento!.year}${_edadCalculada != null ? ' ($_edadCalculada años)' : ''}'
+                            : (_edadCalculada != null ? '$_edadCalculada años (Toca para fijar fecha)' : 'Toca para seleccionar fecha'),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
                     ),
                   ),
                 ],

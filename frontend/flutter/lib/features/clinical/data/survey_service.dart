@@ -75,6 +75,7 @@ class SurveyService {
             orElse: () => null,
           );
       respuestas = {
+        'fechaNacimiento': birth,
         'edad': age,
         'sexo': nested['sexo'],
         'enfermedadesCronicas': history.map((item) => '${item['nombre_condicion'] ?? ''}').where((value) => value.isNotEmpty).toList(),
@@ -109,7 +110,8 @@ class SurveyService {
   }
 
   static Future<void> guardarRespuestas({
-    required int edad,
+    DateTime? fechaNacimiento,
+    int? edad,
     required String sexo,
     required List<String> enfermedadesCronicas,
     required List<String> antecedentesHereditarios,
@@ -120,6 +122,7 @@ class SurveyService {
     // Delega en reemplazarEncuesta (PUT /api/medical-history/survey) para garantizar
     // actualización atómica e idempotente y evitar duplicidad de registros en la base de datos.
     await reemplazarEncuesta(
+      fechaNacimiento: fechaNacimiento,
       edad: edad,
       sexo: sexo,
       enfermedadesCronicas: enfermedadesCronicas,
@@ -131,7 +134,8 @@ class SurveyService {
   }
 
   static Future<void> reemplazarEncuesta({
-    required int edad,
+    DateTime? fechaNacimiento,
+    int? edad,
     required String sexo,
     required List<String> enfermedadesCronicas,
     required List<String> antecedentesHereditarios,
@@ -139,8 +143,13 @@ class SurveyService {
     required String medicamentosActuales,
     required bool consentimientoMedico,
   }) async {
+    final effectiveBirth = fechaNacimiento ??
+        (edad != null ? DateTime(DateTime.now().year - edad, DateTime.now().month, DateTime.now().day) : null);
+    final calculatedAge = effectiveBirth != null ? _calculateAge(effectiveBirth) : (edad ?? 0);
+
     respuestas = {
-      'edad': edad,
+      'fechaNacimiento': effectiveBirth,
+      'edad': calculatedAge,
       'sexo': sexo,
       'enfermedadesCronicas': enfermedadesCronicas,
       'antecedentesHereditarios': antecedentesHereditarios,
@@ -156,11 +165,17 @@ class SurveyService {
     final token = AuthSession.instance.accessToken;
     if (token == null || token.isEmpty) return;
     final base = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
-    final birthDate = DateTime(DateTime.now().year - edad, DateTime.now().month, DateTime.now().day).toIso8601String().split('T').first;
+    final birthDate = effectiveBirth != null
+        ? effectiveBirth.toIso8601String().split('T').first
+        : (edad != null ? DateTime(DateTime.now().year - edad, DateTime.now().month, DateTime.now().day).toIso8601String().split('T').first : null);
     await http.put(
       Uri.parse('$base/api/users/profile'),
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-      body: jsonEncode({'fecha_nacimiento': birthDate, 'sexo': sexo, 'entrevista_completada': true}),
+      body: jsonEncode({
+        'fecha_nacimiento': ?birthDate,
+        'sexo': sexo,
+        'entrevista_completada': true,
+      }),
     );
     await http.put(
       Uri.parse('$base/api/users/consent'),

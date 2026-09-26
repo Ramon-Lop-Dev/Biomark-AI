@@ -31,7 +31,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // poder actualizarlas con setState al volver de EditarPerfilScreen.
   String _nombreUsuario = 'Cargando...';
   String _correoUsuario = 'Cargando...';
-  int? _edadUsuario; // viene de la encuesta hecha en el chat
+  DateTime? _fechaNacimientoUsuario;
+  int? _edadUsuario; // calculado dinámicamente según fecha de nacimiento
   String? _fotoUrl;
   String? _generoUsuario;
   bool _eliminandoCuenta = false;
@@ -63,6 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _correoUsuario = profile.email;
         _generoUsuario = profile.gender;
         _fotoUrl = profile.photoUrl;
+        _fechaNacimientoUsuario = profile.birthDate;
         _edadUsuario = profile.birthDate == null
             ? null
             : _calculateAge(profile.birthDate!);
@@ -97,6 +99,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'Prefiero no decir': 'NO_ESPECIFICA',
       };
       changes['sexo'] = genderMap[values['genero']] ?? values['genero'];
+    }
+    if (values['fechaNacimiento'] is DateTime) {
+      final dt = values['fechaNacimiento'] as DateTime;
+      changes['fecha_nacimiento'] = dt.toIso8601String().split('T').first;
     }
     if (changes.isEmpty) return;
     try {
@@ -385,6 +391,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           nombreActual: _nombreUsuario,
           correo: _correoUsuario,
           edad: _edadUsuario,
+          fechaNacimiento: _fechaNacimientoUsuario,
           fotoUrl: _fotoUrl,
           generoActual: _generoUsuario,
         ),
@@ -395,6 +402,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _nombreUsuario = resultado['nombre'] ?? _nombreUsuario;
         _generoUsuario = resultado['genero'] ?? _generoUsuario;
+        if (resultado['fechaNacimiento'] is DateTime) {
+          _fechaNacimientoUsuario = resultado['fechaNacimiento'] as DateTime;
+          _edadUsuario = _calculateAge(_fechaNacimientoUsuario!);
+        }
       });
       await _actualizarDatos(resultado);
       final fotoBytes = resultado['fotoBytes'];

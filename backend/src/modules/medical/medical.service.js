@@ -170,11 +170,14 @@ const generarPlanRecordatoriosMedicamento = ({
 
 const saveMedicalInterview = async (usuarioId, payload) => {
   const usersRepo = require('../users/users.repository');
-  const birthYear = new Date().getFullYear() - payload.edad;
-  const birthDate = `${birthYear}-01-01`;
+  let birthDate = payload.fecha_nacimiento;
+  if (!birthDate && payload.edad != null) {
+    const birthYear = new Date().getFullYear() - payload.edad;
+    birthDate = `${birthYear}-01-01`;
+  }
 
   await usersRepo.actualizarPerfil(usuarioId, {
-    fecha_nacimiento: birthDate,
+    ...(birthDate ? { fecha_nacimiento: birthDate } : {}),
     sexo: payload.sexo,
     peso: payload.peso || null,
     altura: payload.altura || null,
