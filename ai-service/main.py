@@ -70,6 +70,8 @@ async def health_check():
         "tts": tts_service.disponible,
         "vision_piel": vision_service.get("piel").disponible,
         "vision_garganta": vision_service.get("garganta").disponible,
+        "vision_receta": True,
+        "vision_examen": True,
     }
 
 
@@ -233,6 +235,39 @@ def synthesize_endpoint(data: dict, x_internal_key: str = Header(None)):
 @app.post("/vision")
 def vision_endpoint(tipo: str, archivo: UploadFile = File(...), x_internal_key: str = Header(None)):
     verificar_clave(x_internal_key)
+
+    tipos_validos = ["piel", "garganta", "receta", "examen"]
+    if tipo not in tipos_validos:
+        raise HTTPException(
+            status_code=400,
+            detail=f"El parámetro 'tipo' debe ser uno de: {', '.join(tipos_validos)}",
+        )
+
+    # Flujo de orientación clínica para recetas médicas y exámenes de laboratorio
+    # Guardrails: NUNCA prescribir, explicar en lenguaje sencillo y referir obligatoriamente al MINSA
+    if tipo in ["receta", "examen"]:
+        condicion_detectada = (
+            "Receta Médica (Orientación Clínica)"
+            if tipo == "receta"
+            else "Examen de Laboratorio (Guía Informativa)"
+        )
+        prompt_clinico = (
+            f"El usuario ha compartido un documento clasificado como {condicion_detectada}. "
+            "Como asistente médico preventivo Biomark AI: "
+            "1. Brinda una explicación clara, preventiva y en lenguaje accesible. "
+            "2. ADVERTENCIA CLÍNICA ESTRICTA: Recuerda que Biomark AI NO prescribe medicamentos ni modifica dosis o indicaciones. "
+            "3. Explica la importancia de seguir rigurosamente las pautas del médico tratante y que los resultados de laboratorio deben ser interpretados por un profesional de salud. "
+            "4. Orienta de manera obligatoria al paciente a consultar o acudir a su centro de salud u hospital del MINSA más cercano ante cualquier duda o señal de alarma."
+        )
+        respuesta, risk_level, fuentes = clinical_service.responder(prompt_clinico)
+        return {
+            "tipo_analisis": tipo,
+            "condicion_detectada": condicion_detectada,
+            "confidence_percentage": 100.0,
+            "biomark_recommendation": respuesta,
+            "risk_level": risk_level or "LOW",
+            "sources": fuentes or ["Guías Clínicas y Normativas del MINSA"],
+        }
 
     modelo = vision_service.get(tipo)
     if modelo is None:

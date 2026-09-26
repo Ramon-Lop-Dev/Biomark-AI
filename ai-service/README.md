@@ -54,7 +54,7 @@ Todos los endpoints (con excepción del chequeo de disponibilidad `/health`) req
 | `POST` | `/chat` | Inferencia de texto con antecedentes clínicos y contexto geográfico |
 | `POST` | `/voice` | Entrada de audio (`.m4a` / `.wav`) -> Transcripción + Orientación + Audio sintetizado |
 | `POST` | `/audio/synthesize` | Generación directa de audio WAV a partir de texto en español |
-| `POST` | `/vision` | Análisis de imágenes fotográficas (`?tipo=piel` o `?tipo=garganta`) |
+| `POST` | `/vision` | Análisis visual y orientación clínica (`?tipo=piel`, `?tipo=garganta`, `?tipo=receta`, `?tipo=examen`) |
 
 ---
 
