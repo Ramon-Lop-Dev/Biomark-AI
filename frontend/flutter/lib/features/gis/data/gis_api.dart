@@ -220,6 +220,11 @@ class GisApi {
     required double longitude,
     required String description,
     int caseCount = 1,
+    String? tipoEnfermedad,
+    String? direccionExacta,
+    DateTime? fechaInicioSintomas,
+    String? medidasTomadas,
+    String? contactoReportante,
   }) async {
     final response = await _client.post(
       Uri.parse('${_apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/community/reports'),
@@ -229,6 +234,11 @@ class GisApi {
         'longitude': longitude,
         'description': description,
         'case_count': caseCount,
+        'tipo_enfermedad': ?tipoEnfermedad,
+        'direccion_exacta': ?direccionExacta,
+        'fecha_inicio_sintomas': ?fechaInicioSintomas?.toIso8601String().substring(0, 10),
+        'medidas_tomadas': ?medidasTomadas,
+        'contacto_reportante': ?contactoReportante,
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {

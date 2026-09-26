@@ -17,18 +17,52 @@ class CommunityReportItem {
   final DateTime createdAt;
   final double latitude;
   final double longitude;
+  final String? tipoEnfermedad;
+  final String? direccionExacta;
+  final DateTime? fechaInicioSintomas;
+  final String? medidasTomadas;
+  final String? contactoReportante;
+  final String? reporterName;
+  final String? reporterEmail;
 
-  const CommunityReportItem({required this.id, required this.description, required this.cases, required this.status, required this.createdAt, required this.latitude, required this.longitude});
+  const CommunityReportItem({
+    required this.id,
+    required this.description,
+    required this.cases,
+    required this.status,
+    required this.createdAt,
+    required this.latitude,
+    required this.longitude,
+    this.tipoEnfermedad,
+    this.direccionExacta,
+    this.fechaInicioSintomas,
+    this.medidasTomadas,
+    this.contactoReportante,
+    this.reporterName,
+    this.reporterEmail,
+  });
 
-  factory CommunityReportItem.fromJson(Map<String, dynamic> json) => CommunityReportItem(
-        id: '${json['id'] ?? ''}',
-        description: '${json['descripcion'] ?? 'Sin descripción'}',
-        cases: (json['cantidad_casos'] as num?)?.toInt() ?? 1,
-        status: '${json['estado'] ?? 'PENDIENTE_VALIDACION'}',
-        createdAt: DateTime.tryParse('${json['fecha_creacion'] ?? ''}') ?? DateTime.now(),
-        latitude: (json['latitud'] as num?)?.toDouble() ?? 0,
-        longitude: (json['longitud'] as num?)?.toDouble() ?? 0,
-      );
+  factory CommunityReportItem.fromJson(Map<String, dynamic> json) {
+    final usuario = json['usuarios'] is Map<String, dynamic> ? json['usuarios'] as Map<String, dynamic> : null;
+    final perfil = usuario?['perfiles'] is Map<String, dynamic> ? usuario!['perfiles'] as Map<String, dynamic> : null;
+
+    return CommunityReportItem(
+      id: '${json['id'] ?? ''}',
+      description: '${json['descripcion'] ?? 'Sin descripción'}',
+      cases: (json['cantidad_casos'] as num?)?.toInt() ?? 1,
+      status: '${json['estado'] ?? 'PENDIENTE_VALIDACION'}',
+      createdAt: DateTime.tryParse('${json['fecha_creacion'] ?? ''}') ?? DateTime.now(),
+      latitude: (json['latitud'] as num?)?.toDouble() ?? 0,
+      longitude: (json['longitud'] as num?)?.toDouble() ?? 0,
+      tipoEnfermedad: json['tipo_enfermedad'] as String?,
+      direccionExacta: json['direccion_exacta'] as String?,
+      fechaInicioSintomas: DateTime.tryParse('${json['fecha_inicio_sintomas'] ?? ''}'),
+      medidasTomadas: json['medidas_tomadas'] as String?,
+      contactoReportante: json['contacto_reportante'] as String?,
+      reporterName: perfil?['nombre_completo'] as String?,
+      reporterEmail: usuario?['correo'] as String?,
+    );
+  }
 }
 
 class PromoterApi {
@@ -330,9 +364,131 @@ class _ReportTile extends StatelessWidget {
   final PromoterApi api;
   final VoidCallback onChanged;
   const _ReportTile({required this.report, required this.api, required this.onChanged});
+
   @override
-  Widget build(BuildContext context) => Card(margin: const EdgeInsets.only(bottom: 10), child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [const Icon(Icons.report_problem_outlined, color: Colors.orange), const SizedBox(width: 8), Expanded(child: Text('${report.cases} ${report.cases == 1 ? 'caso' : 'casos'} · ${_statusLabel(report.status)}', style: const TextStyle(fontWeight: FontWeight.w800))),]), const SizedBox(height: 8), Text(report.description, style: const TextStyle(height: 1.3)), if (report.status == 'PENDIENTE_VALIDACION') Padding(padding: const EdgeInsets.only(top: 10), child: Row(children: [Expanded(child: OutlinedButton.icon(onPressed: () => _update(context, 'DESCARTADO'), icon: const Icon(Icons.close_rounded), label: const Text('Descartar'))), const SizedBox(width: 8), Expanded(child: FilledButton.icon(onPressed: () => _update(context, 'VALIDADO'), icon: const Icon(Icons.check_rounded), label: const Text('Validar')))]))])));
-  Future<void> _update(BuildContext context, String status) async { try { await api.updateReport(report.id, status); onChanged(); } catch (error) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error'))); } }
+  Widget build(BuildContext context) {
+    final hasDisease = report.tipoEnfermedad != null && report.tipoEnfermedad!.isNotEmpty;
+    final hasAddress = report.direccionExacta != null && report.direccionExacta!.isNotEmpty;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: (hasDisease ? const Color(0xFFEF4444) : Colors.orange).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        hasDisease ? Icons.coronavirus_rounded : Icons.report_problem_outlined,
+                        size: 15,
+                        color: hasDisease ? const Color(0xFFEF4444) : Colors.orange,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        report.tipoEnfermedad ?? 'Reporte Epidemiológico',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: hasDisease ? const Color(0xFFEF4444) : Colors.orange,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${report.cases} ${report.cases == 1 ? 'caso' : 'casos'} · ${_statusLabel(report.status)}',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                    textAlign: TextAlign.end,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            if (hasAddress) ...[
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.location_on_rounded, size: 15, color: Color(0xFF0284C7)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      report.direccionExacta!,
+                      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 8),
+            Text(report.description, style: const TextStyle(height: 1.35, fontSize: 13)),
+            if (report.medidasTomadas != null && report.medidasTomadas!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Medidas: ${report.medidasTomadas}',
+                style: const TextStyle(fontSize: 11.5, color: Colors.grey, fontStyle: FontStyle.italic),
+              ),
+            ],
+            if (report.contactoReportante != null && report.contactoReportante!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Contacto reportante: ${report.contactoReportante}',
+                style: const TextStyle(fontSize: 11.5, color: Color(0xFF0284C7)),
+              ),
+            ],
+            if (report.status == 'PENDIENTE_VALIDACION')
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _update(context, 'DESCARTADO'),
+                        icon: const Icon(Icons.close_rounded, size: 16),
+                        label: const Text('Descartar'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => _update(context, 'VALIDADO'),
+                        icon: const Icon(Icons.check_rounded, size: 16),
+                        label: const Text('Validar MINSA'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _update(BuildContext context, String status) async {
+    try {
+      await api.updateReport(report.id, status);
+      onChanged();
+    } catch (error) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
+    }
+  }
 }
 
 class _CreateEventSheet extends StatefulWidget {

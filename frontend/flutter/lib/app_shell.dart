@@ -1,5 +1,6 @@
 // Shell de navegación principal de Biomark AI.
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import 'biomark_brand.dart';
 import 'core/auth/auth_session.dart';
@@ -50,6 +51,30 @@ class _AppShellState extends State<AppShell> {
   int _navIndex = 0;
   final ValueNotifier<int> _remindersRefresh = ValueNotifier(0);
   final ValueNotifier<int> _progressRefresh = ValueNotifier(0);
+
+  // Estado para enfocar ubicaciones y capas en el mapa sin perder Navbar ni AppBar
+  LatLng? _gisTargetLocation;
+  bool _gisFocusRisk = false;
+  bool _gisFocusEvents = false;
+  String? _gisHighlightTitle;
+  int _gisKeyCounter = 0;
+
+  void _navigateToMap({
+    LatLng? location,
+    bool focusRisk = false,
+    bool focusEvents = false,
+    String? highlightTitle,
+  }) {
+    final isPromoter = AuthSession.instance.isPromoter;
+    setState(() {
+      _gisTargetLocation = location;
+      _gisFocusRisk = focusRisk;
+      _gisFocusEvents = focusEvents;
+      _gisHighlightTitle = highlightTitle;
+      _gisKeyCounter++;
+      _navIndex = isPromoter ? 1 : 2;
+    });
+  }
 
   final _userNavLabels = const [
     'Inicio',
@@ -109,25 +134,35 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final promoter = AuthSession.instance.isPromoter;
+
+    final mapWidget = GisMapScreen(
+      key: ValueKey('gis_map_$_gisKeyCounter'),
+      initialLocation: _gisTargetLocation,
+      focusRiskZones: _gisFocusRisk,
+      focusEvents: _gisFocusEvents,
+      highlightTitle: _gisHighlightTitle,
+    );
+
     final pages = promoter
         ? <Widget>[
             PromoterDashboardScreen(
-              onOpenMap: () => setState(() => _navIndex = 1),
+              onOpenMap: () => _navigateToMap(),
             ),
-            const GisMapScreen(),
+            mapWidget,
             const PromoterEventsScreen(),
             const PromoterReportsScreen(),
           ]
         : <Widget>[
             HomeScreen(
-              onOpenMap: () => setState(() => _navIndex = 2),
+              onOpenMap: () => _navigateToMap(),
+              onOpenMapWithOptions: _navigateToMap,
               onNavigateToTab: (index) => setState(() => _navIndex = index),
             ),
             ProgressScreen(refreshSignal: _progressRefresh),
-            const GisMapScreen(),
+            mapWidget,
             RemindersScreen(
               refreshSignal: _remindersRefresh,
-              onOpenMap: () => setState(() => _navIndex = 2),
+              onOpenMap: () => _navigateToMap(),
             ),
           ];
     pages.add(

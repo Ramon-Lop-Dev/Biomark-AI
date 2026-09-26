@@ -11,6 +11,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/design/biomark_glass_surface.dart';
 import '../data/gis_api.dart';
 import '../domain/health_center.dart';
+import 'community_report_screen.dart';
 
 class GisMapScreen extends StatefulWidget {
   const GisMapScreen({
@@ -91,6 +92,32 @@ class _GisMapScreenState extends State<GisMapScreen>
 
     if (widget.initialCenter == null && widget.initialLocation == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _locate());
+    } else if (widget.highlightTitle != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.location_on_rounded, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Ubicación: ${widget.highlightTitle!}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF0284C7),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      });
     }
   }
 
@@ -335,27 +362,15 @@ class _GisMapScreenState extends State<GisMapScreen>
   }
 
   Future<void> _createReport() async {
-    final draft = await showDialog<_ReportDraft>(
-      context: context,
-      builder: (_) => const _ReportDialog(),
+    await showCommunityReportSheet(
+      context,
+      _gisApi,
+      latitude: _mapCenter.latitude,
+      longitude: _mapCenter.longitude,
+      onReportSent: () {
+        _loadLayersOnce(forceRefresh: true);
+      },
     );
-    if (draft == null || draft.description.trim().isEmpty) return;
-    try {
-      await _gisApi.createCommunityReport(
-        latitude: _mapCenter.latitude,
-        longitude: _mapCenter.longitude,
-        description: draft.description.trim(),
-        caseCount: draft.caseCount,
-      );
-      if (mounted) setState(() => _error = 'Reporte enviado para validación.');
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _error =
-              'No se pudo enviar el reporte. Inicia sesión e inténtalo de nuevo.',
-        );
-      }
-    }
   }
 
   Future<void> _openDetails(HealthCenter center) async {
@@ -2010,75 +2025,7 @@ String _levelLabel(int level) => switch (level) {
   _ => 'Puesto de salud',
 };
 
-class _ReportDraft {
-  const _ReportDraft({required this.description, required this.caseCount});
-  final String description;
-  final int caseCount;
-}
-
-class _ReportDialog extends StatefulWidget {
-  const _ReportDialog();
-
-  @override
-  State<_ReportDialog> createState() => _ReportDialogState();
-}
-
-class _ReportDialogState extends State<_ReportDialog> {
-  final _descriptionController = TextEditingController();
-  int _caseCount = 1;
-
-  @override
-  void dispose() {
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Agregar reporte comunitario'),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        TextField(
-          controller: _descriptionController,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Descripción',
-            hintText: '¿Qué está ocurriendo?',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<int>(
-          initialValue: _caseCount,
-          decoration: const InputDecoration(
-            labelText: 'Casos aproximados',
-            border: OutlineInputBorder(),
-          ),
-          items: List.generate(
-            10,
-            (index) =>
-                DropdownMenuItem(value: index + 1, child: Text('${index + 1}')),
-          ),
-          onChanged: (value) => setState(() => _caseCount = value ?? 1),
-        ),
-      ],
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancelar'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.pop(
-          context,
-          _ReportDraft(
-            description: _descriptionController.text,
-            caseCount: _caseCount,
-          ),
-        ),
-        child: const Text('Enviar'),
-      ),
-    ],
-  );
-}
+// [OBSOLETO - Reemplazado por showCommunityReportSheet en community_report_screen.dart con campos oficiales MINSA]
+// Se conserva comentado con fines de trazabilidad histórica.
+// class _ReportDraft { ... }
+// class _ReportDialog extends StatefulWidget { ... }

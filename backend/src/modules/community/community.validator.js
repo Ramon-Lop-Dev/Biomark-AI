@@ -19,7 +19,12 @@ const createReportSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
-  zona_riesgo_id: z.string().uuid('zona_riesgo_id debe ser un UUID válido').optional()
+  zona_riesgo_id: z.string().uuid('zona_riesgo_id debe ser un UUID válido').optional(),
+  tipo_enfermedad: z.string().trim().max(100).optional(),
+  direccion_exacta: z.string().trim().max(500).optional(),
+  fecha_inicio_sintomas: z.string().trim().optional(),
+  medidas_tomadas: z.string().trim().max(2000).optional(),
+  contacto_reportante: z.string().trim().max(255).optional()
 });
 
 // Valores del enum estado_reporte_comunitario en Postgres, salvo

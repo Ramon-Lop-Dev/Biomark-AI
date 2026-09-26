@@ -143,10 +143,10 @@
                   {
                     "id": "c_comunidad",
                     "leftValue": "={{$json.body.evento}}",
-                    "rightValue": "evento_comunitario.creado",
+                    "rightValue": "^(evento_comunitario\\.creado|reporte_comunitario\\.validado)$",
                     "operator": {
                       "type": "string",
-                      "operation": "equals"
+                      "operation": "regex"
                     }
                   }
                 ],
@@ -987,31 +987,31 @@
             {
               "id": "c_evento_id",
               "name": "evento_id",
-              "value": "={{$json.body.evento_comunitario.id}}",
+              "value": "={{$json.body.evento_comunitario?.id || $json.body.reporte?.id || ''}}",
               "type": "string"
             },
             {
               "id": "c_titulo",
               "name": "titulo",
-              "value": "={{$json.body.evento_comunitario.titulo}}",
+              "value": "={{$json.body.evento_comunitario?.titulo || ('Alerta MINSA: ' + ($json.body.reporte?.tipo_enfermedad || 'Brote Comunitario'))}}",
               "type": "string"
             },
             {
               "id": "c_descripcion",
               "name": "descripcion",
-              "value": "={{$json.body.evento_comunitario.descripcion}}",
+              "value": "={{$json.body.evento_comunitario?.descripcion || (($json.body.reporte?.descripcion || 'Alerta epidemiológica validada por personal de salud') + ($json.body.reporte?.direccion_exacta ? ' - ' + $json.body.reporte.direccion_exacta : ''))}}",
               "type": "string"
             },
             {
               "id": "c_fecha_evento",
               "name": "fecha_evento",
-              "value": "={{$json.body.evento_comunitario.fecha_evento}}",
+              "value": "={{$json.body.evento_comunitario?.fecha_evento || $json.body.reporte?.fecha_creacion || ''}}",
               "type": "string"
             },
             {
               "id": "c_ubicacion",
               "name": "ubicacion",
-              "value": "={{$json.body.evento_comunitario.ubicacion}}",
+              "value": "={{$json.body.evento_comunitario?.ubicacion || $json.body.reporte?.direccion_exacta || ''}}",
               "type": "string"
             }
           ]

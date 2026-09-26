@@ -110,6 +110,15 @@ const updateReportStatus = async (usuarioValidadorId, reporteId, estado) => {
     detalle: { estado_nuevo: estado }
   });
 
+  // Publicar evento hacia n8n para difusión de alerta epidemiológica comunitaria a los usuarios
+  if (estado === 'VALIDADO') {
+    try {
+      await publicarEvento('reporte_comunitario.validado', { reporte: data });
+    } catch (n8nError) {
+      console.error('[Community] No se pudo publicar reporte validado en n8n:', n8nError.message);
+    }
+  }
+
   return data;
 };
 

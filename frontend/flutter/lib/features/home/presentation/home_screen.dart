@@ -18,17 +18,25 @@ import '../data/health_content_api.dart';
 import '../domain/health_content_item.dart';
 import '../../gis/data/gis_api.dart';
 import '../../gis/domain/health_center.dart';
-import '../../gis/presentation/gis_map_screen.dart';
+
+typedef GisMapNavigator = void Function({
+  LatLng? location,
+  bool focusRisk,
+  bool focusEvents,
+  String? highlightTitle,
+});
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     this.onOpenMap,
     this.onNavigateToTab,
+    this.onOpenMapWithOptions,
   });
 
   final VoidCallback? onOpenMap;
   final ValueChanged<int>? onNavigateToTab;
+  final GisMapNavigator? onOpenMapWithOptions;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -276,6 +284,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.6,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 3),
               Row(
@@ -289,12 +299,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Text(
-                    dateStr,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  Expanded(
+                    child: Text(
+                      dateStr,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -554,12 +568,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.grey,
                   ),
                 ),
+                const SizedBox(width: 8),
                 const Spacer(),
-                Text(
-                  '${vital.timestamp.day}/${vital.timestamp.month} · ${vital.timestamp.hour.toString().padLeft(2, '0')}:${vital.timestamp.minute.toString().padLeft(2, '0')}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                Flexible(
+                  child: Text(
+                    '${vital.timestamp.day}/${vital.timestamp.month} · ${vital.timestamp.hour.toString().padLeft(2, '0')}:${vital.timestamp.minute.toString().padLeft(2, '0')}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -620,12 +639,16 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const Icon(Icons.verified_user_rounded, size: 20, color: Color(0xFF10B981)),
             const SizedBox(width: 8),
-            Text(
-              'Avisos y Normativas Oficiales MINSA',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
-                color: Theme.of(context).colorScheme.onSurface,
+            Expanded(
+              child: Text(
+                'Avisos y Normativas Oficiales MINSA',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -989,12 +1012,11 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 8),
             TextButton.icon(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const GisMapScreen(focusEvents: true),
-                  ),
-                );
+                if (widget.onOpenMapWithOptions != null) {
+                  widget.onOpenMapWithOptions!(focusEvents: true);
+                } else if (widget.onOpenMap != null) {
+                  widget.onOpenMap!();
+                }
               },
               icon: const Icon(Icons.map_rounded, size: 16),
               label: const Text('Ver Mapa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
@@ -1109,16 +1131,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 32,
                       child: OutlinedButton.icon(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => GisMapScreen(
-                                initialLocation: LatLng(j.latitude, j.longitude),
-                                focusEvents: true,
-                                highlightTitle: j.title,
-                              ),
-                            ),
-                          );
+                          if (widget.onOpenMapWithOptions != null) {
+                            widget.onOpenMapWithOptions!(
+                              location: LatLng(j.latitude, j.longitude),
+                              focusEvents: true,
+                              highlightTitle: j.title,
+                            );
+                          } else if (widget.onOpenMap != null) {
+                            widget.onOpenMap!();
+                          }
                         },
                         icon: const Icon(Icons.near_me_rounded, size: 14),
                         label: const Text('Ubicar en Mapa', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
@@ -1238,12 +1259,11 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 8),
             TextButton.icon(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const GisMapScreen(focusRiskZones: true),
-                  ),
-                );
+                if (widget.onOpenMapWithOptions != null) {
+                  widget.onOpenMapWithOptions!(focusRisk: true);
+                } else if (widget.onOpenMap != null) {
+                  widget.onOpenMap!();
+                }
               },
               icon: const Icon(Icons.travel_explore_rounded, size: 16),
               label: const Text('Ver Brotes', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
@@ -1310,12 +1330,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      b.nivel,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: color,
+                    Flexible(
+                      child: Text(
+                        b.nivel,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: color,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -1349,16 +1373,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     OutlinedButton.icon(
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => GisMapScreen(
-                              initialLocation: LatLng(b.latitude, b.longitude),
-                              focusRiskZones: true,
-                              highlightTitle: b.title,
-                            ),
-                          ),
-                        );
+                        if (widget.onOpenMapWithOptions != null) {
+                          widget.onOpenMapWithOptions!(
+                            location: LatLng(b.latitude, b.longitude),
+                            focusRisk: true,
+                            highlightTitle: b.title,
+                          );
+                        } else if (widget.onOpenMap != null) {
+                          widget.onOpenMap!();
+                        }
                       },
                       icon: const Icon(Icons.map_rounded, size: 14),
                       label: const Text('Ver Mapa de Vigilancia', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
