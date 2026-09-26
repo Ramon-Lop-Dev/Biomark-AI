@@ -5,7 +5,7 @@ const supabase = require('../../config/supabase');
 const findUsuarioConPerfil = (usuarioId) =>
   supabase
     .from('usuarios')
-    .select('id, correo, rol, activo, fecha_creacion, perfiles(nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio, foto_path)')
+    .select('id, correo, rol, activo, fecha_creacion, perfiles(nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio, foto_path, entrevista_completada, peso, altura, fuma, alcohol, actividad_fisica)')
     .eq('id', usuarioId)
     .single();
 
@@ -18,14 +18,14 @@ const actualizarPerfil = (usuarioId, cambios) =>
     .from('perfiles')
     .update({ ...cambios, fecha_actualizacion: new Date().toISOString() })
     .eq('usuario_id', usuarioId)
-    .select('nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio')
+    .select('nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio, foto_path, entrevista_completada, peso, altura, fuma, alcohol, actividad_fisica')
     .maybeSingle();
 
 const crearPerfil = (usuarioId, cambios) =>
   supabase
     .from('perfiles')
     .upsert({ usuario_id: usuarioId, ...cambios }, { onConflict: 'usuario_id' })
-    .select('nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio')
+    .select('nombre_completo, fecha_nacimiento, sexo, telefono, direccion, municipio, foto_path, entrevista_completada, peso, altura, fuma, alcohol, actividad_fisica')
     .single();
 
 const actualizarFotoPath = (usuarioId, fotoPath) =>

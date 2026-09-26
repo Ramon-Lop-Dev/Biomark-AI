@@ -168,6 +168,78 @@ const generarPlanRecordatoriosMedicamento = ({
   return plan;
 };
 
+const saveMedicalInterview = async (usuarioId, payload) => {
+  const usersRepo = require('../users/users.repository');
+  const birthYear = new Date().getFullYear() - payload.edad;
+  const birthDate = `${birthYear}-01-01`;
+
+  await usersRepo.actualizarPerfil(usuarioId, {
+    fecha_nacimiento: birthDate,
+    sexo: payload.sexo,
+    peso: payload.peso || null,
+    altura: payload.altura || null,
+    fuma: payload.fuma || 'NO',
+    alcohol: payload.alcohol || 'NO',
+    actividad_fisica: payload.actividad_fisica || 'MODERADA',
+    entrevista_completada: true
+  });
+
+  await Promise.all([
+    medicalRepo.eliminarHistorial(usuarioId),
+    medicalRepo.eliminarAlergias(usuarioId),
+    medicalRepo.eliminarMedicamentos(usuarioId),
+    medicalRepo.eliminarAntecedentes(usuarioId),
+    medicalRepo.eliminarVacunas(usuarioId)
+  ]);
+
+  const date = new Date().toISOString().split('T')[0];
+  if (Array.isArray(payload.enfermedades_cronicas)) {
+    for (const condition of payload.enfermedades_cronicas) {
+      if (condition && condition.trim()) {
+        await createMedicalRecord(usuarioId, { nombre_condicion: condition.trim(), fecha_diagnostico: date, notas: 'Entrevista médica inicial' });
+      }
+    }
+  }
+
+  if (Array.isArray(payload.antecedentes_hereditarios)) {
+    for (const condition of payload.antecedentes_hereditarios) {
+      if (condition && condition.trim()) {
+        await createFamilyHistory(usuarioId, { parentesco: 'Familiar', nombre_condicion: condition.trim(), notas: 'Entrevista médica inicial' });
+      }
+    }
+  }
+
+  if (Array.isArray(payload.alergias)) {
+    for (const allergy of payload.alergias) {
+      if (allergy && allergy.trim()) {
+        await createAllergy(usuarioId, { alergeno: allergy.trim(), severidad: 'LEVE', notas: 'Entrevista médica inicial' });
+      }
+    }
+  }
+
+  if (payload.medicamentos && payload.medicamentos.trim()) {
+    await createMedication(usuarioId, { nombre_medicamento: payload.medicamentos.trim(), dosis: 'No especificada', frecuencia: 'Según indicación', fecha_inicio: date });
+  }
+
+  if (Array.isArray(payload.vacunas)) {
+    for (const vac of payload.vacunas) {
+      if (vac && vac.trim()) {
+        await medicalRepo.crearVacuna(usuarioId, { nombre_vacuna: vac.trim(), fecha_aplicacion: date, numero_dosis: 1 });
+      }
+    }
+  }
+
+  await auditService.registrar({
+    usuarioId,
+    tipoEntidad: 'perfiles',
+    idEntidad: usuarioId,
+    accion: 'ENTREVISTA_MEDICA_COMPLETADA',
+    detalle: { completada: true, fecha: date }
+  });
+
+  return { success: true, entrevista_completada: true };
+};
+
 module.exports = {
   getMedicalHistory,
   createMedicalRecord,
@@ -178,6 +250,7 @@ module.exports = {
   getFamilyHistory,
   createFamilyHistory,
   replaceSurvey,
+  saveMedicalInterview,
   normalizarHorarios,
   generarPlanRecordatoriosMedicamento
 };

@@ -12,6 +12,15 @@ class UserProfile {
     this.photoUrl,
     this.birthDate,
     this.gender,
+    this.entrevistaCompletada = false,
+    this.peso,
+    this.altura,
+    this.fuma,
+    this.alcohol,
+    this.actividadFisica,
+    this.telefono,
+    this.direccion,
+    this.municipio,
   });
 
   final String email;
@@ -19,6 +28,15 @@ class UserProfile {
   final String? photoUrl;
   final DateTime? birthDate;
   final String? gender;
+  final bool entrevistaCompletada;
+  final double? peso;
+  final double? altura;
+  final String? fuma;
+  final String? alcohol;
+  final String? actividadFisica;
+  final String? telefono;
+  final String? direccion;
+  final String? municipio;
 
   String get displayName {
     final name = fullName?.trim();
@@ -59,6 +77,15 @@ class UserProfileApi {
       photoUrl: _text(profile['foto_url']),
       birthDate: DateTime.tryParse('${profile['fecha_nacimiento'] ?? ''}'),
       gender: _text(profile['sexo']),
+      entrevistaCompletada: profile['entrevista_completada'] == true,
+      peso: (profile['peso'] as num?)?.toDouble(),
+      altura: (profile['altura'] as num?)?.toDouble(),
+      fuma: _text(profile['fuma']),
+      alcohol: _text(profile['alcohol']),
+      actividadFisica: _text(profile['actividad_fisica']),
+      telefono: _text(profile['telefono']),
+      direccion: _text(profile['direccion']),
+      municipio: _text(profile['municipio']),
     );
   }
 

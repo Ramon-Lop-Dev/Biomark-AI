@@ -6,6 +6,8 @@ class BiomarkColors {
   // Colores de marca — se mantienen iguales en claro y oscuro.
   static const green = Color(0xFF46AB39);
   static const blue = Color(0xFF3260A9);
+  static const primary = Color(0xFF46AB39);
+  static const secondary = Color(0xFF3260A9);
   static const white = Color(0xFFFFFFFF);
   static const black = Color(0xFF000000);
 

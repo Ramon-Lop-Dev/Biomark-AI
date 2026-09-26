@@ -16,6 +16,11 @@ import 'core/config/app_config.dart';
 import 'core/config/firebase_config.dart';
 import 'core/design/app_themecontroller.dart';
 import 'core/notifications/push_notifications_service.dart';
+import 'core/profile/user_profile_api.dart';
+import 'core/ui/loading_service.dart';
+import 'features/onboarding/presentation/permissions_screen.dart';
+import 'health_survey.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'survey_service.dart';
 
 Future<void> main() async {
@@ -48,6 +53,7 @@ class MyApp extends StatelessWidget {
           darkTheme: biomarkDarkTheme,
           highContrastTheme: biomarkHighContrastTheme,
           themeMode: AppThemeController.instance.themeMode,
+          builder: (context, child) => LoadingOverlay(child: child ?? const SizedBox.shrink()),
           home: const SplashScreen(),
         );
       },
@@ -164,35 +170,65 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
+  Future<void> _navegarPostLogin() async {
     try {
-      final session = await _authApi.login(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-      await AuthSession.instance.saveSession(
-        accessToken: session.token,
-        refreshToken: session.refreshToken,
-        expiresIn: session.expiresIn,
-        role: session.role,
-        userName: session.fullName,
-        userEmail: session.email ?? _emailController.text.trim(),
-      );
+      final profile = await UserProfileApi.fetch();
+      final prefs = await SharedPreferences.getInstance();
+      final permissionsShown = prefs.getBool(PermissionsScreen.prefKey) ?? false;
+
       if (!mounted) return;
-      await _showAuthDialog(
-        title: '¡Bienvenido!',
-        message: 'Has iniciado sesión correctamente en Biomark AI.',
-        icon: Icons.check_circle_outline_rounded,
-      );
+      if (profile != null && profile.entrevistaCompletada) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AppShell()),
+        );
+      } else if (!permissionsShown) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PermissionsScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HealthSurveyScreen(editing: false)),
+        );
+      }
+    } catch (_) {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const AppShell()),
       );
+    }
+  }
+
+  Future<void> _handleLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await LoadingService.instance.wrap(
+        context: context,
+        message: 'Iniciando sesión...',
+        task: () async {
+          final session = await _authApi.login(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+          await AuthSession.instance.saveSession(
+            accessToken: session.token,
+            refreshToken: session.refreshToken,
+            expiresIn: session.expiresIn,
+            role: session.role,
+            userName: session.fullName,
+            userEmail: session.email ?? _emailController.text.trim(),
+          );
+          return session;
+        },
+      );
+
+      if (!mounted) return;
+      await _navegarPostLogin();
     } on AuthApiException catch (error) {
       await _showAuthDialog(
         title: 'No pudimos iniciar sesión',
@@ -201,40 +237,41 @@ class _LoginScreenState extends State<LoginScreen>
         actionLabel: 'Entendido',
         isError: true,
       );
+    } catch (_) {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _handleGoogleLogin() async {
-    setState(() => _isLoading = true);
     try {
       final google = await GoogleAuthHelper.signIn();
       if (google == null) return;
-      final session = await _authApi.loginWithGoogle(
-        idToken: google.idToken,
-        accessToken: google.accessToken,
-        fullName: google.fullName,
-      );
-      await AuthSession.instance.saveSession(
-        accessToken: session.token,
-        refreshToken: session.refreshToken,
-        expiresIn: session.expiresIn,
-        role: session.role,
-        userName: session.fullName,
-        userEmail: session.email,
-      );
       if (!mounted) return;
-      await _showAuthDialog(
-        title: '¡Bienvenido!',
-        message: 'Tu cuenta de Google está lista para usar Biomark AI.',
-        icon: Icons.check_circle_outline_rounded,
+
+      await LoadingService.instance.wrap(
+        context: context,
+        message: 'Conectando con Google...',
+        task: () async {
+          final session = await _authApi.loginWithGoogle(
+            idToken: google.idToken,
+            accessToken: google.accessToken,
+            fullName: google.fullName,
+          );
+          await AuthSession.instance.saveSession(
+            accessToken: session.token,
+            refreshToken: session.refreshToken,
+            expiresIn: session.expiresIn,
+            role: session.role,
+            userName: session.fullName,
+            userEmail: session.email,
+          );
+          return session;
+        },
       );
+
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const AppShell()),
-      );
+      await _navegarPostLogin();
     } on AuthApiException catch (error) {
       await _showAuthDialog(
         title: 'No pudimos conectar Google',
@@ -251,9 +288,7 @@ class _LoginScreenState extends State<LoginScreen>
         actionLabel: 'Entendido',
         isError: true,
       );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    } catch (_) {}
   }
 
   @override

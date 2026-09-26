@@ -10,7 +10,6 @@ import 'package:flutter_biomark/notifications.dart';
 import 'package:flutter_biomark/privacidad.dart';
 import 'package:flutter_biomark/apariencia.dart';
 import 'package:flutter_biomark/seguridad_screen.dart';
-import 'package:flutter_biomark/health_survey.dart';
 import 'package:flutter_biomark/survey_service.dart';
 import 'package:flutter_biomark/main.dart';
 import 'package:flutter_biomark/core/auth/auth_api.dart';
@@ -19,6 +18,7 @@ import 'package:flutter_biomark/core/config/app_config.dart';
 import 'package:flutter_biomark/features/community/promoter_screens.dart';
 import 'package:flutter_biomark/core/profile/user_profile_api.dart';
 import 'package:flutter_biomark/features/community/recommendations_management_screen.dart';
+import 'package:flutter_biomark/health_survey.dart';
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -290,7 +290,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               _ItemPerfil(
                 icon: Icons.assignment_outlined,
-                label: 'Editar encuesta clínica',
+                label: 'Editar encuesta de salud',
                 onTap: () async {
                   final updated = await Navigator.push<bool>(
                     context,

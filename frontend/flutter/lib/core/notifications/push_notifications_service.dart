@@ -97,45 +97,12 @@ class PushNotificationsService {
           android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         );
         await _localNotifications.initialize(initializationSettings);
-        await _localNotifications
-            .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >()
-            ?.requestNotificationsPermission();
       }
 
       final preferences = await SharedPreferences.getInstance();
-      final pushEnabled = preferences.getBool(pushEnabledKey) ?? true;
-      if (!pushEnabled) {
-        final token = await registerToken();
-        final accessToken = AuthSession.instance.accessToken;
-        if (token != null && accessToken != null && accessToken.isNotEmpty) {
-          await _authApi.deletePushToken(
-            accessToken: accessToken,
-            token: token,
-          );
-        }
-        _initialized = true;
-        debugPrint('Notificaciones push desactivadas por el usuario.');
-        return;
-      }
+      final pushEnabled = preferences.getBool(pushEnabledKey) ?? false;
 
-      final settings = await _messaging.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
-
-      if (settings.authorizationStatus == AuthorizationStatus.denied) {
-        debugPrint('Permiso FCM denegado por el usuario.');
-        _initialized = true;
-        return;
-      }
-
+      // Configuramos los listeners de mensajes siempre
       FirebaseMessaging.onMessage.listen((message) {
         debugPrint('FCM RAW notification: ${message.notification}');
         debugPrint('FCM RAW data: ${message.data}');
@@ -153,18 +120,68 @@ class PushNotificationsService {
         );
       }
 
-      final token = await registerToken();
-      if (token != null && token.isNotEmpty) {
-        _currentToken = token;
-        await _registerTokenInBackend(token);
-        _tokenController.add(token);
+      // Solo si el usuario ya había activado notificaciones en sesión previa,
+      // sincronizamos el token en segundo plano sin mostrar ningún diálogo.
+      if (pushEnabled) {
+        final settings = await _messaging.getNotificationSettings();
+        if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional) {
+          final token = await registerToken();
+          if (token != null && token.isNotEmpty) {
+            _currentToken = token;
+            await _registerTokenInBackend(token);
+            _tokenController.add(token);
+          }
+        }
       }
 
       _initialized = true;
-      debugPrint('Servicio FCM inicializado correctamente.');
+      debugPrint('Servicio FCM inicializado correctamente (permisos diferidos).');
     } catch (error) {
       debugPrint('No fue posible inicializar FCM: $error');
       _initialized = true;
+    }
+  }
+
+  /// Solicitud explícita de permiso invocada educadamente desde la pantalla 5 del Onboarding.
+  Future<bool> requestNotificationsPermission() async {
+    try {
+      if (!kIsWeb) {
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.requestNotificationsPermission();
+      }
+
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+
+      final granted = settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setBool(pushEnabledKey, granted);
+
+      if (granted) {
+        final token = await registerToken();
+        if (token != null && token.isNotEmpty) {
+          _currentToken = token;
+          await _registerTokenInBackend(token);
+          _tokenController.add(token);
+        }
+      }
+      return granted;
+    } catch (e) {
+      debugPrint('Error solicitando permisos de notificación: $e');
+      return false;
     }
   }
 

@@ -47,6 +47,11 @@ const replaceSurvey = asyncHandler(async (req, res) => {
     return res.status(200).json(data);
 });
 
+const handleMedicalInterview = asyncHandler(async (req, res) => {
+    const data = await medicalService.saveMedicalInterview(req.usuarioId, req.body);
+    return res.status(200).json(data);
+});
+
 module.exports = {
     getMedicalHistory,
     createMedicalRecord,
@@ -56,5 +61,6 @@ module.exports = {
     createMedication,
     getFamilyHistory,
     createFamilyHistory,
-    replaceSurvey
+    replaceSurvey,
+    handleMedicalInterview
 };

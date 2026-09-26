@@ -4,6 +4,8 @@ import 'package:flutter_biomark/main.dart';
 import 'package:flutter_biomark/core/auth/auth_api.dart';
 import 'package:flutter_biomark/core/auth/auth_session.dart';
 import 'package:flutter_biomark/core/config/app_config.dart';
+import 'package:flutter_biomark/core/ui/loading_service.dart';
+import 'package:flutter_biomark/features/onboarding/presentation/permissions_screen.dart';
 /// ---------------------------------------------------------------
 /// REGISTER SCREEN — mismo estilo "claymorfismo" que el login,
 /// con pestañas Iniciar Sesión / Registrarse arriba (igual que login)
@@ -136,14 +138,18 @@ class _RegisterScreenState extends State<RegisterScreen>
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-
     try {
-      final result = await _authApi.register(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        fullName: _nameController.text.trim(),
-        accountType: _accountType,
+      final result = await LoadingService.instance.wrap(
+        context: context,
+        message: 'Creando tu cuenta de salud...',
+        task: () => _authApi.register(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+          fullName: _nameController.text.trim(),
+          accountType: _accountType,
+        ),
       );
+
       if (result.token != null && result.token!.isNotEmpty) {
         await AuthSession.instance.saveSession(
           accessToken: result.token!,
@@ -153,18 +159,30 @@ class _RegisterScreenState extends State<RegisterScreen>
           userEmail: _emailController.text.trim(),
         );
       }
+
       if (!mounted) return;
       final requiresConfirmation = result.requiresEmailConfirmation;
       await _showAuthDialog(
         title: requiresConfirmation ? '¡Cuenta creada!' : '¡Registro exitoso!',
         message: requiresConfirmation
             ? 'Revisa tu correo para confirmar la cuenta antes de iniciar sesión.'
-            : 'Tu cuenta de Biomark AI está lista.',
+            : 'Tu cuenta de Biomark AI está lista. Ahora comenzaremos el recorrido inicial.',
         icon: Icons.check_circle_outline_rounded,
-        actionLabel: 'Ir a iniciar sesión',
+        actionLabel: requiresConfirmation ? 'Ir a iniciar sesión' : 'Comenzar',
       );
+
       if (!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+      if (requiresConfirmation || result.token == null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PermissionsScreen()),
+        );
+      }
     } on AuthApiException catch (error) {
       await _showAuthDialog(
         title: 'No pudimos crear tu cuenta',
@@ -173,6 +191,7 @@ class _RegisterScreenState extends State<RegisterScreen>
         actionLabel: 'Entendido',
         isError: true,
       );
+    } catch (_) {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_biomark/app_shell.dart';
 import 'package:flutter_biomark/biomark_brand.dart';
 import 'package:flutter_biomark/survey_service.dart';
-import 'package:flutter_biomark/features/chat/presentation/chat_screen.dart';
+
 class HealthSurveyScreen extends StatefulWidget {
   const HealthSurveyScreen({super.key, this.editing = false});
 
@@ -15,11 +16,12 @@ enum _PasoEncuesta { datosPersonales, cronicas, hereditarias, alergias, medicame
 
 class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   _PasoEncuesta _paso = _PasoEncuesta.datosPersonales;
+  bool _isLoading = false;
 
   // ---- Opciones ----
   final List<String> _opcionesCronicas = const [
     'Diabetes',
-    'Hipertensión',
+    'Hipertensión arterial',
     'Asma',
     'Enfermedad cardíaca',
     'Enfermedad renal',
@@ -43,7 +45,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
 
   final List<String> _opcionesAlergias = const [
     'Penicilina',
-    'Aspirina/AINEs',
+    'Aspirina / AINEs',
     'Ibuprofeno',
     'Polen',
     'Mariscos',
@@ -69,6 +71,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   }
 
   Future<void> _loadExistingAnswers() async {
+    setState(() => _isLoading = true);
     await SurveyService.cargarDesdeBackend();
     if (!mounted) return;
     final answers = SurveyService.respuestas;
@@ -81,6 +84,7 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
       _alergiasSeleccionadas.addAll(List<String>.from(answers['alergias'] ?? const []));
       _medicamentosController.text = '${answers['medicamentosActuales'] ?? ''}';
       _consentimientoMedico = answers['consentimientoMedico'] != false;
+      _isLoading = false;
     });
   }
 
@@ -128,8 +132,42 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     if (anteriorIndex >= 0) {
       setState(() => _paso = valores[anteriorIndex]);
     } else {
-      Navigator.maybePop(context); // sale de la encuesta sin completarla
+      if (widget.editing) {
+        Navigator.pop(context);
+      } else {
+        // En la primera configuración obligatoria, si está en el paso 0 mostramos diálogo
+        _mostrarAlertaSalir();
+      }
     }
+  }
+
+  void _mostrarAlertaSalir() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Completar más tarde'),
+        content: const Text(
+          'Completar tu perfil clínico permite a Biomark AI darte respuestas seguras y personalizadas.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Continuar entrevista'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const AppShell()),
+              );
+            },
+            style: FilledButton.styleFrom(backgroundColor: BiomarkColors.blue),
+            child: const Text('Ir al inicio'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _finalizar() async {
@@ -137,76 +175,108 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     final sexo = _sexoSeleccionado;
     if (edad == null || sexo == null) return;
 
-    if (widget.editing) {
-      await SurveyService.reemplazarEncuesta(
-        edad: edad,
-        sexo: sexo,
-        enfermedadesCronicas: _cronicasSeleccionadas.toList(),
-        antecedentesHereditarios: _hereditariasSeleccionadas.toList(),
-        alergias: _alergiasSeleccionadas.toList(),
-        medicamentosActuales: _medicamentosController.text.trim(),
-        consentimientoMedico: _consentimientoMedico,
-      ).timeout(const Duration(seconds: 20), onTimeout: () {});
-    } else {
-      await SurveyService.guardarRespuestas(
-        edad: edad,
-        sexo: sexo,
-        enfermedadesCronicas: _cronicasSeleccionadas.toList(),
-        antecedentesHereditarios: _hereditariasSeleccionadas.toList(),
-        alergias: _alergiasSeleccionadas.toList(),
-        medicamentosActuales: _medicamentosController.text.trim(),
-        consentimientoMedico: _consentimientoMedico,
-      ).timeout(const Duration(seconds: 20), onTimeout: () {});
-    }
+    setState(() => _isLoading = true);
+
+    try {
+      if (widget.editing) {
+        await SurveyService.reemplazarEncuesta(
+          edad: edad,
+          sexo: sexo,
+          enfermedadesCronicas: _cronicasSeleccionadas.toList(),
+          antecedentesHereditarios: _hereditariasSeleccionadas.toList(),
+          alergias: _alergiasSeleccionadas.toList(),
+          medicamentosActuales: _medicamentosController.text.trim(),
+          consentimientoMedico: _consentimientoMedico,
+        ).timeout(const Duration(seconds: 15), onTimeout: () {});
+      } else {
+        await SurveyService.guardarRespuestas(
+          edad: edad,
+          sexo: sexo,
+          enfermedadesCronicas: _cronicasSeleccionadas.toList(),
+          antecedentesHereditarios: _hereditariasSeleccionadas.toList(),
+          alergias: _alergiasSeleccionadas.toList(),
+          medicamentosActuales: _medicamentosController.text.trim(),
+          consentimientoMedico: _consentimientoMedico,
+        ).timeout(const Duration(seconds: 15), onTimeout: () {});
+      }
+    } catch (_) {}
 
     if (!mounted) return;
+    setState(() => _isLoading = false);
+
     if (widget.editing) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Expediente médico actualizado correctamente'),
+          backgroundColor: BiomarkColors.primary,
+        ),
+      );
       Navigator.pop(context, true);
     } else {
+      // Primera vez completada: navegar al Dashboard principal (Home)
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const ChatScreen()),
+        PageRouteBuilder(
+          transitionDuration: const Duration(milliseconds: 500),
+          pageBuilder: (_, animation, _) => const AppShell(),
+          transitionsBuilder: (_, animation, _, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF0F172A) : BiomarkColors.backgroundClaro;
+
+    if (_isLoading && widget.editing) {
+      return Scaffold(
+        backgroundColor: bgColor,
+        body: const Center(
+          child: CircularProgressIndicator(color: BiomarkColors.primary),
+        ),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: bgColor,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 750),
+              constraints: const BoxConstraints(maxWidth: 720),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildTopBar(),
-                  const SizedBox(height: 18),
+                  _buildTopBar(isDark),
+                  const SizedBox(height: 16),
                   _buildProgreso(),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 20),
                   Expanded(
                     child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
                       child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
+                        duration: const Duration(milliseconds: 260),
                         transitionBuilder: (child, anim) => FadeTransition(
                           opacity: anim,
                           child: SlideTransition(
                             position: Tween<Offset>(
-                              begin: const Offset(0.05, 0),
+                              begin: const Offset(0.04, 0),
                               end: Offset.zero,
                             ).animate(anim),
                             child: child,
                           ),
                         ),
-                        child: _buildContenidoPaso(),
+                        child: _buildContenidoPaso(isDark),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  _buildBotonSiguiente(),
+                  const SizedBox(height: 14),
+                  _buildBarraInferior(),
                 ],
               ),
             ),
@@ -219,37 +289,67 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   // ------------------------------------------------------------
   // TOP BAR + PROGRESO
   // ------------------------------------------------------------
-  Widget _buildTopBar() {
+  Widget _buildTopBar(bool isDark) {
+    final titulo = widget.editing ? 'Editar Expediente Médico' : 'Entrevista Clínica Inicial';
+    final pasoActual = _indicePaso + 1;
+    final totalPasos = _PasoEncuesta.values.length;
+
     return Row(
       children: [
-        GestureDetector(
-          onTap: _atras,
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Theme.of(context).cardColor,
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: .06), blurRadius: 8, offset: const Offset(3, 3)),
-              ],
-            ),
-            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Theme.of(context).colorScheme.onSurface),
+        IconButton(
+          onPressed: _atras,
+          style: IconButton.styleFrom(
+            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+            foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+            elevation: 1,
+            shadowColor: Colors.black12,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            widget.editing ? 'Editar encuesta clínica' : 'Antes de conversar con Biomark AI',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                titulo,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              Text(
+                'Paso $pasoActual de $totalPasos: ${_getNombrePaso(_paso)}',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: BiomarkColors.blue,
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
+  }
+
+  String _getNombrePaso(_PasoEncuesta paso) {
+    switch (paso) {
+      case _PasoEncuesta.datosPersonales:
+        return 'Datos básicos';
+      case _PasoEncuesta.cronicas:
+        return 'Condiciones crónicas';
+      case _PasoEncuesta.hereditarias:
+        return 'Antecedentes familiares';
+      case _PasoEncuesta.alergias:
+        return 'Alergias conocidas';
+      case _PasoEncuesta.medicamentos:
+        return 'Tratamientos actuales';
+      case _PasoEncuesta.resumen:
+        return 'Confirmación';
+    }
   }
 
   Widget _buildProgreso() {
@@ -258,12 +358,13 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
       children: List.generate(total, (i) {
         final activo = i <= _indicePaso;
         return Expanded(
-          child: Container(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
             margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
             height: 6,
             decoration: BoxDecoration(
-              color: activo ? BiomarkColors.green : const Color(0xFFE4E4EC),
-              borderRadius: BorderRadius.circular(6),
+              color: activo ? BiomarkColors.primary : Colors.grey.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
         );
@@ -274,81 +375,132 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
   // ------------------------------------------------------------
   // CONTENIDO POR PASO
   // ------------------------------------------------------------
-  Widget _buildContenidoPaso() {
+  Widget _buildContenidoPaso(bool isDark) {
     switch (_paso) {
       case _PasoEncuesta.datosPersonales:
-        return _buildPasoDatosPersonales();
+        return _buildPasoDatosPersonales(isDark);
       case _PasoEncuesta.cronicas:
         return _buildPasoSeleccionMultiple(
           key: const ValueKey('cronicas'),
-          icono: Icons.medical_information_outlined,
+          icono: Icons.health_and_safety_rounded,
           titulo: '¿Padeces alguna enfermedad crónica?',
-          subtitulo: 'Selecciona todas las que apliquen',
+          subtitulo: 'Selecciona las condiciones diagnosticadas por un profesional:',
           opciones: _opcionesCronicas,
           seleccionadas: _cronicasSeleccionadas,
+          isDark: isDark,
         );
       case _PasoEncuesta.hereditarias:
         return _buildPasoSeleccionMultiple(
           key: const ValueKey('hereditarias'),
           icono: Icons.family_restroom_rounded,
           titulo: '¿Hay antecedentes en tu familia?',
-          subtitulo: 'Enfermedades hereditarias de padres, hermanos o abuelos',
+          subtitulo: 'Condiciones de salud relevantes en padres, hermanos o abuelos:',
           opciones: _opcionesHereditarias,
           seleccionadas: _hereditariasSeleccionadas,
+          isDark: isDark,
         );
       case _PasoEncuesta.alergias:
         return _buildPasoSeleccionMultiple(
           key: const ValueKey('alergias'),
           icono: Icons.warning_amber_rounded,
           titulo: '¿Tienes alguna alergia conocida?',
-          subtitulo: 'Selecciona todas las que apliquen',
+          subtitulo: 'Medicamentos, alimentos o sustancias a las que presentes reacción:',
           opciones: _opcionesAlergias,
           seleccionadas: _alergiasSeleccionadas,
+          isDark: isDark,
         );
       case _PasoEncuesta.medicamentos:
-        return _buildPasoMedicamentos();
+        return _buildPasoMedicamentos(isDark);
       case _PasoEncuesta.resumen:
-        return _buildPasoResumen();
+        return _buildPasoResumen(isDark);
     }
   }
 
-  Widget _buildConsentimientoCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.black12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Checkbox(
-            value: _consentimientoMedico,
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() => _consentimientoMedico = value);
-            },
+  Widget _buildPasoDatosPersonales(bool isDark) {
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textDark = isDark ? Colors.white : const Color(0xFF0F172A);
+
+    return Column(
+      key: const ValueKey('datosPersonales'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildIconoCabecera(Icons.person_outline_rounded),
+        const SizedBox(height: 18),
+        Text(
+          'Cuéntanos un poco sobre ti',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            color: textDark,
+            letterSpacing: -0.4,
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Permito que Biomark AI use mi historial médico para personalizar mi respuesta.',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Esta información ayuda a la IA a sugerir mejores alertas, recomendaciones y centros de salud más apropiados.',
-                  style: TextStyle(color: Colors.black.withValues(alpha: 0.7), fontSize: 13),
-                ),
-              ],
-            ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Estos datos básicos son indispensables para contextualizar tus síntomas clínicos.',
+          style: TextStyle(fontSize: 13.5, color: Color(0xFF64748B), height: 1.4),
+        ),
+        const SizedBox(height: 24),
+
+        // Tarjeta con inputs
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
+          child: Column(
+            children: [
+              TextField(
+                controller: _edadController,
+                keyboardType: TextInputType.number,
+                onChanged: (_) => setState(() {}),
+                style: TextStyle(color: textDark, fontWeight: FontWeight.w600),
+                decoration: InputDecoration(
+                  labelText: 'Edad *',
+                  hintText: 'Ej. 28',
+                  suffixText: 'años',
+                  prefixIcon: const Icon(Icons.cake_outlined, color: BiomarkColors.primary),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: BiomarkColors.primary, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              DropdownButtonFormField<String>(
+                initialValue: _sexoSeleccionado,
+                decoration: InputDecoration(
+                  labelText: 'Sexo biológico *',
+                  prefixIcon: const Icon(Icons.wc_rounded, color: BiomarkColors.primary),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: BiomarkColors.primary, width: 2),
+                  ),
+                ),
+                dropdownColor: cardBg,
+                items: const [
+                  DropdownMenuItem(value: 'MASCULINO', child: Text('Masculino')),
+                  DropdownMenuItem(value: 'FEMENINO', child: Text('Femenino')),
+                  DropdownMenuItem(value: 'OTRO', child: Text('Otro')),
+                  DropdownMenuItem(value: 'NO_ESPECIFICA', child: Text('Prefiero no especificarlo')),
+                ],
+                onChanged: (value) => setState(() => _sexoSeleccionado = value),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -359,28 +511,43 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     required String subtitulo,
     required List<String> opciones,
     required Set<String> seleccionadas,
+    required bool isDark,
   }) {
+    final textDark = isDark ? Colors.white : const Color(0xFF0F172A);
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
     return Column(
       key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildIconoCabecera(icono),
         const SizedBox(height: 18),
-        Text(titulo, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface)),
+        Text(
+          titulo,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            color: textDark,
+            letterSpacing: -0.4,
+          ),
+        ),
         const SizedBox(height: 6),
-        Text(subtitulo, style: const TextStyle(fontSize: 13, color: Color(0xFF7A7A85))),
-        const SizedBox(height: 20),
+        Text(
+          subtitulo,
+          style: const TextStyle(fontSize: 13.5, color: Color(0xFF64748B), height: 1.4),
+        ),
+        const SizedBox(height: 22),
         Wrap(
           spacing: 10,
           runSpacing: 10,
           children: opciones.map((opcion) {
             final activo = seleccionadas.contains(opcion);
             final esNinguna = opcion.toLowerCase().startsWith('ninguna');
-            return GestureDetector(
+
+            return InkWell(
               onTap: () {
                 setState(() {
                   if (esNinguna) {
-                    // "Ninguna" es excluyente con el resto
                     seleccionadas.clear();
                     seleccionadas.add(opcion);
                   } else {
@@ -393,29 +560,43 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
                   }
                 });
               },
+              borderRadius: BorderRadius.circular(16),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: activo ? BiomarkColors.green.withValues(alpha: .12) : Theme.of(context).cardColor,
+                  color: activo
+                      ? BiomarkColors.primary.withValues(alpha: 0.12)
+                      : cardBg,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: activo ? BiomarkColors.green : Colors.transparent,
-                    width: 1.4,
+                    color: activo ? BiomarkColors.primary : Colors.black.withValues(alpha: 0.08),
+                    width: activo ? 1.8 : 1,
                   ),
-                  boxShadow: activo
-                      ? []
-                      : [
-                          BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 6, offset: const Offset(2, 2)),
-                        ],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: activo ? 0.02 : 0.03),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: Text(
-                  opcion,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
-                    color: activo ? BiomarkColors.green : Theme.of(context).colorScheme.onSurface,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (activo) ...[
+                      const Icon(Icons.check_circle_rounded, size: 16, color: BiomarkColors.primary),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      opcion,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+                        color: activo ? BiomarkColors.primary : textDark,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             );
@@ -425,40 +606,53 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     );
   }
 
-  Widget _buildPasoMedicamentos() {
+  Widget _buildPasoMedicamentos(bool isDark) {
+    final textDark = isDark ? Colors.white : const Color(0xFF0F172A);
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
     return Column(
       key: const ValueKey('medicamentos'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildIconoCabecera(Icons.medication_liquid_rounded),
+        _buildIconoCabecera(Icons.medication_rounded),
         const SizedBox(height: 18),
         Text(
           '¿Tomas algún medicamento actualmente?',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface),
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            color: textDark,
+            letterSpacing: -0.4,
+          ),
         ),
         const SizedBox(height: 6),
         const Text(
-          'Opcional — nos ayuda a evitar recomendaciones que interactúen mal',
-          style: TextStyle(fontSize: 13, color: Color(0xFF7A7A85)),
+          'Opcional — ayuda a prevenir interacciones farmacológicas desfavorables.',
+          style: TextStyle(fontSize: 13.5, color: Color(0xFF64748B), height: 1.4),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
         Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(16),
+            color: cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 8, offset: const Offset(2, 3)),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
             ],
           ),
           child: TextField(
             controller: _medicamentosController,
             maxLines: 4,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            style: TextStyle(color: textDark),
             decoration: const InputDecoration(
-              hintText: 'Ej. Metformina 500mg, Losartán 50mg...',
-              hintStyle: TextStyle(color: Color(0xFF9C9CA6), fontSize: 13.5),
+              hintText: 'Ej. Enalapril 10mg diario, Metformina 850mg con desayuno...',
+              hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 13.5),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.all(16),
+              contentPadding: EdgeInsets.all(18),
             ),
           ),
         ),
@@ -466,115 +660,126 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     );
   }
 
-  Widget _buildPasoDatosPersonales() {
-    return Column(
-      key: const ValueKey('datosPersonales'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildIconoCabecera(Icons.person_outline_rounded),
-        const SizedBox(height: 18),
-        Text(
-          'Cuéntanos un poco sobre ti',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Estos datos ayudan a interpretar mejor tus síntomas.',
-          style: TextStyle(fontSize: 13, color: Color(0xFF7A7A85)),
-        ),
-        const SizedBox(height: 20),
-        TextField(
-          controller: _edadController,
-          keyboardType: TextInputType.number,
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-          decoration: const InputDecoration(
-            labelText: 'Edad',
-            suffixText: 'años',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 14),
-        DropdownButtonFormField<String>(
-          initialValue: _sexoSeleccionado,
-          decoration: const InputDecoration(
-            labelText: 'Género / sexo biológico',
-            border: OutlineInputBorder(),
-          ),
-          items: const [
-            DropdownMenuItem(value: 'MASCULINO', child: Text('Masculino')),
-            DropdownMenuItem(value: 'FEMENINO', child: Text('Femenino')),
-            DropdownMenuItem(value: 'OTRO', child: Text('Otro')),
-            DropdownMenuItem(value: 'NO_ESPECIFICA', child: Text('Prefiero no especificarlo')),
-          ],
-          onChanged: (value) => setState(() => _sexoSeleccionado = value),
-        ),
-      ],
-    );
-  }
+  Widget _buildPasoResumen(bool isDark) {
+    final textDark = isDark ? Colors.white : const Color(0xFF0F172A);
 
-  Widget _buildPasoResumen() {
     return Column(
       key: const ValueKey('resumen'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildIconoCabecera(Icons.fact_check_rounded, color: BiomarkColors.green),
+        _buildIconoCabecera(Icons.verified_rounded, color: BiomarkColors.primary),
         const SizedBox(height: 18),
         Text(
-          '¡Listo! Esto es lo que registramos',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface),
+          'Confirmación del Expediente',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            color: textDark,
+            letterSpacing: -0.4,
+          ),
         ),
         const SizedBox(height: 6),
         const Text(
-          'Biomark AI usará esto para darte consejos más precisos a la hora de conversar',
-          style: TextStyle(fontSize: 13, color: Color(0xFF7A7A85)),
+          'Verifica tus datos antes de continuar. Podrás actualizarlos en cualquier momento desde tu Perfil.',
+          style: TextStyle(fontSize: 13.5, color: Color(0xFF64748B), height: 1.4),
         ),
         const SizedBox(height: 20),
-        _buildResumenTarjeta('Enfermedades crónicas', _cronicasSeleccionadas, Icons.medical_information_outlined),
-        const SizedBox(height: 12),
-        _buildResumenTarjeta('Datos personales', {
-          '${_edadController.text.trim()} años',
-          _sexoSeleccionado ?? 'Sin especificar',
-        }, Icons.person_outline_rounded),
-        const SizedBox(height: 12),
-        _buildResumenTarjeta('Antecedentes hereditarios', _hereditariasSeleccionadas, Icons.family_restroom_rounded),
-        const SizedBox(height: 12),
-        _buildResumenTarjeta('Alergias', _alergiasSeleccionadas, Icons.warning_amber_rounded),
-        const SizedBox(height: 12),
         _buildResumenTarjeta(
-          'Medicamentos actuales',
-          _medicamentosController.text.trim().isEmpty ? {'Ninguno indicado'} : {_medicamentosController.text.trim()},
-          Icons.medication_liquid_rounded,
+          'Datos Personales',
+          {
+            '${_edadController.text.trim()} años',
+            _sexoSeleccionado ?? 'Sin especificar',
+          },
+          Icons.person_rounded,
+          isDark,
+        ),
+        const SizedBox(height: 10),
+        _buildResumenTarjeta(
+          'Condiciones Crónicas',
+          _cronicasSeleccionadas,
+          Icons.health_and_safety_rounded,
+          isDark,
+        ),
+        const SizedBox(height: 10),
+        _buildResumenTarjeta(
+          'Antecedentes Familiares',
+          _hereditariasSeleccionadas,
+          Icons.family_restroom_rounded,
+          isDark,
+        ),
+        const SizedBox(height: 10),
+        _buildResumenTarjeta(
+          'Alergias Conocidas',
+          _alergiasSeleccionadas,
+          Icons.warning_amber_rounded,
+          isDark,
+        ),
+        const SizedBox(height: 10),
+        _buildResumenTarjeta(
+          'Medicamentos Actuales',
+          _medicamentosController.text.trim().isEmpty
+              ? {'Ninguno reportado'}
+              : {_medicamentosController.text.trim()},
+          Icons.medication_rounded,
+          isDark,
         ),
         const SizedBox(height: 18),
-        _buildConsentimientoCard(),
+        _buildConsentimientoCard(isDark),
       ],
     );
   }
 
-  Widget _buildResumenTarjeta(String titulo, Set<String> valores, IconData icono) {
+  Widget _buildResumenTarjeta(
+    String titulo,
+    Set<String> valores,
+    IconData icono,
+    bool isDark,
+  ) {
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textDark = isDark ? Colors.white : const Color(0xFF0F172A);
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 8, offset: const Offset(2, 3)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icono, size: 18, color: BiomarkColors.blue),
-          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: BiomarkColors.blue.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icono, size: 18, color: BiomarkColors.blue),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(titulo, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface)),
+                Text(
+                  titulo,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: textDark,
+                  ),
+                ),
                 const SizedBox(height: 3),
                 Text(
-                  valores.isEmpty ? 'Sin información' : valores.join(', '),
-                  style: const TextStyle(fontSize: 12.5, color: Color(0xFF7A7A85)),
+                  valores.isEmpty ? 'Sin registros' : valores.join(', '),
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
                 ),
               ],
             ),
@@ -584,40 +789,107 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     );
   }
 
-  Widget _buildIconoCabecera(IconData icono, {Color color = BiomarkColors.blue}) {
+  Widget _buildConsentimientoCard(bool isDark) {
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+    final textDark = isDark ? Colors.white : const Color(0xFF0F172A);
+
     return Container(
-      width: 56,
-      height: 56,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: BiomarkColors.primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Checkbox(
+            value: _consentimientoMedico,
+            activeColor: BiomarkColors.primary,
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _consentimientoMedico = value);
+            },
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Consentimiento de Contexto Médico Asistido',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                    color: textDark,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Autorizo a BIOMARK AI a utilizar esta información exclusivamente para enriquecer mis orientaciones clínicas y sugerir centros de salud pertinentes.',
+                  style: TextStyle(color: Color(0xFF64748B), fontSize: 12, height: 1.35),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIconoCabecera(IconData icono, {Color color = BiomarkColors.primary}) {
+    return Container(
+      width: 52,
+      height: 52,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(alpha: .12),
+        color: color.withValues(alpha: 0.12),
       ),
       child: Icon(icono, color: color, size: 26),
     );
   }
 
   // ------------------------------------------------------------
-  // BOTÓN SIGUIENTE / FINALIZAR
+  // BARRA INFERIOR (BOTÓN SIGUIENTE / FINALIZAR)
   // ------------------------------------------------------------
-  Widget _buildBotonSiguiente() {
+  Widget _buildBarraInferior() {
     final esUltimo = _paso == _PasoEncuesta.resumen;
+    final textoBoton = esUltimo
+        ? (widget.editing ? 'Guardar y Actualizar' : 'Finalizar y Entrar al Inicio')
+        : 'Siguiente';
+
     return SizedBox(
       width: double.infinity,
-      height: 54,
+      height: 52,
       child: ElevatedButton(
-        onPressed: _puedeAvanzar ? _siguiente : null,
+        onPressed: _puedeAvanzar && !_isLoading ? _siguiente : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: BiomarkColors.green,
-          disabledBackgroundColor: const Color(0xFFD9D9E0),
+          backgroundColor: BiomarkColors.primary,
+          disabledBackgroundColor: const Color(0xFFE2E8F0),
           foregroundColor: Colors.white,
-          elevation: 4,
-          shadowColor: BiomarkColors.green.withValues(alpha: .4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
-        child: Text(
-          esUltimo ? 'Comienza a conversar con Biomark AI' : 'Siguiente',
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-        ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    textoBoton,
+                    style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    esUltimo ? Icons.check_circle_rounded : Icons.arrow_forward_rounded,
+                    size: 20,
+                  ),
+                ],
+              ),
       ),
     );
   }

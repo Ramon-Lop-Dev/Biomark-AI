@@ -17,7 +17,13 @@ const updateProfileSchema = z
     }).optional(),
     telefono: z.string().trim().max(30).optional(),
     direccion: z.string().trim().max(500).optional(),
-    municipio: z.string().trim().max(200).optional()
+    municipio: z.string().trim().max(200).optional(),
+    entrevista_completada: z.boolean().optional(),
+    peso: z.number().min(1).max(500).optional(),
+    altura: z.number().min(30).max(300).optional(),
+    fuma: z.string().trim().max(50).optional(),
+    alcohol: z.string().trim().max(50).optional(),
+    actividad_fisica: z.string().trim().max(50).optional()
   })
   .refine((body) => Object.keys(body).length > 0, {
     message: 'Debes enviar al menos un campo para actualizar'

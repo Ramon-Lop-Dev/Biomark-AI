@@ -63,6 +63,10 @@ const crearAntecedente = (usuarioId, { parentesco, nombre_condicion, notas }) =>
   const eliminarAlergias = (usuarioId) => supabase.from('alergias').delete().eq('usuario_id', usuarioId);
   const eliminarMedicamentos = (usuarioId) => supabase.from('medicamentos').delete().eq('usuario_id', usuarioId);
   const eliminarAntecedentes = (usuarioId) => supabase.from('antecedentes_familiares').delete().eq('usuario_id', usuarioId);
+  const eliminarVacunas = (usuarioId) => supabase.from('vacunas').delete().eq('usuario_id', usuarioId);
+  const listarVacunasPorUsuario = (usuarioId) => supabase.from('vacunas').select('*').eq('usuario_id', usuarioId).order('fecha_aplicacion', { ascending: false });
+  const crearVacuna = (usuarioId, { nombre_vacuna, fecha_aplicacion, numero_dosis }) =>
+    supabase.from('vacunas').insert([{ usuario_id: usuarioId, nombre_vacuna, fecha_aplicacion: fecha_aplicacion || new Date().toISOString().split('T')[0], numero_dosis: numero_dosis || 1 }]).select();
 
 module.exports = {
   listarPorUsuario,
@@ -76,5 +80,8 @@ module.exports = {
   eliminarHistorial,
   eliminarAlergias,
   eliminarMedicamentos,
-  eliminarAntecedentes
+  eliminarAntecedentes,
+  eliminarVacunas,
+  listarVacunasPorUsuario,
+  crearVacuna
 };

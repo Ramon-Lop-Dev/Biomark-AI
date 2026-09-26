@@ -6,6 +6,12 @@ import 'package:flutter_biomark/core/auth/auth_api.dart';
 import 'package:flutter_biomark/core/auth/auth_session.dart';
 import 'package:flutter_biomark/core/config/app_config.dart';
 import 'package:flutter_biomark/core/auth/reset_password_link_listener.dart';
+import 'package:flutter_biomark/core/profile/user_profile_api.dart';
+import 'package:flutter_biomark/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:flutter_biomark/features/onboarding/presentation/permissions_screen.dart';
+import 'package:flutter_biomark/health_survey.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 class SplashColors {
   static const bg = Color(0xFFEEF3FC);
   static const blue = Color(0xFF2D6CDF);
@@ -54,7 +60,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _irALogin() async {
-    await Future.delayed(const Duration(milliseconds: 2600));
+    await Future.delayed(const Duration(milliseconds: 2200));
     if (!mounted) return;
     if (ResetPasswordLinkListener.instance.pendingAccessToken != null) {
       Navigator.of(context).pushReplacement(
@@ -86,10 +92,40 @@ class _SplashScreenState extends State<SplashScreen>
       }
     }
     if (!mounted) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingVisto = prefs.getBool(OnboardingScreen.prefKey) ?? false;
+
+    Widget destino;
+    if (!onboardingVisto) {
+      // Primera vez en el dispositivo: mostrar Onboarding educativo con Lottie
+      destino = const OnboardingScreen();
+    } else if (!hasSession) {
+      // Ya vio el onboarding, va a inicio de sesión
+      destino = const LoginScreen();
+    } else {
+      // Sesión iniciada: validar entrevista y permisos
+      try {
+        final profile = await UserProfileApi.fetch();
+        final permissionsShown = prefs.getBool(PermissionsScreen.prefKey) ?? false;
+
+        if (profile != null && profile.entrevistaCompletada) {
+          destino = const AppShell();
+        } else if (!permissionsShown) {
+          destino = const PermissionsScreen();
+        } else {
+          destino = const HealthSurveyScreen(editing: false);
+        }
+      } catch (_) {
+        destino = const AppShell();
+      }
+    }
+
+    if (!mounted) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
-        pageBuilder: (_, animation, _) => hasSession ? const AppShell() : const LoginScreen(),
+        pageBuilder: (_, animation, _) => destino,
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },

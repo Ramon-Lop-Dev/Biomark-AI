@@ -9,7 +9,8 @@ const {
     createMedication,
     getFamilyHistory,
     createFamilyHistory,
-    replaceSurvey
+    replaceSurvey,
+    handleMedicalInterview
 } = require('./medical.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
 const { validate } = require('../../middleware/validate.middleware');
@@ -18,13 +19,15 @@ const {
     createAllergySchema,
     createMedicationSchema,
     createFamilyHistorySchema,
-    replaceSurveySchema
+    replaceSurveySchema,
+    interviewSchema
 } = require('./medical.validator');
 const router = express.Router();
 
 router.use(verifyToken);
 
 router.put('/survey', validate(replaceSurveySchema), replaceSurvey);
+router.post('/interview', validate(interviewSchema), handleMedicalInterview);
 
 // historial_medico -> GET/POST /api/medical-history
 router.get('/', getMedicalHistory);

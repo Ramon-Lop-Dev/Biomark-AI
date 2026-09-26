@@ -11,6 +11,17 @@ class AntecedentesScreen extends StatefulWidget {
 
 class _AntecedentesScreenState extends State<AntecedentesScreen> {
   @override
+  void initState() {
+    super.initState();
+    _cargarDatos();
+  }
+
+  Future<void> _cargarDatos() async {
+    await SurveyService.cargarDesdeBackend();
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -75,11 +86,14 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  final result = await Navigator.push<bool>(
                     context,
-                    MaterialPageRoute(builder: (_) => const HealthSurveyScreen()),
+                    MaterialPageRoute(builder: (_) => const HealthSurveyScreen(editing: true)),
                   );
+                  if (result == true && mounted) {
+                    _cargarDatos();
+                  }
                 },
                 child: const Text(
                   'Completar encuesta de salud',
@@ -125,15 +139,18 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
         const SizedBox(height: 24),
         Center(
           child: TextButton.icon(
-            onPressed: () {
-              Navigator.push(
+            onPressed: () async {
+              final result = await Navigator.push<bool>(
                 context,
-                MaterialPageRoute(builder: (_) => const HealthSurveyScreen()),
+                MaterialPageRoute(builder: (_) => const HealthSurveyScreen(editing: true)),
               );
+              if (result == true && mounted) {
+                _cargarDatos();
+              }
             },
-            icon: const Icon(Icons.refresh_rounded, size: 18, color: BiomarkColors.blue),
+            icon: const Icon(Icons.edit_note_rounded, size: 18, color: BiomarkColors.blue),
             label: const Text(
-              'Rehacer la encuesta completa',
+              'Editar mi encuesta de salud',
               style: TextStyle(color: BiomarkColors.blue, fontWeight: FontWeight.w600, fontSize: 13),
             ),
           ),

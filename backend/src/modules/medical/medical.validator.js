@@ -39,11 +39,27 @@ const replaceSurveySchema = z.object({
   medicamentos: z.string().trim().max(2000).default('')
 });
 
+const interviewSchema = z.object({
+  edad: z.number().int().min(1).max(120),
+  sexo: z.string().trim().min(1),
+  peso: z.number().min(1).max(500).optional(),
+  altura: z.number().min(30).max(300).optional(),
+  enfermedades_cronicas: z.array(z.string().trim()).default([]),
+  antecedentes_hereditarios: z.array(z.string().trim()).default([]),
+  alergias: z.array(z.string().trim()).default([]),
+  medicamentos: z.string().trim().default(''),
+  fuma: z.string().trim().default('NO'),
+  alcohol: z.string().trim().default('NO'),
+  actividad_fisica: z.string().trim().default('MODERADA'),
+  vacunas: z.array(z.string().trim()).default([])
+});
+
 module.exports = {
   createMedicalRecordSchema,
   createAllergySchema,
   createMedicationSchema,
   createFamilyHistorySchema,
   replaceSurveySchema,
+  interviewSchema,
   SEVERIDADES_ALERGIA
 };
