@@ -39,6 +39,7 @@ const verifyToken = async (req, res, next) => {
             return next(new AppError('Esta cuenta ha sido desactivada.', 403));
         }
 
+        req.usuario = usuario;
         req.usuarioId = usuario.id;
         req.usuarioRol = usuario.rol;
 

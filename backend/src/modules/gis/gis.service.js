@@ -89,92 +89,6 @@ const getNearbyHealthCenters = async (latitude, longitude, radiusKm = 15) => {
   }));
 };
 
-/**
- * Devuelve los eventos comunitarios futuros (con coordenadas cargadas)
- * ordenados por cercanía a una coordenada, filtrados a un radio máximo
- * (por defecto 15 km) — mismo patrón que getNearbyHealthCenters: traer
- * todo en memoria y calcular Haversine es suficiente para el volumen
- *
- */
-const EVENTOS_MINSA_DEFECTO = [
-  {
-    id: 'evento-seed-01',
-    titulo: 'Clínica Móvil MINSA y Atención Médica Integral',
-    descripcion: 'Consultas de medicina general, odontología, ultrasonidos diagnósticos y entrega gratuita de medicamentos esenciales para la comunidad.',
-    fecha_evento: new Date(Date.now() + 86400000).toISOString(),
-    ubicacion: 'Barrio San Judas (Cancha Comunal Central)',
-    latitud: 12.1185,
-    longitud: -86.2890,
-    categoria: 'CLINICA_MOVIL'
-  },
-  {
-    id: 'evento-seed-02',
-    titulo: 'Jornada Nacional de Vacunación Esquema 2026',
-    descripcion: 'Inmunización contra neumococo, influenza, sarampión y refuerzos para niños, gestantes y personas de la tercera edad.',
-    fecha_evento: new Date(Date.now() + 172800000).toISOString(),
-    ubicacion: 'Barrio Altagracia (Centro de Salud)',
-    latitud: 12.1382,
-    longitud: -86.2815,
-    categoria: 'VACUNACION'
-  },
-  {
-    id: 'evento-seed-03',
-    titulo: 'Jornada de Abatización y Fumigación BTI',
-    descripcion: 'Brigadas epidemiológicas del SILAIS Managua para control larvario biológico y eliminación de criaderos del mosquito Aedes aegypti.',
-    fecha_evento: new Date(Date.now() + 259200000).toISOString(),
-    ubicacion: 'Barrio Batahola Sur (Sector Los Robles)',
-    latitud: 12.1465,
-    longitud: -86.2940,
-    categoria: 'FUMIGACION'
-  },
-  {
-    id: 'evento-seed-04',
-    titulo: 'Feria de Medicina Natural y Terapias Complementarias',
-    descripcion: 'Atención con fitoterapia, terapias complementarias ancestrales, toma de presión arterial y pruebas rápidas de glucosa.',
-    fecha_evento: new Date(Date.now() + 345600000).toISOString(),
-    ubicacion: 'Barrio Camilo Ortega (Parque Comunal)',
-    latitud: 12.1090,
-    longitud: -86.2990,
-    categoria: 'FERIA_SALUD'
-  }
-];
-
-const ZONAS_RIESGO_DEFECTO = [
-  {
-    id: 'zona-seed-01',
-    nombre: 'Vigilancia Activa de Dengue - Distrito III',
-    tipo: 'ALERTA_EPIDEMIOLOGICA',
-    nivel_riesgo: 'ALTO',
-    radio_km: 1.8,
-    latitud: 12.1220,
-    longitud: -86.2880,
-    descripcion: 'Incremento de casos sospechosos en la última semana. Mantenga patios limpios y elimine recipientes con agua estancada.',
-    recomendacion: 'Acuda de inmediato al puesto de salud si presenta fiebre súbita, dolor detrás de los ojos o dolores musculares.'
-  },
-  {
-    id: 'zona-seed-02',
-    nombre: 'Vigilancia Respiratoria Estacional - Distrito II',
-    tipo: 'VIGILANCIA_PREVENTIVA',
-    nivel_riesgo: 'MEDIO',
-    radio_km: 1.5,
-    latitud: 12.1450,
-    longitud: -86.2920,
-    descripcion: 'Circulación estacional de virus respiratorios en menores de 5 años.',
-    recomendacion: 'Vigile dificultad para respirar y tos persistente. Mantenga hidratación y lavado frecuente de manos.'
-  },
-  {
-    id: 'zona-seed-03',
-    nombre: 'Monitoreo Preventivo de Zoonosis y Leptospirosis',
-    tipo: 'PREVENCION_COMUNITARIA',
-    nivel_riesgo: 'MEDIO',
-    radio_km: 2.0,
-    latitud: 12.1580,
-    longitud: -86.2650,
-    descripcion: 'Monitoreo preventivo en áreas aledañas y costeras.',
-    recomendacion: 'Evite el contacto directo con charcas y mantenga los alimentos y agua de consumo bien tapados.'
-  }
-];
-
 const getNearbyCommunityEvents = async (latitude, longitude, radiusKm = 25) => {
   let items = [];
   try {
@@ -183,10 +97,6 @@ const getNearbyCommunityEvents = async (latitude, longitude, radiusKm = 25) => {
       items = data;
     }
   } catch (_) {}
-
-  if (items.length === 0) {
-    items = EVENTOS_MINSA_DEFECTO;
-  }
 
   return items
     .map((evento) => ({
@@ -205,10 +115,6 @@ const getNearbyRiskZones = async (latitude, longitude, radiusKm = 25) => {
       items = data;
     }
   } catch (_) {}
-
-  if (items.length === 0) {
-    items = ZONAS_RIESGO_DEFECTO;
-  }
 
   return items
     .map((zona) => ({
@@ -234,7 +140,14 @@ const recommendNavigation = async (latitude, longitude, radiusKm = 50) => {
     getNearbyHealthCenters(latitude, longitude, radiusKm),
     getNearbyCommunityEvents(latitude, longitude, radiusKm)
   ]);
-  const destino = centros[0] || eventos[0];
+
+  // Las jornadas de fumigación o abatización son brigadas casa a casa y no destinos para navegación
+  const eventosPresenciales = eventos.filter((e) => {
+    const t = `${e.tipo || ''} ${e.categoria || ''} ${e.titulo || ''}`.toLowerCase();
+    return !t.includes('fumig') && !t.includes('abatiz');
+  });
+
+  const destino = centros[0] || eventosPresenciales[0];
   if (!destino) throw new AppError('No hay destinos de salud cercanos', 404);
   return {
     destino: destino.nombre || destino.titulo,

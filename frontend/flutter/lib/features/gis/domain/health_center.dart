@@ -102,6 +102,7 @@ class CommunityEvent {
   final double latitude;
   final double longitude;
   final double distanceKm;
+  final String type;
 
   const CommunityEvent({
     required this.id,
@@ -112,6 +113,7 @@ class CommunityEvent {
     required this.latitude,
     required this.longitude,
     required this.distanceKm,
+    this.type = '',
   });
 
   factory CommunityEvent.fromJson(Map<String, dynamic> json) {
@@ -128,6 +130,7 @@ class CommunityEvent {
       latitude: number(json['latitud']),
       longitude: number(json['longitud']),
       distanceKm: number(json['distancia_km']),
+      type: '${json['tipo'] ?? json['categoria'] ?? ''}',
     );
   }
 }

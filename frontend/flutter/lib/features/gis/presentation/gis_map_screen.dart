@@ -92,31 +92,34 @@ class _GisMapScreenState extends State<GisMapScreen>
 
     if (widget.initialCenter == null && widget.initialLocation == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _locate());
-    } else if (widget.highlightTitle != null) {
+    } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.location_on_rounded, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Ubicación: ${widget.highlightTitle!}',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+        _mapController.move(_mapCenter, 16.5);
+        if (widget.highlightTitle != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.location_on_rounded, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Ubicación: ${widget.highlightTitle!}',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
+              backgroundColor: const Color(0xFF0284C7),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              duration: const Duration(seconds: 3),
             ),
-            backgroundColor: const Color(0xFF0284C7),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+          );
+        }
       });
     }
   }
@@ -530,45 +533,98 @@ class _GisMapScreenState extends State<GisMapScreen>
                   ),
                 ),
                 const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          _mapController.move(LatLng(event.latitude, event.longitude), 17.0);
-                        },
-                        icon: const Icon(Icons.filter_center_focus_rounded, size: 18),
-                        label: const Text('Centrar'),
-                        style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
+                if (event.type.toLowerCase().contains('fumig') ||
+                    event.type.toLowerCase().contains('abatiz') ||
+                    event.title.toLowerCase().contains('fumig') ||
+                    event.title.toLowerCase().contains('abatiz') ||
+                    visual.category.toLowerCase().contains('fumig')) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: visual.color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: visual.color.withValues(alpha: 0.25),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: FilledButton.icon(
-                        onPressed: () async {
-                          final uri = Uri.parse(
-                            'https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}',
-                          );
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(uri, mode: LaunchMode.externalApplication);
-                          }
-                        },
-                        icon: const Icon(Icons.directions_rounded, size: 18),
-                        label: const Text('Cómo Llegar', style: TextStyle(fontWeight: FontWeight.bold)),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: visual.color,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.home_work_rounded, color: visual.color, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Atención casa a casa: Las brigadas del MINSA visitan las viviendas de este sector. Permita el ingreso para fumigación y aplicación de BTI.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(ctx).colorScheme.onSurface,
+                            ),
+                          ),
                         ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _mapController.move(LatLng(event.latitude, event.longitude), 17.0);
+                      },
+                      icon: const Icon(Icons.filter_center_focus_rounded, size: 18),
+                      label: const Text('Ver Sector en Mapa', style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: visual.color,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _mapController.move(LatLng(event.latitude, event.longitude), 17.0);
+                          },
+                          icon: const Icon(Icons.filter_center_focus_rounded, size: 18),
+                          label: const Text('Centrar'),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            final uri = Uri.parse(
+                              'https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}',
+                            );
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            }
+                          },
+                          icon: const Icon(Icons.directions_rounded, size: 18),
+                          label: const Text('Cómo Llegar', style: TextStyle(fontWeight: FontWeight.bold)),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: visual.color,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

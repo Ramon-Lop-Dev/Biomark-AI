@@ -19,7 +19,7 @@ const listarEventosComunitariosConCoordenadas = () =>
     .select('*')
     .not('latitud', 'is', null)
     .not('longitud', 'is', null)
-    .gte('fecha_evento', new Date().toISOString())
+    .gte('fecha_evento', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
     .order('fecha_evento', { ascending: true });
 
 const listarCentrosEnBbox = async ({ min_lon, min_lat, max_lon, max_lat, nivel_min, zoom }) => {
