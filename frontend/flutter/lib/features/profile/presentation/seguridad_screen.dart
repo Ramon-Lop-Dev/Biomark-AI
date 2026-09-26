@@ -150,6 +150,8 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
         ),
         title: Text(
           'Seguridad y contraseña',
+          maxLines: 2,
+          softWrap: true,
           style: TextStyle(
             color: onSurface,
             fontWeight: FontWeight.w800,

@@ -80,6 +80,8 @@ class _RecommendationsManagementScreenState
       appBar: AppBar(
         title: const Text(
           'Pautas y Recomendaciones MINSA',
+          maxLines: 2,
+          softWrap: true,
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
         ),
         actions: [

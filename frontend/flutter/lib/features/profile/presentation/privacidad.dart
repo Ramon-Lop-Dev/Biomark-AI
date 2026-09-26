@@ -174,6 +174,8 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
         ),
         title: Text(
           'Privacidad y datos médicos',
+          maxLines: 2,
+          softWrap: true,
           style: TextStyle(
             color: onSurface,
             fontWeight: FontWeight.w800,

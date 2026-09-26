@@ -142,6 +142,8 @@ class _AddEvolutionSheetState extends State<AddEvolutionSheet> {
                                   fontWeight: FontWeight.w900,
                                   color: Theme.of(context).colorScheme.onSurface,
                                 ),
+                                maxLines: 2,
+                                softWrap: true,
                               ),
                               const SizedBox(height: 2),
                               Text(
@@ -150,6 +152,8 @@ class _AddEvolutionSheetState extends State<AddEvolutionSheet> {
                                   fontSize: 12,
                                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
+                                maxLines: 2,
+                                softWrap: true,
                               ),
                             ],
                           ),

@@ -291,6 +291,9 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
         elevation: 0,
         title: const Text(
           'Fotopletismografía (PPG)',
+          maxLines: 2,
+          softWrap: true,
+          textAlign: TextAlign.center,
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,

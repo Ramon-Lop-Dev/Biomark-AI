@@ -36,6 +36,9 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
         ),
         title: Text(
           'Mis Antecedentes',
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          softWrap: true,
           style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.w800, fontSize: 18),
         ),
       ),

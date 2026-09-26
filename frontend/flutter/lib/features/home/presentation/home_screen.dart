@@ -284,8 +284,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.6,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+                softWrap: true,
               ),
               const SizedBox(height: 3),
               Row(
@@ -307,8 +307,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w600,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                      softWrap: true,
                     ),
                   ),
                 ],
@@ -492,8 +492,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               fontWeight: FontWeight.w900,
                               color: Theme.of(context).colorScheme.onSurface,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                            softWrap: true,
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -502,8 +502,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               fontSize: 12,
                               color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                            softWrap: true,
                           ),
                         ],
                       ),
@@ -577,8 +577,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    softWrap: true,
                   ),
                 ),
               ],
@@ -647,8 +647,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.w900,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+                softWrap: true,
               ),
             ),
           ],
@@ -657,11 +657,13 @@ class _HomeScreenState extends State<HomeScreen> {
         Text(
           _userConditions.isNotEmpty
               ? 'Segmentado según tu historial de salud: ${_userConditions.join(", ")}'
-              : 'Protocolos de atención, normativas clínicas y vigilancia del SILAIS Managua',
+              : 'Protocolos de atención, normativas clínicas y vigilancia territorial del MINSA',
           style: TextStyle(
             fontSize: 12,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
+          maxLines: 2,
+          softWrap: true,
         ),
         const SizedBox(height: 12),
 
@@ -836,7 +838,8 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 item.titulo,
                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-                maxLines: 2,
+                maxLines: 3,
+                softWrap: true,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 5),
@@ -848,7 +851,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 1.35,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                  maxLines: 3,
+                  maxLines: 4,
+                  softWrap: true,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -914,50 +918,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCommunityJornadasSection() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final jornadas = _communityEvents.isNotEmpty
-        ? _communityEvents
-        : [
-            CommunityEvent(
-              id: 'ev-seed-01',
-              title: 'Clínica Móvil y Atención Médica Integral',
-              description: 'Consultas de medicina general, odontología, ultrasonidos y entrega gratuita de medicamentos esenciales.',
-              date: DateTime.now().add(const Duration(days: 1)),
-              location: 'Barrio San Judas (Cancha Comunal Central)',
-              latitude: 12.1185,
-              longitude: -86.2890,
-              distanceKm: 1.5,
-            ),
-            CommunityEvent(
-              id: 'ev-seed-02',
-              title: 'Jornada Nacional de Vacunación Esquema 2026',
-              description: 'Inmunización contra neumococo, influenza, sarampión y refuerzos para niños y adultos mayores.',
-              date: DateTime.now().add(const Duration(days: 2)),
-              location: 'Barrio Altagracia (Centro de Salud)',
-              latitude: 12.1382,
-              longitude: -86.2815,
-              distanceKm: 0.8,
-            ),
-            CommunityEvent(
-              id: 'ev-seed-03',
-              title: 'Jornada de Abatización y Fumigación BTI',
-              description: 'Brigadas epidemiológicas del SILAIS Managua para control de larvas y eliminación de criaderos del mosquito transmisor.',
-              date: DateTime.now().add(const Duration(days: 3)),
-              location: 'Barrio Batahola Sur (Sector Los Robles)',
-              latitude: 12.1465,
-              longitude: -86.2940,
-              distanceKm: 2.1,
-            ),
-            CommunityEvent(
-              id: 'ev-seed-04',
-              title: 'Feria de Medicina Natural y Salud Integral',
-              description: 'Atención con fitoterapia, terapias complementarias, toma de presión arterial y pruebas de glucosa.',
-              date: DateTime.now().add(const Duration(days: 4)),
-              location: 'Barrio Camilo Ortega (Parque Comunal)',
-              latitude: 12.1090,
-              longitude: -86.2990,
-              distanceKm: 3.0,
-            ),
-          ];
+    final jornadas = _communityEvents;
 
     Color getEventColor(String title) {
       final t = title.toLowerCase();
@@ -1002,8 +963,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w900,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                      softWrap: true,
                     ),
                   ),
                 ],
@@ -1029,102 +990,155 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 2),
         Text(
-          'Atención médica gratuita, ferias de salud y clínicas móviles del MINSA en Managua',
+          'Atención médica gratuita, ferias de salud y clínicas móviles del MINSA en tu sector',
           style: TextStyle(
             fontSize: 12,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
+          maxLines: 2,
+          softWrap: true,
         ),
         const SizedBox(height: 14),
 
-        SizedBox(
-          height: 196,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: jornadas.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 14),
-            itemBuilder: (context, index) {
-              final j = jornadas[index];
-              final color = getEventColor(j.title);
-              final icon = getEventIcon(j.title);
-              final category = getEventCategory(j.title);
-
-              return Container(
-                width: 285,
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: color.withValues(alpha: isDark ? 0.35 : 0.22),
-                    width: 1.2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
+        if (jornadas.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF0284C7).withValues(alpha: isDark ? 0.35 : 0.15),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.event_available_rounded, size: 20, color: Color(0xFF0284C7)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'No hay jornadas comunitarias programadas actualmente',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        maxLines: 2,
+                        softWrap: true,
+                      ),
                     ),
                   ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(icon, size: 16, color: color),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            category,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              color: color,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                const SizedBox(height: 8),
+                Text(
+                  'El personal de salud y promotores comunitarios publicarán aquí las próximas ferias, vacunaciones y clínicas móviles.',
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  maxLines: 2,
+                  softWrap: true,
+                ),
+              ],
+            ),
+          )
+        else
+          SizedBox(
+            height: 196,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: jornadas.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 14),
+              itemBuilder: (context, index) {
+                final j = jornadas[index];
+                final color = getEventColor(j.title);
+                final icon = getEventIcon(j.title);
+                final category = getEventCategory(j.title);
+
+                return Container(
+                  width: 285,
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: color.withValues(alpha: isDark ? 0.35 : 0.22),
+                      width: 1.2,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      j.location,
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${j.date.day}/${j.date.month}/${j.date.year} · Atención en jornada',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Expanded(
-                      child: Text(
-                        j.description,
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(icon, size: 16, color: color),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              category,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: color,
+                              ),
+                              maxLines: 2,
+                              softWrap: true,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        j.location,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                        maxLines: 2,
+                        softWrap: true,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${j.date.day}/${j.date.month}/${j.date.year} · Atención en jornada',
                         style: TextStyle(
-                          fontSize: 11.5,
-                          height: 1.3,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      Expanded(
+                        child: Text(
+                          j.description,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            height: 1.3,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 3,
+                          softWrap: true,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     const SizedBox(height: 6),
                     SizedBox(
                       width: double.infinity,
@@ -1177,7 +1191,7 @@ class _HomeScreenState extends State<HomeScreen> {
           alerta: z.name.toUpperCase(),
           distrito: 'Distrito de Cobertura Sanitaria (Radio ${z.radiusKm.toStringAsFixed(1)} km)',
           nivel: isHigh ? 'Alerta Amarilla Barrial' : 'Vigilancia Preventiva',
-          casos: 'Monitoreo activo de casos en el sector por brigadas SILAIS',
+          casos: 'Monitoreo activo de casos en el sector por brigadas de salud del MINSA',
           recomendacion: 'Elimine recipientes con agua estancada. Acuda al centro de salud si presenta fiebre repentina.',
           color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
           latitude: z.latitude,
@@ -1203,33 +1217,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    if (brotes.isEmpty) {
-      brotes.addAll([
-        const _OutbreakItem(
-          alerta: 'VIGILANCIA DE DENGUE ACTIVA',
-          distrito: 'Distrito III: San Judas, Altagracia y Camilo Ortega',
-          nivel: 'Alerta Amarilla Barrial',
-          casos: 'Incremento de casos sospechosos en la última semana',
-          recomendacion: 'Elimine recipientes con agua estancada. Acuda al puesto de salud si presenta fiebre repentina.',
-          color: Color(0xFFF59E0B),
-          latitude: 12.1220,
-          longitude: -86.2880,
-          title: 'Vigilancia Activa de Dengue',
-        ),
-        const _OutbreakItem(
-          alerta: 'VIGILANCIA RESPIRATORIA ESTACIONAL',
-          distrito: 'Distrito II: Batahola Sur y Linda Vista',
-          nivel: 'Vigilancia Preventiva',
-          casos: 'Circulación de virus respiratorios en menores de 5 años',
-          recomendacion: 'Vigile dificultad para respirar y tos persistente. Mantenga hidratación y lavado de manos.',
-          color: Color(0xFF3B82F6),
-          latitude: 12.1450,
-          longitude: -86.2920,
-          title: 'Vigilancia Respiratoria Estacional',
-        ),
-      ]);
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1249,8 +1236,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w900,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                      softWrap: true,
                     ),
                   ),
                 ],
@@ -1281,123 +1268,180 @@ class _HomeScreenState extends State<HomeScreen> {
             fontSize: 12,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
+          maxLines: 2,
+          softWrap: true,
         ),
         const SizedBox(height: 14),
 
-        ...brotes.map((b) {
-          final color = b.color;
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
+        if (brotes.isEmpty)
+          Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: color.withValues(alpha: isDark ? 0.35 : 0.22),
-                width: 1.2,
+                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.verified_user_outlined,
+                  size: 32,
+                  color: Colors.green.shade600,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sector en Vigilancia Preventiva Normal',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        softWrap: true,
+                        maxLines: 2,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'No se registran alertas epidemiológicas activas ni brotes en tu zona en este momento.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        softWrap: true,
+                        maxLines: 3,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
+          )
+        else
+          ...brotes.map((b) {
+            final color = b.color;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: color.withValues(alpha: isDark ? 0.35 : 0.22),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            b.alerta,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: color,
+                            ),
+                            softWrap: true,
+                            maxLines: 2,
+                          ),
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
                         child: Text(
-                          b.alerta,
+                          b.nivel,
                           style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
                             color: color,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          softWrap: true,
+                          maxLines: 2,
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    b.distrito,
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                    softWrap: true,
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    b.casos,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        b.nivel,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: color,
+                    softWrap: true,
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    b.recomendacion,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    softWrap: true,
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          if (widget.onOpenMapWithOptions != null) {
+                            widget.onOpenMapWithOptions!(
+                              location: LatLng(b.latitude, b.longitude),
+                              focusRisk: true,
+                              highlightTitle: b.title,
+                            );
+                          } else if (widget.onOpenMap != null) {
+                            widget.onOpenMap!();
+                          }
+                        },
+                        icon: const Icon(Icons.map_rounded, size: 14),
+                        label: const Text('Ver Mapa de Vigilancia', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: color,
+                          side: BorderSide(color: color.withValues(alpha: 0.5)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          visualDensity: VisualDensity.compact,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  b.distrito,
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  b.casos,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ],
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  b.recomendacion,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.35,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        if (widget.onOpenMapWithOptions != null) {
-                          widget.onOpenMapWithOptions!(
-                            location: LatLng(b.latitude, b.longitude),
-                            focusRisk: true,
-                            highlightTitle: b.title,
-                          );
-                        } else if (widget.onOpenMap != null) {
-                          widget.onOpenMap!();
-                        }
-                      },
-                      icon: const Icon(Icons.map_rounded, size: 14),
-                      label: const Text('Ver Mapa de Vigilancia', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: color,
-                        side: BorderSide(color: color.withValues(alpha: 0.5)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        }),
+                ],
+              ),
+            );
+          }),
       ],
     );
   }

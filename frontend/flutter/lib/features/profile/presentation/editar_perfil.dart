@@ -7,6 +7,7 @@ class EditarPerfilScreen extends StatefulWidget {
   final String correo;
   final int? edad;
   final String? fotoUrl;
+  final String? generoActual;
 
   const EditarPerfilScreen({
     super.key,
@@ -14,6 +15,7 @@ class EditarPerfilScreen extends StatefulWidget {
     required this.correo,
     this.edad,
     this.fotoUrl,
+    this.generoActual,
   });
 
   @override
@@ -27,6 +29,14 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   late final FocusNode _nombreFocus;
   Uint8List? _fotoBytes;
   String? _fotoNombre;
+  String? _generoSeleccionado;
+
+  final List<String> _opcionesGenero = const [
+    'Femenino',
+    'Masculino',
+    'Otro',
+    'Prefiero no decir',
+  ];
 
   @override
   void initState() {
@@ -37,6 +47,18 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       text: widget.edad != null ? widget.edad.toString() : '—',
     );
     _nombreFocus = FocusNode();
+    _generoSeleccionado = _normalizarGenero(widget.generoActual);
+  }
+
+  String? _normalizarGenero(String? genero) {
+    const valoresBackend = {
+      'FEMENINO': 'Femenino',
+      'MASCULINO': 'Masculino',
+      'OTRO': 'Otro',
+      'NO_ESPECIFICA': 'Prefiero no decir',
+    };
+    return valoresBackend[genero?.toUpperCase()] ??
+        (_opcionesGenero.contains(genero) ? genero : null);
   }
 
   Future<void> _cambiarFoto() async {
@@ -57,6 +79,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   void _guardarCambios() {
     Navigator.pop(context, {
       'nombre': _nombreController.text.trim(),
+      'genero': _generoSeleccionado,
       'fotoBytes': _fotoBytes,
       'fotoNombre': _fotoNombre ?? 'perfil.jpg',
     });
@@ -76,12 +99,14 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Mi perfil',
+          'Mi perfil y datos de cuenta',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
+          maxLines: 2,
+          softWrap: true,
         ),
         actions: [
           TextButton(
@@ -152,6 +177,19 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.badge_outlined),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _generoSeleccionado,
+                    decoration: const InputDecoration(
+                      labelText: 'Género',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.wc_rounded),
+                    ),
+                    items: _opcionesGenero
+                        .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                        .toList(),
+                    onChanged: (v) => setState(() => _generoSeleccionado = v),
                   ),
                   const SizedBox(height: 16),
                   TextField(

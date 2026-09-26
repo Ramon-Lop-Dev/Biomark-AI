@@ -12,7 +12,7 @@ const _recomendacionesMINSA = <String, _EnfermedadInfo>{
       'Elimine recipientes con agua estancada (latas, floreros, llantas).',
       'Acuda al centro de salud si presenta fiebre repentina, dolor de cabeza intenso o manchas rojas.',
       'Use ropa de manga larga y repelente de insectos aprobado por el MINSA.',
-      'Reporte a las brigadas SILAIS si observa criaderos del mosquito Aedes aegypti.',
+      'Reporte a las brigadas de salud o autoridad correspondiente si observa criaderos del mosquito Aedes aegypti.',
     ],
   ),
   'Zika': _EnfermedadInfo(
@@ -127,6 +127,7 @@ class _CommunityReportSheetState extends State<_CommunityReportSheet> {
   final _medidasCtrl = TextEditingController();
   final _contactoCtrl = TextEditingController();
   final _casosCtrl = TextEditingController(text: '1');
+  final _otroTipoCtrl = TextEditingController();
 
   String? _tipoEnfermedad;
   DateTime _fechaInicioSintomas = DateTime.now();
@@ -149,6 +150,7 @@ class _CommunityReportSheetState extends State<_CommunityReportSheet> {
     _medidasCtrl.dispose();
     _contactoCtrl.dispose();
     _casosCtrl.dispose();
+    _otroTipoCtrl.dispose();
     super.dispose();
   }
 
@@ -171,12 +173,16 @@ class _CommunityReportSheetState extends State<_CommunityReportSheet> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _enviando = true);
     try {
+      final tipoFinal = (_tipoEnfermedad == 'Otro' && _otroTipoCtrl.text.trim().isNotEmpty)
+          ? 'Otro: ${_otroTipoCtrl.text.trim()}'
+          : _tipoEnfermedad;
+
       await widget.gisApi.createCommunityReport(
         latitude: widget.latitude,
         longitude: widget.longitude,
         description: _descripcionCtrl.text.trim(),
         caseCount: int.tryParse(_casosCtrl.text.trim()) ?? 1,
-        tipoEnfermedad: _tipoEnfermedad,
+        tipoEnfermedad: tipoFinal,
         direccionExacta: _direccionCtrl.text.trim(),
         fechaInicioSintomas: _fechaInicioSintomas,
         medidasTomadas: _medidasCtrl.text.trim().isEmpty
@@ -197,7 +203,7 @@ class _CommunityReportSheetState extends State<_CommunityReportSheet> {
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Reporte enviado al MINSA para validación. ¡Gracias!',
+                  'Reporte enviado al personal de salud del MINSA para validación comunitaria. ¡Gracias!',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
@@ -270,9 +276,13 @@ class _CommunityReportSheetState extends State<_CommunityReportSheet> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Reporte Comunitario MINSA',
-                              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-                          Text('Confidencial — Vigilancia epidemiológica SILAIS Managua',
-                              style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                              maxLines: 2,
+                              softWrap: true),
+                          Text('Confidencial — Personal de salud del MINSA o autoridad sanitaria correspondiente',
+                              style: TextStyle(fontSize: 11, color: Colors.grey),
+                              maxLines: 2,
+                              softWrap: true),
                         ],
                       ),
                     ),
@@ -302,6 +312,24 @@ class _CommunityReportSheetState extends State<_CommunityReportSheet> {
                           onChanged: (v) => setState(() => _tipoEnfermedad = v),
                           validator: (v) => (v == null || v.isEmpty) ? 'Selecciona el tipo de enfermedad' : null,
                         ),
+
+                        if (_tipoEnfermedad == 'Otro') ...[
+                          const SizedBox(height: 14),
+                          _SectionLabel(
+                            icon: Icons.edit_note_rounded,
+                            text: '¿Cuál es la enfermedad o situación sanitaria? *',
+                            color: const Color(0xFF10B981),
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: _otroTipoCtrl,
+                            decoration: _dec('Ej: Varicela, intoxicación alimentaria, etc.', isDark),
+                            maxLines: 2,
+                            validator: (v) => (_tipoEnfermedad == 'Otro' && (v == null || v.trim().length < 3))
+                                ? 'Especifica la enfermedad o problema de salud (mín. 3 letras)'
+                                : null,
+                          ),
+                        ],
 
                         if (enfermedadInfo != null) ...[
                           const SizedBox(height: 16),
@@ -402,7 +430,7 @@ class _CommunityReportSheetState extends State<_CommunityReportSheet> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Este reporte es recibido por el sistema de vigilancia del SILAIS Managua. Tus datos son confidenciales.',
+                                  'Este reporte es recibido por el personal de salud del MINSA o autoridad sanitaria asignada en la plataforma para su verificación territorial. Tus datos son confidenciales.',
                                   style: TextStyle(
                                     fontSize: 11.5,
                                     color: isDark ? Colors.white70 : const Color(0xFF334155),
@@ -424,7 +452,7 @@ class _CommunityReportSheetState extends State<_CommunityReportSheet> {
                                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                                 : const Icon(Icons.send_rounded, size: 20),
                             label: Text(
-                              _enviando ? 'Enviando...' : 'Enviar Reporte al MINSA',
+                              _enviando ? 'Enviando...' : 'Enviar Reporte para Validación Comunitaria',
                               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
                             ),
                             style: FilledButton.styleFrom(

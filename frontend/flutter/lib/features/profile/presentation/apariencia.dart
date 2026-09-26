@@ -47,6 +47,8 @@ class _AparienciaScreenState extends State<AparienciaScreen> {
         elevation: 0,
         title: const Text(
           'Apariencia',
+          maxLines: 2,
+          softWrap: true,
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
         ),
       ),

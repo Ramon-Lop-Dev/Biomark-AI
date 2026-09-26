@@ -769,16 +769,39 @@
     },
     {
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ { \"status\": \"ok\", \"detalle\": \"sin usuarios registrados en el municipio de la zona\" } }}",
-        "options": {
-          "responseCode": 200
-        }
+        "url": "={{$env.SUPABASE_URL}}/rest/v1/dispositivos_push",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "activo",
+              "value": "eq.true"
+            },
+            {
+              "name": "select",
+              "value": "fcm_token,plataforma"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            }
+          ]
+        },
+        "options": {}
       },
       "id": "2c908e80-4782-4dc0-a574-9d24154fa568",
-      "name": "Responder sin usuarios en municipio",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
+      "name": "Supabase Obtener tokens fallback alerta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         8944,
         6464
@@ -1476,7 +1499,18 @@
         ],
         [
           {
-            "node": "Responder sin usuarios en municipio",
+            "node": "Supabase Obtener tokens fallback alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Obtener tokens fallback alerta": {
+      "main": [
+        [
+          {
+            "node": "Consolidar tokens alerta",
             "type": "main",
             "index": 0
           }

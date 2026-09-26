@@ -334,7 +334,7 @@ class _AdminRoleRequestsScreenState extends State<AdminRoleRequestsScreen> {
         }).toList(),
       );
     }
-    return Scaffold(appBar: AppBar(title: const Text('Solicitudes de promotor')), body: content);
+    return Scaffold(appBar: AppBar(title: const Text('Solicitudes de promotor', maxLines: 2, softWrap: true)), body: content);
   }
 }
 
@@ -350,7 +350,7 @@ class _PromoterReportsScreenState extends State<PromoterReportsScreen> {
   void dispose() { _api.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) => Column(children: [
-        Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), child: Row(children: [const Expanded(child: Text('Reportes comunitarios', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800))), IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded))])),
+        Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), child: Row(children: [const Expanded(child: Text('Reportes comunitarios', maxLines: 2, softWrap: true, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800))), IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded))])),
         SingleChildScrollView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 16), child: Row(children: ['PENDIENTE_VALIDACION', 'VALIDADO', 'DESCARTADO'].map((status) => Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(_statusLabel(status)), selected: _status == status, onSelected: (_) { setState(() => _status = status); _load(); })) ).toList())),
         const SizedBox(height: 8),
         Expanded(child: _loading ? const Center(child: CircularProgressIndicator()) : _reports.isEmpty ? const _PanelMessage(message: 'No hay reportes en este estado.', icon: Icons.inbox_rounded) : ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: _reports.map((report) => _ReportTile(report: report, api: _api, onChanged: _load)).toList())),

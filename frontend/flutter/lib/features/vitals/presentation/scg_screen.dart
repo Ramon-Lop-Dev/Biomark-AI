@@ -256,6 +256,8 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
         ),
         title: const Text(
           'Sismocardiografía (SCG)',
+          maxLines: 2,
+          softWrap: true,
           style: TextStyle(
             fontFamily: 'Syne',
             fontWeight: FontWeight.bold,

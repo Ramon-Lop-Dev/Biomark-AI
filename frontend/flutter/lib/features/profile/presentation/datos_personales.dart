@@ -96,6 +96,8 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
+          maxLines: 2,
+          softWrap: true,
         ),
         actions: [
           TextButton(

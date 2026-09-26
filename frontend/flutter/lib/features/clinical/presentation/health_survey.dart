@@ -303,6 +303,8 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
             children: [
               Text(
                 titulo,
+                maxLines: 2,
+                softWrap: true,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -311,6 +313,8 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
               ),
               Text(
                 'Paso $pasoActual de $totalPasos: ${_getNombrePaso(_paso)}',
+                maxLines: 2,
+                softWrap: true,
                 style: const TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,

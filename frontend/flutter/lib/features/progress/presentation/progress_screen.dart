@@ -155,6 +155,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
               final isSmall = constraints.maxWidth < 420;
               if (isSmall) {
                 return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildMetricTile(
                       label: 'Tasa de Mejoría',
@@ -238,7 +239,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: isDark ? Colors.black26 : Colors.white.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(16),
@@ -249,12 +250,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 11.5,
               fontWeight: FontWeight.w700,
               color: isDark ? Colors.white70 : const Color(0xFF526356),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+            softWrap: true,
           ),
           const SizedBox(height: 4),
           Text(
@@ -269,11 +270,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
           Text(
             subtitle,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 10.5,
               color: isDark ? Colors.white60 : const Color(0xFF6E7E72),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+            softWrap: true,
           ),
         ],
       ),
@@ -362,17 +363,21 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 22,
+                      reservedSize: 26,
                       interval: (spots.length / 5).ceilToDouble().clamp(1.0, 10.0),
                       getTitlesWidget: (val, meta) {
                         final idx = val.toInt();
                         if (idx < 0 || idx >= sorted.length) return const SizedBox.shrink();
                         final rec = sorted[idx];
-                        return Text(
-                          '${rec.fechaRegistro.day}/${rec.fechaRegistro.month}',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        return SideTitleWidget(
+                          meta: meta,
+                          space: 6,
+                          child: Text(
+                            '${rec.fechaRegistro.day}/${rec.fechaRegistro.month}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         );
                       },
@@ -381,14 +386,19 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
-                      reservedSize: 24,
+                      reservedSize: 32,
                       interval: 4,
                       getTitlesWidget: (val, meta) {
-                        return Text(
-                          val.toInt().toString(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        return SideTitleWidget(
+                          meta: meta,
+                          space: 8,
+                          child: Text(
+                            val.toInt().toString(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         );
                       },
@@ -396,8 +406,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   ),
                 ),
                 borderData: FlBorderData(show: false),
-                minX: 0,
-                maxX: (spots.length - 1).toDouble(),
+                minX: -0.2,
+                maxX: spots.length > 1 ? (spots.length - 1).toDouble() + 0.2 : 1.2,
                 minY: 0,
                 maxY: 10,
                 lineBarsData: [

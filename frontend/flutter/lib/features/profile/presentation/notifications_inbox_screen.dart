@@ -166,10 +166,15 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
           onPressed: () => Navigator.maybePop(context),
         ),
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Bandeja de Avisos',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+            const Flexible(
+              child: Text(
+                'Bandeja de Avisos',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                maxLines: 2,
+                softWrap: true,
+              ),
             ),
             if (_unreadCount > 0) ...[
               const SizedBox(width: 8),
@@ -301,6 +306,8 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
                                                     Expanded(
                                                       child: Text(
                                                         item.title,
+                                                        maxLines: 2,
+                                                        softWrap: true,
                                                         style: TextStyle(
                                                           fontWeight: item.isRead
                                                               ? FontWeight.w600

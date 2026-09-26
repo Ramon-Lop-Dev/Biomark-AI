@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter_biomark/biomark_brand.dart';
-import 'package:flutter_biomark/datos_personales.dart';
 import 'package:flutter_biomark/editar_perfil.dart';
 import 'package:flutter_biomark/notifications.dart';
 import 'package:flutter_biomark/privacidad.dart';
@@ -19,7 +18,7 @@ import 'package:flutter_biomark/features/community/promoter_screens.dart';
 import 'package:flutter_biomark/core/profile/user_profile_api.dart';
 import 'package:flutter_biomark/core/ui/biomark_dialog.dart';
 import 'package:flutter_biomark/features/community/recommendations_management_screen.dart';
-import 'package:flutter_biomark/health_survey.dart';
+import 'package:flutter_biomark/health_history.dart';
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -240,6 +239,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
+          maxLines: 2,
+          softWrap: true,
         ),
         centerTitle: false,
       ),
@@ -255,26 +256,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildSeccion('Cuenta', [
               _ItemPerfil(
                 icon: Icons.person_outline_rounded,
-                label: 'Mis datos personales',
-                onTap: () async {
-                  final resultado = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DatosPersonalesScreen(
-                        nombreActual: _nombreUsuario,
-                        generoActual: _generoUsuario,
-                      ),
-                    ),
-                  );
-
-                  if (resultado != null && mounted) {
-                    setState(() {
-                      _nombreUsuario = resultado['nombre'] ?? _nombreUsuario;
-                      _generoUsuario = resultado['genero'] ?? _generoUsuario;
-                    });
-                    await _actualizarDatos(resultado);
-                  }
-                },
+                label: 'Mis datos de perfil y cuenta',
+                onTap: _abrirEditarPerfil,
               ),
               _ItemPerfil(
                 icon: Icons.lock_outline_rounded,
@@ -291,15 +274,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               _ItemPerfil(
                 icon: Icons.assignment_outlined,
-                label: 'Editar encuesta de salud',
+                label: 'Historial médico y antecedentes (Encuesta)',
                 onTap: () async {
-                  final updated = await Navigator.push<bool>(
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const HealthSurveyScreen(editing: true),
+                      builder: (_) => const AntecedentesScreen(),
                     ),
                   );
-                  if (updated == true && mounted) await _cargarPerfil();
+                  if (mounted) await _cargarPerfil();
                 },
               ),
               if (!AuthSession.instance.isPromoter &&
@@ -394,34 +377,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
 );
   }
 
+  Future<void> _abrirEditarPerfil() async {
+    final resultado = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditarPerfilScreen(
+          nombreActual: _nombreUsuario,
+          correo: _correoUsuario,
+          edad: _edadUsuario,
+          fotoUrl: _fotoUrl,
+          generoActual: _generoUsuario,
+        ),
+      ),
+    );
+
+    if (resultado != null && mounted) {
+      setState(() {
+        _nombreUsuario = resultado['nombre'] ?? _nombreUsuario;
+        _generoUsuario = resultado['genero'] ?? _generoUsuario;
+      });
+      await _actualizarDatos(resultado);
+      final fotoBytes = resultado['fotoBytes'];
+      final fotoNombre = resultado['fotoNombre'] as String? ?? 'perfil.jpg';
+      if (fotoBytes is Uint8List) {
+        await _subirFotoBytes(fotoBytes, fotoNombre);
+      }
+    }
+  }
+
   Widget _buildEncabezado() {
     return InkWell(
       borderRadius: BorderRadius.circular(24),
-      onTap: () async {
-        final resultado = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => EditarPerfilScreen(
-              nombreActual: _nombreUsuario,
-              correo: _correoUsuario,
-              edad: _edadUsuario,
-              fotoUrl: _fotoUrl,
-            ),
-          ),
-        );
-
-        if (resultado != null && mounted) {
-          setState(() {
-            _nombreUsuario = resultado['nombre'] ?? _nombreUsuario;
-          });
-          await _actualizarDatos(resultado);
-          final fotoBytes = resultado['fotoBytes'];
-          final fotoNombre = resultado['fotoNombre'] as String? ?? 'perfil.jpg';
-          if (fotoBytes is Uint8List) {
-            await _subirFotoBytes(fotoBytes, fotoNombre);
-          }
-        }
-      },
+      onTap: _abrirEditarPerfil,
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(

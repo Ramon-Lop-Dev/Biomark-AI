@@ -72,7 +72,7 @@ class HealthContentApi {
       alcanceTipo: 'GENERAL',
       condicionesObjetivo: const ['dengue', 'fiebre', 'infeccion', 'general'],
       barrioComunidad: 'Managua',
-      silais: 'SILAIS Managua',
+      silais: 'MINSA - Cobertura Managua',
       fechaPublicacion: DateTime.now().subtract(const Duration(days: 1)),
     ),
     HealthContentItem(
@@ -90,7 +90,7 @@ class HealthContentApi {
       alcanceTipo: 'CONDICION',
       condicionesObjetivo: const ['hipertension', 'hipertensión', 'presion alta', 'presión arterial', 'cardiovascular'],
       barrioComunidad: 'Managua',
-      silais: 'SILAIS Managua',
+      silais: 'MINSA - Cobertura Managua',
       fechaPublicacion: DateTime.now().subtract(const Duration(days: 2)),
     ),
     HealthContentItem(
@@ -108,14 +108,14 @@ class HealthContentApi {
       alcanceTipo: 'CONDICION',
       condicionesObjetivo: const ['diabetes', 'glucosa', 'azucar en sangre', 'cronica'],
       barrioComunidad: 'Managua',
-      silais: 'SILAIS Managua',
+      silais: 'MINSA - Cobertura Managua',
       fechaPublicacion: DateTime.now().subtract(const Duration(days: 3)),
     ),
     HealthContentItem(
       id: 'c1000000-0000-0000-0000-000000000004',
       titulo: 'Jornada Barrial de Vacunación Comunitaria y Atención Médica',
       descripcion: 'Clínicas móviles del MINSA en distritos de Managua brindando atención gratuita.',
-      contenido: 'Personal de salud del SILAIS Managua brinda atención médica preventiva, toma de signos vitales, control prenatal y aplicación de esquemas de vacunas. Consulte la ubicación exacta en el mapa asistencial de Biomark AI.',
+      contenido: 'Personal de salud del MINSA brinda atención médica preventiva, toma de signos vitales, control prenatal y aplicación de esquemas de vacunas. Consulte la ubicación exacta en el mapa asistencial de Biomark AI.',
       categoria: 'PREVENCION',
       imagenUrl: 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80',
       fuente: 'MINSA Nicaragua',
@@ -126,7 +126,7 @@ class HealthContentApi {
       alcanceTipo: 'GENERAL',
       condicionesObjetivo: const ['vacunacion', 'salud preventiva', 'jornada'],
       barrioComunidad: 'Managua',
-      silais: 'SILAIS Managua',
+      silais: 'MINSA - Cobertura Managua',
       fechaPublicacion: DateTime.now().subtract(const Duration(days: 4)),
     ),
     HealthContentItem(
@@ -144,7 +144,7 @@ class HealthContentApi {
       alcanceTipo: 'CONDICION',
       condicionesObjetivo: const ['asma', 'alergia', 'respiratorio', 'tos'],
       barrioComunidad: 'Managua',
-      silais: 'SILAIS Managua',
+      silais: 'MINSA - Cobertura Managua',
       fechaPublicacion: DateTime.now().subtract(const Duration(days: 5)),
     ),
   ];

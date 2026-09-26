@@ -134,6 +134,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
         title: Text(
           'Notificaciones',
+          maxLines: 2,
+          softWrap: true,
           style: TextStyle(
             color: onSurface,
             fontWeight: FontWeight.w800,
