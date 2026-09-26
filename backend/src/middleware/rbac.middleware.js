@@ -9,12 +9,13 @@ const AppError = require('../utils/AppError');
  * Uso: router.post('/', verifyToken, requireRole('ADMIN', 'TRABAJADOR_SALUD'), controller)
  */
 const requireRole = (...rolesPermitidos) => {
+  const permitidos = rolesPermitidos.flat();
   return (req, res, next) => {
     if (!req.usuarioRol) {
       return next(new AppError('No se pudo determinar el rol del usuario', 401));
     }
 
-    if (!rolesPermitidos.includes(req.usuarioRol)) {
+    if (!permitidos.includes(req.usuarioRol)) {
       return next(new AppError('No tienes permisos para realizar esta acción', 403));
     }
 

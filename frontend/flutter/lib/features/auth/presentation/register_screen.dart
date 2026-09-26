@@ -4,6 +4,7 @@ import 'package:flutter_biomark/main.dart';
 import 'package:flutter_biomark/core/auth/auth_api.dart';
 import 'package:flutter_biomark/core/auth/auth_session.dart';
 import 'package:flutter_biomark/core/config/app_config.dart';
+import 'package:flutter_biomark/core/ui/biomark_dialog.dart';
 import 'package:flutter_biomark/core/ui/loading_service.dart';
 import 'package:flutter_biomark/features/onboarding/presentation/permissions_screen.dart';
 /// ---------------------------------------------------------------
@@ -90,41 +91,21 @@ class _RegisterScreenState extends State<RegisterScreen>
     bool isError = false,
   }) async {
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: _cardBg,
-        surfaceTintColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        icon: Icon(
-          icon,
-          size: 46,
-          color: isError ? Colors.redAccent : _accentBlue,
-        ),
-        title: Text(
-          title,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _textDark, fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _textGray),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            style: FilledButton.styleFrom(
-              backgroundColor: isError ? Colors.redAccent : _accentBlue,
-            ),
-            child: Text(actionLabel),
-          ),
-        ],
-      ),
-    );
+    if (isError) {
+      await BiomarkDialog.showError(
+        context,
+        title: title,
+        message: message,
+        actionLabel: actionLabel,
+      );
+    } else {
+      await BiomarkDialog.showSuccess(
+        context,
+        title: title,
+        message: message,
+        actionLabel: actionLabel,
+      );
+    }
   }
 
   void _irALogin() {

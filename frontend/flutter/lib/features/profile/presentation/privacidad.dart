@@ -5,6 +5,7 @@ import 'package:flutter_biomark/biomark_brand.dart';
 import 'package:flutter_biomark/core/auth/auth_session.dart';
 import 'package:flutter_biomark/core/auth/auth_api.dart';
 import 'package:flutter_biomark/core/config/app_config.dart';
+import 'package:flutter_biomark/core/ui/biomark_dialog.dart';
 import 'package:flutter_biomark/main.dart';
 class PrivacidadScreen extends StatefulWidget {
   const PrivacidadScreen({super.key});
@@ -19,7 +20,6 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
 
   bool _exportando = false;
   bool _guardandoConsentimiento = false;
-  bool _eliminandoCuenta = false;
 
   @override
   void initState() {
@@ -111,41 +111,23 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
     );
   }
 
-  void _confirmarEliminarCuenta() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text(
-          '¿Eliminar tu cuenta?',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-        ),
-        content: const Text(
-          'Esta acción es permanente. Se eliminarán tu perfil, tus antecedentes '
+  Future<void> _confirmarEliminarCuenta() async {
+    final confirmed = await BiomarkDialog.showConfirm(
+      context,
+      title: '¿Eliminar tu cuenta?',
+      message: 'Esta acción es permanente. Se eliminarán tu perfil, tus antecedentes '
           'médicos y todo tu historial con Biomark AI. No se puede deshacer.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: _eliminandoCuenta
-                ? null
-                : () => _eliminarCuenta(dialogContext),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
     );
+    if (confirmed && mounted) {
+      _eliminarCuenta();
+    }
   }
 
-  Future<void> _eliminarCuenta(BuildContext dialogContext) async {
-    setState(() => _eliminandoCuenta = true);
+  Future<void> _eliminarCuenta() async {
+    BiomarkDialog.showLoading(context, message: 'Eliminando cuenta...');
     try {
       final token = AuthSession.instance.accessToken;
       if (token == null || token.isEmpty) throw Exception('Sesión expirada.');
@@ -154,21 +136,18 @@ class _PrivacidadScreenState extends State<PrivacidadScreen> {
       ).deleteAccount(accessToken: token);
       await AuthSession.instance.clear();
       if (!mounted) return;
-      if (dialogContext.mounted) {
-        Navigator.of(dialogContext).pop();
-      }
+      BiomarkDialog.hideLoading(context);
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (_) => false,
       );
     } catch (error) {
       if (!mounted) return;
-      setState(() => _eliminandoCuenta = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se pudo eliminar la cuenta: $error'),
-          backgroundColor: Colors.red,
-        ),
+      BiomarkDialog.hideLoading(context);
+      await BiomarkDialog.showError(
+        context,
+        title: 'Error al eliminar',
+        message: 'No se pudo eliminar la cuenta: $error',
       );
     }
   }

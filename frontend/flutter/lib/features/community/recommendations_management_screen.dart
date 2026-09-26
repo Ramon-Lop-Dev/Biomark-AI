@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_biomark/biomark_brand.dart';
 import 'package:flutter_biomark/core/design/responsive_layout.dart';
+import 'package:flutter_biomark/core/ui/biomark_dialog.dart';
 import 'package:flutter_biomark/features/home/data/recommendations_service.dart';
 import 'package:flutter_biomark/features/home/domain/health_recommendation.dart';
 
@@ -47,29 +48,16 @@ class _RecommendationsManagementScreenState
   }
 
   Future<void> _eliminar(HealthRecommendation rec) async {
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar Recomendación'),
-        content: Text('¿Deseas retirar la pauta "${rec.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+    final confirmar = await BiomarkDialog.showConfirm(
+      context,
+      title: 'Eliminar Recomendación',
+      message: '¿Deseas retirar la pauta "${rec.title}"?',
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
     );
 
-    if (confirmar != true) return;
+    if (!confirmar) return;
     final ok = await RecommendationsService.deleteRecommendation(rec.id);
     if (!mounted) return;
     if (ok) {

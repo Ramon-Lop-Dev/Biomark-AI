@@ -6,7 +6,8 @@ const {
 } = require('./content.controller');
 const { validate } = require('../../middleware/validate.middleware');
 const { queryContentSchema, ingestContentSchema } = require('./content.validator');
-const { verifyToken, requireRole } = require('../../middleware/auth.middleware');
+const { verifyToken } = require('../../middleware/auth.middleware');
+const { requireRole } = require('../../middleware/rbac.middleware');
 
 const router = express.Router();
 

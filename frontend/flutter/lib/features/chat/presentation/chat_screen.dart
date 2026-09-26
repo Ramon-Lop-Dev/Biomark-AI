@@ -13,6 +13,7 @@ import '../../../biomark_brand.dart';
 import '../../../core/auth/auth_session.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/design/biomark_clay.dart';
+import '../../../core/ui/biomark_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/chat_api.dart';
 import '../data/chat_storage.dart';
@@ -268,41 +269,32 @@ class _ChatScreenState extends State<ChatScreen>
     final alreadyAccepted = prefs.getBool('biomark_health_disclaimer_accepted') ?? false;
     if (alreadyAccepted || !mounted) return;
 
-    await showDialog<void>(
-      context: context,
+    await BiomarkDialog.showCustom<void>(
+      context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Row(
-          children: [
-            const Image(
-              image: AssetImage('assets/branding/Icono.png'),
-              width: 52,
-              height: 52,
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Antes de comenzar',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
-          'Biomark AI orienta tu salud, pero no reemplaza el diagnóstico de un profesional. Consulta siempre a tu médico.',
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () {
-              prefs.setBool('biomark_health_disclaimer_accepted', true);
-              Navigator.pop(context);
-            },
-            child: const Text('Aceptar'),
-          ),
-        ],
+      iconWidget: const Image(
+        image: AssetImage('assets/branding/Icono.png'),
+        width: 48,
+        height: 48,
       ),
+      title: 'Antes de comenzar',
+      message: 'Biomark AI orienta tu salud, pero no reemplaza el diagnóstico de un profesional. Consulta siempre a tu médico.',
+      actions: [
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: BiomarkColors.green,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+          ),
+          onPressed: () {
+            prefs.setBool('biomark_health_disclaimer_accepted', true);
+            Navigator.pop(context);
+          },
+          child: const Text('Aceptar', style: TextStyle(fontWeight: FontWeight.w600)),
+        ),
+      ],
     );
   }
 

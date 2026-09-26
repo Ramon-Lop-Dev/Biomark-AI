@@ -17,6 +17,7 @@ import 'core/config/firebase_config.dart';
 import 'core/design/app_themecontroller.dart';
 import 'core/notifications/push_notifications_service.dart';
 import 'core/profile/user_profile_api.dart';
+import 'core/ui/biomark_dialog.dart';
 import 'core/ui/loading_service.dart';
 import 'features/onboarding/presentation/permissions_screen.dart';
 import 'health_survey.dart';
@@ -133,41 +134,21 @@ class _LoginScreenState extends State<LoginScreen>
     bool isError = false,
   }) async {
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: _cardBg,
-        surfaceTintColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        icon: Icon(
-          icon,
-          size: 46,
-          color: isError ? Colors.redAccent : _primaryGreen,
-        ),
-        title: Text(
-          title,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _textDark, fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _textGray),
-        ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            style: FilledButton.styleFrom(
-              backgroundColor: isError ? Colors.redAccent : _primaryGreen,
-            ),
-            child: Text(actionLabel),
-          ),
-        ],
-      ),
-    );
+    if (isError) {
+      await BiomarkDialog.showError(
+        context,
+        title: title,
+        message: message,
+        actionLabel: actionLabel,
+      );
+    } else {
+      await BiomarkDialog.showSuccess(
+        context,
+        title: title,
+        message: message,
+        actionLabel: actionLabel,
+      );
+    }
   }
 
   Future<void> _navegarPostLogin() async {

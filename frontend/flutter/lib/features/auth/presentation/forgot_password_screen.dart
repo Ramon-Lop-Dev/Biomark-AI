@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_biomark/core/auth/auth_api.dart';
 import 'package:flutter_biomark/core/auth/reset_password_link_listener.dart';
 import 'package:flutter_biomark/core/config/app_config.dart';
+import 'package:flutter_biomark/core/ui/biomark_dialog.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -168,10 +169,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!mounted) return;
     setState(() => _isLoading = false);
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _buildExitoDialog(),
+    await BiomarkDialog.showSuccess(
+      context,
+      title: '¡Contraseña actualizada!',
+      message: 'Ya puedes iniciar sesión con tu nueva contraseña en Biomark AI.',
+      actionLabel: 'Ir a Iniciar sesión',
+      onAction: () {
+        if (mounted) Navigator.pop(context);
+      },
     );
   }
 
@@ -703,80 +708,4 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-  // ---- Diálogo de éxito al final ----
-  Widget _buildExitoDialog() {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: _bgMid,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: _esOscuro ? 0.4 : 0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                color: _accentGreen,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.check_rounded,
-                color: Colors.white,
-                size: 36,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              '¡Contraseña actualizada!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: _textDark,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Ya puedes iniciar sesión con tu nueva contraseña',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: _textGray),
-            ),
-            const SizedBox(height: 22),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryGreen,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.pop(context); // cierra el diálogo
-                  Navigator.pop(context); // regresa al login
-                },
-                child: const Text(
-                  'Ir a Iniciar sesión',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

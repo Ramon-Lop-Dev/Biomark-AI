@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../biomark_brand.dart';
 import '../../../core/auth/auth_session.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/ui/biomark_dialog.dart';
 import '../data/reminders_service.dart';
 
 class RemindersScreen extends StatefulWidget {
@@ -63,24 +64,13 @@ class _RemindersScreenState extends State<RemindersScreen> {
   }
 
   Future<bool> _confirmStatusChange(String title, String message) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Volver'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
+    return BiomarkDialog.showConfirm(
+      context,
+      title: title,
+      message: message,
+      confirmLabel: 'Confirmar',
+      cancelLabel: 'Volver',
     );
-    return result ?? false;
   }
 
   Future<void> _updateReminder(

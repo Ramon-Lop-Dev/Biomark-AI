@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_biomark/biomark_brand.dart';
+import 'package:flutter_biomark/core/ui/biomark_dialog.dart';
 import 'package:flutter_biomark/survey_service.dart';
 import 'package:flutter_biomark/health_survey.dart';
 class AntecedentesScreen extends StatefulWidget {
@@ -311,94 +312,90 @@ class _AntecedentesScreenState extends State<AntecedentesScreen> {
   void _mostrarDialogoAgregar(String categoria, String tituloCategoria) {
     final controller = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text('Agregar a "$tituloCategoria"', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: 'Ej. Migraña crónica',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
+    BiomarkDialog.showCustom<void>(
+      context,
+      icon: Icons.add_circle_outline_rounded,
+      iconColor: BiomarkColors.green,
+      title: 'Agregar a "$tituloCategoria"',
+      contentWidget: TextField(
+        controller: controller,
+        autofocus: true,
+        decoration: InputDecoration(
+          hintText: 'Ej. Migraña crónica',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: BiomarkColors.green),
-            onPressed: () {
-              setState(() => SurveyService.agregarItem(categoria, controller.text));
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Agregar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: BiomarkColors.green,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          onPressed: () {
+            final val = controller.text.trim();
+            if (val.isNotEmpty) {
+              setState(() => SurveyService.agregarItem(categoria, val));
+            }
+            Navigator.pop(context);
+          },
+          child: const Text('Agregar'),
+        ),
+      ],
     );
   }
 
-  void _confirmarEliminar(String categoria, String valor) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('¿Eliminar este registro?', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-        content: Text('Se quitará "$valor" de tus antecedentes.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            onPressed: () {
-              setState(() => SurveyService.eliminarItem(categoria, valor));
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Eliminar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+  Future<void> _confirmarEliminar(String categoria, String valor) async {
+    final confirmar = await BiomarkDialog.showConfirm(
+      context,
+      title: '¿Eliminar este registro?',
+      message: 'Se quitará "$valor" de tus antecedentes.',
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
     );
+    if (confirmar) {
+      setState(() => SurveyService.eliminarItem(categoria, valor));
+    }
   }
 
   void _mostrarDialogoMedicamentos(String textoActual) {
     final controller = TextEditingController(text: textoActual);
 
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Medicamentos actuales', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 3,
-          decoration: InputDecoration(
-            hintText: 'Ej. Metformina 500mg, Losartán 50mg',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
+    BiomarkDialog.showCustom<void>(
+      context,
+      icon: Icons.medication_outlined,
+      iconColor: BiomarkColors.blue,
+      title: 'Medicamentos actuales',
+      contentWidget: TextField(
+        controller: controller,
+        autofocus: true,
+        maxLines: 3,
+        decoration: InputDecoration(
+          hintText: 'Ej. Metformina 500mg, Losartán 50mg',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: BiomarkColors.green),
-            onPressed: () {
-              setState(() => SurveyService.actualizarMedicamentos(controller.text));
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: BiomarkColors.blue,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          onPressed: () {
+            setState(() => SurveyService.actualizarMedicamentos(controller.text.trim()));
+            Navigator.pop(context);
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 }

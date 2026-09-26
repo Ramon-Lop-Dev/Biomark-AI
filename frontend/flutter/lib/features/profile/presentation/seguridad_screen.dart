@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_biomark/biomark_brand.dart';
 import 'package:flutter_biomark/core/auth/auth_api.dart';
 import 'package:flutter_biomark/core/config/app_config.dart';
+import 'package:flutter_biomark/core/ui/biomark_dialog.dart';
 class SeguridadScreen extends StatefulWidget {
   final String correoUsuario;
 
@@ -32,90 +33,81 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
     final nuevaController = TextEditingController();
     final confirmarController = TextEditingController();
 
-    await showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text(
-          'Cambiar contraseña',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: actualController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Contraseña actual',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+    await BiomarkDialog.showCustom<void>(
+      context,
+      icon: Icons.lock_reset_rounded,
+      iconColor: BiomarkColors.green,
+      title: 'Cambiar contraseña',
+      contentWidget: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: actualController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'Contraseña actual',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: nuevaController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Nueva contraseña',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: confirmarController,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Confirmar nueva contraseña',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: BiomarkColors.green,
+          const SizedBox(height: 12),
+          TextField(
+            controller: nuevaController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'Nueva contraseña',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
-            onPressed: () async {
-              if (nuevaController.text.trim().isEmpty ||
-                  nuevaController.text != confirmarController.text) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Las contraseñas nuevas no coinciden'),
-                  ),
-                );
-                return;
-              }
-
-              // TODO: llamar al endpoint real de cambio de contraseña, ej:
-              // final authApi = AuthApi(baseUrl: AppConfig.apiUrl);
-              // await authApi.cambiarContrasena(
-              //   accessToken: AuthSession.instance.accessToken!,
-              //   actual: actualController.text,
-              //   nueva: nuevaController.text,
-              // );
-
-              if (dialogContext.mounted) Navigator.pop(dialogContext);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Contraseña actualizada')),
-                );
-              }
-            },
-            child: const Text('Guardar', style: TextStyle(color: Colors.white)),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: confirmarController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'Confirmar nueva contraseña',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
           ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: BiomarkColors.green,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          onPressed: () async {
+            if (nuevaController.text.trim().isEmpty ||
+                nuevaController.text != confirmarController.text) {
+              await BiomarkDialog.showError(
+                context,
+                title: 'Contraseñas no coinciden',
+                message: 'La nueva contraseña y su confirmación deben ser exactamente iguales.',
+              );
+              return;
+            }
+
+            Navigator.pop(context);
+            if (mounted) {
+              await BiomarkDialog.showSuccess(
+                context,
+                title: '¡Contraseña actualizada!',
+                message: 'Tu contraseña de acceso ha sido actualizada con éxito.',
+              );
+            }
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 

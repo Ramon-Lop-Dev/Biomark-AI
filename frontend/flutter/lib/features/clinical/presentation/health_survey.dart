@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_biomark/app_shell.dart';
 import 'package:flutter_biomark/biomark_brand.dart';
+import 'package:flutter_biomark/core/ui/biomark_dialog.dart';
 import 'package:flutter_biomark/survey_service.dart';
 
 class HealthSurveyScreen extends StatefulWidget {
@@ -141,33 +142,21 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
     }
   }
 
-  void _mostrarAlertaSalir() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Completar más tarde'),
-        content: const Text(
-          'Completar tu perfil clínico permite a Biomark AI darte respuestas seguras y personalizadas.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Continuar entrevista'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const AppShell()),
-              );
-            },
-            style: FilledButton.styleFrom(backgroundColor: BiomarkColors.blue),
-            child: const Text('Ir al inicio'),
-          ),
-        ],
-      ),
+  Future<void> _mostrarAlertaSalir() async {
+    final salir = await BiomarkDialog.showConfirm(
+      context,
+      icon: Icons.assignment_late_outlined,
+      title: 'Completar más tarde',
+      message: 'Completar tu perfil clínico permite a Biomark AI darte respuestas seguras y personalizadas. ¿Deseas ir al inicio ahora?',
+      cancelLabel: 'Continuar entrevista',
+      confirmLabel: 'Ir al inicio',
     );
+    if (salir && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AppShell()),
+      );
+    }
   }
 
   Future<void> _finalizar() async {

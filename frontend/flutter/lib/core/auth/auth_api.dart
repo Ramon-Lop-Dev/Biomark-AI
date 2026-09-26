@@ -78,10 +78,42 @@ class AuthApi {
           )
           .timeout(const Duration(seconds: 20));
 
+      if (response.statusCode >= 500) {
+        if (response.statusCode == 502) {
+          throw const AuthApiException(
+            'El servidor de Biomark (VPS) está iniciando o en mantenimiento temporal (502 Bad Gateway). Intenta de nuevo en unos momentos.',
+            statusCode: 502,
+          );
+        }
+        if (response.statusCode == 503) {
+          throw const AuthApiException(
+            'El servidor de Biomark está temporalmente no disponible (503 Service Unavailable).',
+            statusCode: 503,
+          );
+        }
+        if (response.statusCode == 504) {
+          throw const AuthApiException(
+            'Tiempo de espera agotado con el servidor de Biomark (504 Gateway Timeout).',
+            statusCode: 504,
+          );
+        }
+        throw AuthApiException(
+          'Error interno en el servidor (${response.statusCode}). Por favor intenta más tarde.',
+          statusCode: response.statusCode,
+        );
+      }
+
       Map<String, dynamic> decoded = const {};
       if (response.body.isNotEmpty) {
-        final parsed = jsonDecode(response.body);
-        if (parsed is Map<String, dynamic>) decoded = parsed;
+        try {
+          final parsed = jsonDecode(response.body);
+          if (parsed is Map<String, dynamic>) decoded = parsed;
+        } on FormatException {
+          throw AuthApiException(
+            'El servidor devolvió una respuesta no estructurada (${response.statusCode}).',
+            statusCode: response.statusCode,
+          );
+        }
       }
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -98,10 +130,6 @@ class AuthApi {
       return decoded;
     } on AuthApiException {
       rethrow;
-    } on FormatException {
-      throw const AuthApiException(
-        'El servidor devolvió una respuesta inválida.',
-      );
     } catch (error) {
       throw AuthApiException('No se pudo conectar con el servidor: $error');
     }

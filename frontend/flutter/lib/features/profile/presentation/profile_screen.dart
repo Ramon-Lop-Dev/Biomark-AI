@@ -17,6 +17,7 @@ import 'package:flutter_biomark/core/auth/auth_session.dart';
 import 'package:flutter_biomark/core/config/app_config.dart';
 import 'package:flutter_biomark/features/community/promoter_screens.dart';
 import 'package:flutter_biomark/core/profile/user_profile_api.dart';
+import 'package:flutter_biomark/core/ui/biomark_dialog.dart';
 import 'package:flutter_biomark/features/community/recommendations_management_screen.dart';
 import 'package:flutter_biomark/health_survey.dart';
 class ProfileScreen extends StatefulWidget {
@@ -618,31 +619,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
         return;
       }
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          icon: const Icon(
-            Icons.volunteer_activism_rounded,
-            color: BiomarkColors.green,
-            size: 42,
-          ),
-          title: const Text('Solicitar rol de promotor'),
-          content: const Text(
-            'Podrás organizar jornadas y validar reportes comunitarios. Un administrador revisará tu solicitud antes de activar el rol.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Enviar solicitud'),
-            ),
-          ],
-        ),
+      final confirmed = await BiomarkDialog.showConfirm(
+        context,
+        icon: Icons.volunteer_activism_rounded,
+        iconColor: BiomarkColors.green,
+        title: 'Solicitar rol de promotor',
+        message: 'Podrás organizar jornadas y validar reportes comunitarios. Un administrador revisará tu solicitud antes de activar el rol.',
+        confirmLabel: 'Enviar solicitud',
+        cancelLabel: 'Cancelar',
       );
-      if (confirmed != true || !context.mounted) return;
+      if (!confirmed || !context.mounted) return;
       final response = await http.post(
         Uri.parse('$base/api/auth/promotor/solicitud'),
         headers: headers,
@@ -724,41 +710,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _confirmarEliminarCuenta(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text(
-          '¿Eliminar tu cuenta y perfil?',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-        ),
-        content: const Text(
-          'Esta acción es permanente e irreversible. Se darán de baja definitivamente '
+  Future<void> _confirmarEliminarCuenta(BuildContext context) async {
+    final confirmed = await BiomarkDialog.showConfirm(
+      context,
+      title: '¿Eliminar tu cuenta y perfil?',
+      message: 'Esta acción es permanente e irreversible. Se darán de baja definitivamente '
           'tus credenciales de acceso, tu perfil, tus antecedentes médicos y '
           'todo tu historial en Biomark AI. No se puede deshacer.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: _eliminandoCuenta
-                ? null
-                : () => _ejecutarEliminarCuenta(dialogContext),
-            child: const Text('Eliminar definitivamente'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Eliminar definitivamente',
+      cancelLabel: 'Cancelar',
+      isDestructive: true,
     );
+    if (confirmed && mounted) {
+      _ejecutarEliminarCuenta();
+    }
   }
 
-  Future<void> _ejecutarEliminarCuenta(BuildContext dialogContext) async {
+  Future<void> _ejecutarEliminarCuenta() async {
     setState(() => _eliminandoCuenta = true);
     try {
       final token = AuthSession.instance.accessToken;
@@ -771,9 +739,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
       await AuthSession.instance.clear();
       if (!mounted) return;
-      if (dialogContext.mounted) {
-        Navigator.of(dialogContext).pop();
-      }
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (_) => false,
@@ -781,11 +746,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _eliminandoCuenta = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se pudo eliminar la cuenta: $error'),
-          backgroundColor: Colors.red,
-        ),
+      await BiomarkDialog.showError(
+        context,
+        title: 'Error al eliminar',
+        message: 'No se pudo eliminar la cuenta: $error',
       );
     }
   }
