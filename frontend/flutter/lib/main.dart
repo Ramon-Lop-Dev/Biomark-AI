@@ -156,9 +156,12 @@ class _LoginScreenState extends State<LoginScreen>
       final profile = await UserProfileApi.fetch();
       final prefs = await SharedPreferences.getInstance();
       final permissionsShown = prefs.getBool(PermissionsScreen.prefKey) ?? false;
+      final entrevistaHecha = profile?.entrevistaCompletada == true ||
+          prefs.getBool(SurveyService.prefKeyEntrevistaCompletada) == true ||
+          SurveyService.completado;
 
       if (!mounted) return;
-      if (profile != null && profile.entrevistaCompletada) {
+      if (entrevistaHecha) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AppShell()),
@@ -187,30 +190,30 @@ class _LoginScreenState extends State<LoginScreen>
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+    BiomarkDialog.showLoading(
+      context,
+      title: 'Iniciando sesión',
+      message: 'Verificando tus credenciales...',
+    );
     try {
-      await LoadingService.instance.wrap(
-        context: context,
-        message: 'Iniciando sesión...',
-        task: () async {
-          final session = await _authApi.login(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
-          await AuthSession.instance.saveSession(
-            accessToken: session.token,
-            refreshToken: session.refreshToken,
-            expiresIn: session.expiresIn,
-            role: session.role,
-            userName: session.fullName,
-            userEmail: session.email ?? _emailController.text.trim(),
-          );
-          return session;
-        },
+      final session = await _authApi.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      await AuthSession.instance.saveSession(
+        accessToken: session.token,
+        refreshToken: session.refreshToken,
+        expiresIn: session.expiresIn,
+        role: session.role,
+        userName: session.fullName,
+        userEmail: session.email ?? _emailController.text.trim(),
       );
 
       if (!mounted) return;
+      BiomarkDialog.hideLoading(context);
       await _navegarPostLogin();
     } on AuthApiException catch (error) {
+      if (mounted) BiomarkDialog.hideLoading(context);
       await _showAuthDialog(
         title: 'No pudimos iniciar sesión',
         message: error.message,
@@ -219,6 +222,14 @@ class _LoginScreenState extends State<LoginScreen>
         isError: true,
       );
     } catch (_) {
+      if (mounted) BiomarkDialog.hideLoading(context);
+      await _showAuthDialog(
+        title: 'No pudimos iniciar sesión',
+        message: 'Ocurrió un error inesperado al iniciar sesión.',
+        icon: Icons.error_outline_rounded,
+        actionLabel: 'Entendido',
+        isError: true,
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -230,46 +241,57 @@ class _LoginScreenState extends State<LoginScreen>
       if (google == null) return;
       if (!mounted) return;
 
-      await LoadingService.instance.wrap(
-        context: context,
-        message: 'Conectando con Google...',
-        task: () async {
-          final session = await _authApi.loginWithGoogle(
-            idToken: google.idToken,
-            accessToken: google.accessToken,
-            fullName: google.fullName,
-          );
-          await AuthSession.instance.saveSession(
-            accessToken: session.token,
-            refreshToken: session.refreshToken,
-            expiresIn: session.expiresIn,
-            role: session.role,
-            userName: session.fullName,
-            userEmail: session.email,
-          );
-          return session;
-        },
+      BiomarkDialog.showLoading(
+        context,
+        title: 'Iniciando sesión',
+        message: 'Conectando con Google de forma segura...',
+      );
+
+      final session = await _authApi.loginWithGoogle(
+        idToken: google.idToken,
+        accessToken: google.accessToken,
+        fullName: google.fullName,
+      );
+      await AuthSession.instance.saveSession(
+        accessToken: session.token,
+        refreshToken: session.refreshToken,
+        expiresIn: session.expiresIn,
+        role: session.role,
+        userName: session.fullName,
+        userEmail: session.email,
       );
 
       if (!mounted) return;
+      BiomarkDialog.hideLoading(context);
       await _navegarPostLogin();
     } on AuthApiException catch (error) {
+      if (mounted) BiomarkDialog.hideLoading(context);
       await _showAuthDialog(
-        title: 'No pudimos conectar Google',
+        title: 'No pudimos conectar con Google',
         message: error.message,
         icon: Icons.error_outline_rounded,
         actionLabel: 'Entendido',
         isError: true,
       );
     } on GoogleAuthException catch (error) {
+      if (mounted) BiomarkDialog.hideLoading(context);
       await _showAuthDialog(
-        title: 'No pudimos conectar Google',
+        title: 'No pudimos conectar con Google',
         message: error.message,
         icon: Icons.error_outline_rounded,
         actionLabel: 'Entendido',
         isError: true,
       );
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) BiomarkDialog.hideLoading(context);
+      await _showAuthDialog(
+        title: 'No pudimos conectar con Google',
+        message: 'Ocurrió un error inesperado al conectar con Google.',
+        icon: Icons.error_outline_rounded,
+        actionLabel: 'Entendido',
+        isError: true,
+      );
+    }
   }
 
   @override

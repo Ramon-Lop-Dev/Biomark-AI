@@ -9,6 +9,14 @@ class HealthContentItem {
     this.imagenUrl,
     required this.fechaPublicacion,
     this.estado = 'PUBLICADO',
+    this.normativaCodigo,
+    this.normativaUrl,
+    this.tipoAviso = 'CONSEJO',
+    this.prioridad = 'MEDIA',
+    this.alcanceTipo = 'GENERAL',
+    this.condicionesObjetivo = const [],
+    this.barrioComunidad = 'Managua',
+    this.silais = 'SILAIS Managua',
   });
 
   final String id;
@@ -20,8 +28,21 @@ class HealthContentItem {
   final String? imagenUrl;
   final DateTime fechaPublicacion;
   final String estado;
+  final String? normativaCodigo;
+  final String? normativaUrl;
+  final String tipoAviso;
+  final String prioridad;
+  final String alcanceTipo;
+  final List<String> condicionesObjetivo;
+  final String barrioComunidad;
+  final String silais;
 
   factory HealthContentItem.fromJson(Map<String, dynamic> json) {
+    final rawConds = json['condiciones_objetivo'];
+    final condList = rawConds is List
+        ? rawConds.map((e) => e.toString()).toList()
+        : const <String>[];
+
     return HealthContentItem(
       id: json['id']?.toString() ?? '',
       titulo: json['titulo']?.toString() ?? 'Aviso de Salud',
@@ -33,6 +54,14 @@ class HealthContentItem {
       fechaPublicacion: DateTime.tryParse(json['fecha_publicacion']?.toString() ?? '') ??
           DateTime.now(),
       estado: json['estado']?.toString() ?? 'PUBLICADO',
+      normativaCodigo: json['normativa_codigo']?.toString(),
+      normativaUrl: json['normativa_url']?.toString(),
+      tipoAviso: json['tipo_aviso']?.toString() ?? 'CONSEJO',
+      prioridad: json['prioridad']?.toString() ?? 'MEDIA',
+      alcanceTipo: json['alcance_tipo']?.toString() ?? 'GENERAL',
+      condicionesObjetivo: condList,
+      barrioComunidad: json['barrio_comunidad']?.toString() ?? 'Managua',
+      silais: json['silais']?.toString() ?? 'SILAIS Managua',
     );
   }
 }

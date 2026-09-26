@@ -4,12 +4,18 @@ import '../../../biomark_brand.dart';
 import '../../../core/auth/auth_session.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/ui/biomark_dialog.dart';
+import '../../gis/presentation/gis_map_screen.dart';
 import '../data/reminders_service.dart';
 
 class RemindersScreen extends StatefulWidget {
-  const RemindersScreen({super.key, this.refreshSignal});
+  const RemindersScreen({
+    super.key,
+    this.refreshSignal,
+    this.onOpenMap,
+  });
 
   final ValueNotifier<int>? refreshSignal;
+  final VoidCallback? onOpenMap;
 
   @override
   State<RemindersScreen> createState() => _RemindersScreenState();
@@ -172,7 +178,7 @@ class _RemindersScreenState extends State<RemindersScreen> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
-            _buildCalendarHeader(),
+            _buildCalendarHeader(reminders),
             const SizedBox(height: 18),
             _buildTodayHeader(todayReminders.length),
             const SizedBox(height: 12),
@@ -193,12 +199,12 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
   }
 
-  Widget _buildCalendarHeader() {
+  Widget _buildCalendarHeader(List<Reminder> reminders) {
     final monthName = _getMonthName(_selectedDate.month);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
@@ -219,10 +225,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
               _calendarNavButton(Icons.chevron_left_rounded, _previousMonth),
               Text(
                 '$monthName ${_selectedDate.year}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: BiomarkColors.black,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               _calendarNavButton(Icons.chevron_right_rounded, _nextMonth),
@@ -241,13 +247,13 @@ class _RemindersScreenState extends State<RemindersScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          _buildCalendarGrid(),
+          _buildCalendarGrid(reminders),
         ],
       ),
     );
   }
 
-  Widget _buildCalendarGrid() {
+  Widget _buildCalendarGrid(List<Reminder> reminders) {
     final firstDay = DateTime(_selectedDate.year, _selectedDate.month, 1);
     final lastDay = DateTime(_selectedDate.year, _selectedDate.month + 1, 0);
     final daysInMonth = lastDay.day;
@@ -260,48 +266,133 @@ class _RemindersScreenState extends State<RemindersScreen> {
     for (int i = 1; i <= daysInMonth; i++) {
       final date = DateTime(_selectedDate.year, _selectedDate.month, i);
       final isSelected = _sameDay(date, _selectedDate);
-      days.add(_buildCalendarDay(i, isSelected));
+      final dayReminders = reminders
+          .where(
+            (r) =>
+                _sameDay(r.fechaRecordatorio.toLocal(), date) &&
+                r.estado != 'CANCELADO',
+          )
+          .toList();
+      days.add(_buildCalendarDay(i, isSelected, dayReminders));
     }
 
     return GridView.count(
       crossAxisCount: 7,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.2,
-      mainAxisSpacing: 10,
+      childAspectRatio: 0.95,
+      mainAxisSpacing: 8,
       crossAxisSpacing: 4,
       children: days,
     );
   }
 
-  Widget _buildCalendarDay(int day, bool isSelected) {
+  Widget _buildCalendarDay(
+    int day,
+    bool isSelected,
+    List<Reminder> dayReminders,
+  ) {
     final date = DateTime(_selectedDate.year, _selectedDate.month, day);
     final isSunday = date.weekday == DateTime.sunday;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      alignment: Alignment.center,
-      decoration: isSelected
-          ? BoxDecoration(
-              color: BiomarkColors.green,
-              borderRadius: BorderRadius.circular(12),
-            )
-          : null,
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedDate = date),
-        child: Text(
-          '$day',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected
-                ? Colors.white
-                : isSunday
-                ? const Color(0xFFBA1A1A)
-                : const Color(0xFF1A1C1E),
-          ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => setState(() => _selectedDate = date),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        alignment: Alignment.center,
+        decoration: isSelected
+            ? BoxDecoration(
+                color: BiomarkColors.green,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: BiomarkColors.green.withValues(alpha: 0.35),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              )
+            : dayReminders.isNotEmpty
+                ? BoxDecoration(
+                    color: isDark
+                        ? Colors.white12
+                        : BiomarkColors.green.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: BiomarkColors.green.withValues(alpha: 0.25),
+                      width: 1,
+                    ),
+                  )
+                : null,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '$day',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected
+                    ? Colors.white
+                    : isSunday
+                        ? const Color(0xFFDC2626)
+                        : (isDark ? Colors.white : const Color(0xFF1E293B)),
+              ),
+            ),
+            if (dayReminders.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: _buildReminderTypeIcons(dayReminders, isSelected),
+              ),
+            ],
+          ],
         ),
       ),
     );
+  }
+
+  List<Widget> _buildReminderTypeIcons(
+    List<Reminder> reminders,
+    bool isSelected,
+  ) {
+    final types = reminders.map((r) => r.tipo.toUpperCase()).toSet().toList();
+    return types.take(3).map((tipo) {
+      IconData icon;
+      Color color;
+      switch (tipo) {
+        case 'MEDICAMENTO':
+          icon = Icons.medication_rounded;
+          color = const Color(0xFF2563EB);
+          break;
+        case 'CITA':
+          icon = Icons.local_hospital_rounded;
+          color = const Color(0xFFDC2626);
+          break;
+        case 'CONTROL':
+          icon = Icons.health_and_safety_rounded;
+          color = const Color(0xFF059669);
+          break;
+        case 'VACUNA':
+          icon = Icons.vaccines_rounded;
+          color = const Color(0xFF7C3AED);
+          break;
+        default:
+          icon = Icons.circle;
+          color = const Color(0xFF6B7280);
+      }
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 1.0),
+        child: Icon(
+          icon,
+          size: 10,
+          color: isSelected ? Colors.white : color,
+        ),
+      );
+    }).toList();
   }
 
   Widget _buildTodayHeader(int count) {
@@ -313,10 +404,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
             _formatDate(_selectedDate),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,
-              color: BiomarkColors.black,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ),
@@ -350,11 +441,18 @@ class _RemindersScreenState extends State<RemindersScreen> {
     final isCompleted = reminder.estado == 'COMPLETADO';
     final iconColor = _getTypeColor(reminder.tipo);
     final icon = _getTypeIcon(reminder.tipo);
+    final isAppointmentOrControl =
+        reminder.tipo == 'CITA' ||
+        reminder.tipo == 'CONTROL' ||
+        reminder.titulo.toLowerCase().contains('cita') ||
+        reminder.titulo.toLowerCase().contains('control') ||
+        reminder.descripcion?.toLowerCase().contains('hospital') == true ||
+        reminder.descripcion?.toLowerCase().contains('centro') == true;
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -380,10 +478,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
             children: [
               Text(
                 reminder.hora ?? '00:00',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: BiomarkColors.black,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 2),
@@ -436,10 +534,10 @@ class _RemindersScreenState extends State<RemindersScreen> {
                   reminder.titulo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: BiomarkColors.black,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 if (reminder.descripcion != null)
@@ -447,11 +545,14 @@ class _RemindersScreenState extends State<RemindersScreen> {
                     padding: const EdgeInsets.only(top: 3),
                     child: Text(
                       reminder.descripcion!,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF3F4A3B),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.7),
                       ),
                     ),
                   ),
@@ -476,6 +577,58 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                if (isAppointmentOrControl)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {
+                        if (widget.onOpenMap != null) {
+                          widget.onOpenMap!();
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const GisMapScreen(),
+                            ),
+                          );
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: BiomarkColors.blue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: BiomarkColors.blue.withValues(alpha: 0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.location_on_rounded,
+                              size: 13,
+                              color: BiomarkColors.blue,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Ver en Mapa GIS',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: BiomarkColors.blue,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
               ],

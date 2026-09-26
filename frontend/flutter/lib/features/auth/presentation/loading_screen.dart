@@ -10,6 +10,7 @@ import 'package:flutter_biomark/core/profile/user_profile_api.dart';
 import 'package:flutter_biomark/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:flutter_biomark/features/onboarding/presentation/permissions_screen.dart';
 import 'package:flutter_biomark/health_survey.dart';
+import 'package:flutter_biomark/survey_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashColors {
@@ -108,8 +109,11 @@ class _SplashScreenState extends State<SplashScreen>
       try {
         final profile = await UserProfileApi.fetch();
         final permissionsShown = prefs.getBool(PermissionsScreen.prefKey) ?? false;
+        final entrevistaHecha = profile?.entrevistaCompletada == true ||
+            prefs.getBool(SurveyService.prefKeyEntrevistaCompletada) == true ||
+            SurveyService.completado;
 
-        if (profile != null && profile.entrevistaCompletada) {
+        if (entrevistaHecha) {
           destino = const AppShell();
         } else if (!permissionsShown) {
           destino = const PermissionsScreen();

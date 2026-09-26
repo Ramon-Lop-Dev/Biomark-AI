@@ -2,10 +2,11 @@ const contentService = require('./content.service');
 const asyncHandler = require('../../utils/asyncHandler');
 
 const getHealthContent = asyncHandler(async (req, res) => {
-  const { categoria, fuente, limit, offset } = req.query;
+  const { categoria, fuente, condicion, limit, offset } = req.query;
   const data = await contentService.getPublishedContent({
     categoria,
     fuente,
+    condicion,
     limit: limit ? parseInt(limit, 10) : 20,
     offset: offset ? parseInt(offset, 10) : 0
   });

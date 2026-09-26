@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_biomark/core/auth/auth_session.dart';
 import 'package:flutter_biomark/core/config/app_config.dart';
 import 'package:flutter_biomark/health_survey.dart';
@@ -33,6 +34,8 @@ class _FadeSlidePageRoute<T> extends MaterialPageRoute<T> {
 
 class SurveyService {
   SurveyService._();
+
+  static const String prefKeyEntrevistaCompletada = 'biomark_entrevista_completada';
 
   /// true una vez que el usuario completó la encuesta de salud.
   static bool completado = false;
@@ -80,7 +83,13 @@ class SurveyService {
         'medicamentosActuales': medications.map((item) => '${item['nombre_medicamento'] ?? ''}').where((value) => value.isNotEmpty).join(', '),
         'consentimientoMedico': consent?['otorgado'] != false,
       };
-      completado = age != null && nested['sexo'] != null;
+      final prefs = await SharedPreferences.getInstance();
+      final localCompletado = prefs.getBool(prefKeyEntrevistaCompletada) == true;
+      final serverCompletado = nested['entrevista_completada'] == true;
+      completado = localCompletado || serverCompletado || (age != null && nested['sexo'] != null);
+      if (completado && !localCompletado) {
+        await prefs.setBool(prefKeyEntrevistaCompletada, true);
+      }
     } catch (_) {
       // La app conserva el estado local si el backend no está disponible.
     }
@@ -118,6 +127,10 @@ class SurveyService {
       'consentimientoMedico': consentimientoMedico,
     };
     completado = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(prefKeyEntrevistaCompletada, true);
+    } catch (_) {}
 
     final token = AuthSession.instance.accessToken;
     if (token == null || token.isEmpty) {
@@ -140,6 +153,7 @@ class SurveyService {
         body: jsonEncode({
           'fecha_nacimiento': nacimiento.toIso8601String().split('T').first,
           'sexo': sexo,
+          'entrevista_completada': true,
         }),
       );
       await http.put(
@@ -255,6 +269,10 @@ class SurveyService {
       'consentimientoMedico': consentimientoMedico,
     };
     completado = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(prefKeyEntrevistaCompletada, true);
+    } catch (_) {}
     final token = AuthSession.instance.accessToken;
     if (token == null || token.isEmpty) return;
     final base = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
@@ -262,7 +280,7 @@ class SurveyService {
     await http.put(
       Uri.parse('$base/api/users/profile'),
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-      body: jsonEncode({'fecha_nacimiento': birthDate, 'sexo': sexo}),
+      body: jsonEncode({'fecha_nacimiento': birthDate, 'sexo': sexo, 'entrevista_completada': true}),
     );
     await http.put(
       Uri.parse('$base/api/users/consent'),

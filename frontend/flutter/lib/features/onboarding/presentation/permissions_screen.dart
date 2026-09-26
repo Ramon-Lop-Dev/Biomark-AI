@@ -8,6 +8,7 @@ import '../../../biomark_brand.dart';
 import '../../../core/notifications/push_notifications_service.dart';
 import '../../../core/profile/user_profile_api.dart';
 import '../../../health_survey.dart';
+import '../../../survey_service.dart';
 
 class PermissionsScreen extends StatefulWidget {
   const PermissionsScreen({super.key});
@@ -123,7 +124,11 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     Widget destino = const AppShell();
     try {
       final profile = await UserProfileApi.fetch();
-      if (profile != null && profile.entrevistaCompletada) {
+      final entrevistaHecha = profile?.entrevistaCompletada == true ||
+          prefs.getBool(SurveyService.prefKeyEntrevistaCompletada) == true ||
+          SurveyService.completado;
+
+      if (entrevistaHecha) {
         destino = const AppShell();
       } else {
         destino = const HealthSurveyScreen(editing: false);

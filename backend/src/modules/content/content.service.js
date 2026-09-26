@@ -6,12 +6,12 @@ const getPublishedContent = async (filtros = {}) => {
     const { data, error } = await contentRepo.listarContenidos(filtros);
     if (error || !data || data.length === 0) {
       // Si la tabla aún no tiene datos o está offline, retornamos el catálogo verificado
-      return contentRepo.SEMILLAS_OFICIALES_FALLBACK;
+      return contentRepo.filtrarFallback(filtros);
     }
     return data;
   } catch (err) {
     console.warn('[ContentService] Usando semillas fallback por error de conexión:', err.message);
-    return contentRepo.SEMILLAS_OFICIALES_FALLBACK;
+    return contentRepo.filtrarFallback(filtros);
   }
 };
 

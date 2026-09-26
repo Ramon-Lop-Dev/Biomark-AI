@@ -3,9 +3,6 @@ import 'package:fl_chart/fl_chart.dart';
 
 import '../data/progress_api.dart';
 import 'add_evolution_sheet.dart';
-import '../../vitals/domain/vital_measurement.dart';
-import '../../vitals/data/vitals_storage.dart';
-import '../../vitals/presentation/scg_screen.dart';
 import '../../../core/design/responsive_layout.dart';
 
 class ProgressScreen extends StatefulWidget {
@@ -20,7 +17,6 @@ class ProgressScreen extends StatefulWidget {
 class _ProgressScreenState extends State<ProgressScreen> {
   final _progressApi = ProgressApi();
   late Future<List<EvolutionRecord>> _evolutionFuture;
-  VitalMeasurement? _latestVital;
   String _filterStatus = 'TODOS'; // TODOS, MEJORO, IGUAL, EMPEORO
 
   @override
@@ -32,9 +28,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   void _reload() {
     _evolutionFuture = _progressApi.fetchEvolutionHistory();
-    VitalsStorage.getLatest().then((v) {
-      if (mounted) setState(() => _latestVital = v);
-    });
     if (mounted) setState(() {});
   }
 
@@ -42,14 +35,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
   void dispose() {
     widget.refreshSignal?.removeListener(_reload);
     super.dispose();
-  }
-
-  Future<void> _openScg() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ScgScreen()),
-    );
-    _reload();
   }
 
   Future<void> _showAddEvolutionModal() async {
@@ -85,8 +70,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildClinicalEvolutionHeader(list),
-                    const SizedBox(height: 18),
-                    _buildVitalsPulseSummary(),
                     const SizedBox(height: 20),
                     if (list.isNotEmpty) ...[
                       _buildEvolutionTrendChart(list),
@@ -131,74 +114,116 @@ class _ProgressScreenState extends State<ProgressScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Evolución Clínica',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      color: isDark ? Colors.white : const Color(0xFF0F291E),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Monitoreo y recuperación de síntomas',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: isDark ? Colors.white70 : const Color(0xFF4A6153),
-                    ),
-                  ),
-                ],
-              ),
-              FilledButton.icon(
-                onPressed: _showAddEvolutionModal,
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
-                icon: const Icon(Icons.add_rounded, size: 16),
-                label: const Text('Registrar', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                child: const Icon(Icons.insights_rounded, size: 22, color: Color(0xFF10B981)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Evolución Clínica',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white : const Color(0xFF0F291E),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Monitoreo y recuperación continua de síntomas',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: isDark ? Colors.white70 : const Color(0xFF4A6153),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
           const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _buildMetricTile(
-                  label: 'Tasa de Mejoría',
-                  value: totalCount > 0 ? '$improvementPct%' : '--',
-                  subtitle: '$improvedCount de $totalCount casos',
-                  color: const Color(0xFF10B981),
-                  isDark: isDark,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildMetricTile(
-                  label: 'Intensidad Media',
-                  value: avgIntensity != null ? avgIntensity.toStringAsFixed(1) : '--',
-                  subtitle: avgIntensity != null ? 'Escala de 0 a 10' : 'Sin datos',
-                  color: const Color(0xFF3B82F6),
-                  isDark: isDark,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _buildMetricTile(
-                  label: 'Total Registros',
-                  value: '$totalCount',
-                  subtitle: 'Seguimiento activo',
-                  color: const Color(0xFF8B5CF6),
-                  isDark: isDark,
-                ),
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isSmall = constraints.maxWidth < 420;
+              if (isSmall) {
+                return Column(
+                  children: [
+                    _buildMetricTile(
+                      label: 'Tasa de Mejoría',
+                      value: totalCount > 0 ? '$improvementPct%' : '--',
+                      subtitle: '$improvedCount de $totalCount casos',
+                      color: const Color(0xFF10B981),
+                      isDark: isDark,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildMetricTile(
+                            label: 'Intensidad Media',
+                            value: avgIntensity != null ? avgIntensity.toStringAsFixed(1) : '--',
+                            subtitle: avgIntensity != null ? 'Escala 0 a 10' : 'Sin datos',
+                            color: const Color(0xFF3B82F6),
+                            isDark: isDark,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildMetricTile(
+                            label: 'Total Registros',
+                            value: '$totalCount',
+                            subtitle: 'Seguimiento',
+                            color: const Color(0xFF8B5CF6),
+                            isDark: isDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricTile(
+                      label: 'Tasa de Mejoría',
+                      value: totalCount > 0 ? '$improvementPct%' : '--',
+                      subtitle: '$improvedCount de $totalCount casos',
+                      color: const Color(0xFF10B981),
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildMetricTile(
+                      label: 'Intensidad Media',
+                      value: avgIntensity != null ? avgIntensity.toStringAsFixed(1) : '--',
+                      subtitle: avgIntensity != null ? 'Escala de 0 a 10' : 'Sin datos',
+                      color: const Color(0xFF3B82F6),
+                      isDark: isDark,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildMetricTile(
+                      label: 'Total Registros',
+                      value: '$totalCount',
+                      subtitle: 'Seguimiento activo',
+                      color: const Color(0xFF8B5CF6),
+                      isDark: isDark,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -486,15 +511,32 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
-                const SizedBox(height: 14),
-                FilledButton.icon(
-                  onPressed: _showAddEvolutionModal,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: _showAddEvolutionModal,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_circle_outline_rounded, size: 16, color: Color(0xFF10B981)),
+                        SizedBox(width: 6),
+                        Text(
+                          'Toca aquí o el botón (+) para registrar',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Registrar síntoma'),
                 ),
               ],
             ),
@@ -655,103 +697,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVitalsPulseSummary() {
-    final vital = _latestVital;
-    final isNormal = vital?.status == 'NORMAL';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.35 : 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: isDark ? Colors.black26 : const Color(0xFFEF4444).withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.favorite_rounded, color: Color(0xFFEF4444), size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Frecuencia Cardíaca (SCG Pecho)',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                if (vital != null) ...[
-                  Row(
-                    children: [
-                      Text(
-                        '${vital.bpm} BPM',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFFEF4444),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '· ${vital.status}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: isNormal ? const Color(0xFF16A34A) : const Color(0xFFD97706),
-                        ),
-                      ),
-                    ],
-                  ),
-                ] else ...[
-                  Text(
-                    'Sin mediciones hoy · Medir en el pecho',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          OutlinedButton(
-            onPressed: _openScg,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFFEF4444),
-              side: const BorderSide(color: Color(0xFFEF4444)),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            ),
-            child: Text(
-              vital != null ? 'Medir' : 'Chequear',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-            ),
-          ),
         ],
       ),
     );

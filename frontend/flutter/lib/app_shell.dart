@@ -125,7 +125,10 @@ class _AppShellState extends State<AppShell> {
             ),
             ProgressScreen(refreshSignal: _progressRefresh),
             const GisMapScreen(),
-            RemindersScreen(refreshSignal: _remindersRefresh),
+            RemindersScreen(
+              refreshSignal: _remindersRefresh,
+              onOpenMap: () => setState(() => _navIndex = 2),
+            ),
           ];
     pages.add(
       const _PlaceholderBody(

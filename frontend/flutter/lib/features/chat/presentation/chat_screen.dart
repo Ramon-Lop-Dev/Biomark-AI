@@ -17,7 +17,6 @@ import '../../../core/ui/biomark_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/chat_api.dart';
 import '../data/chat_storage.dart';
-import '../../progress/data/progress_api.dart';
 import '../data/vision_api.dart';
 import '../data/voice_api.dart';
 import '../data/offline_chat_engine.dart';
@@ -40,7 +39,6 @@ class _ChatScreenState extends State<ChatScreen>
   late final ChatApi _chatApi;
   late final VoiceApi _voiceApi;
   late final VisionApi _visionApi;
-  late final ProgressApi _progressApi;
   final _recorder = AudioRecorder();
   late final AudioPlayer _audioPlayer;
   final List<ChatMessage> _messages = [
@@ -149,53 +147,6 @@ class _ChatScreenState extends State<ChatScreen>
     );
   }
 
-  Future<void> _showProgressDialog({String? initialStatus, String? initialSymptom}) async {
-    final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (context) => _EvolutionDialog(
-        initialStatus: initialStatus,
-        initialSymptom: initialSymptom,
-      ),
-    );
-
-    if (!mounted || result == null) return;
-    final symptom = result['symptom'] as String;
-    final status = result['status'] as String;
-    final intensity = result['intensity'] as int;
-    final notes = result['notes'] as String;
-
-    try {
-      await _progressApi.createProgress(
-        symptom: symptom,
-        status: status,
-        intensity: intensity,
-        notes: notes,
-      );
-      if (mounted) {
-        final statusMap = {
-          'MEJORO': 'Mejoró',
-          'IGUAL': 'Sigue igual',
-          'EMPEORO': 'Empeoró',
-          'NO_SEGURO': 'No estoy seguro'
-        };
-        final label = statusMap[status] ?? status;
-        setState(() {
-          _messages.add(
-            ChatMessage(
-              '✅ Registraste tu evolución de "$symptom" como $label (Intensidad $intensity/10). Puedes ver tu progreso en la pantalla de evolución/mejoría.',
-              false,
-            ),
-          );
-        });
-        _persistMessages();
-        _scrollToBottom();
-        _showMessage('Evolución registrada correctamente.');
-      }
-    } catch (_) {
-      if (mounted) _showMessage('No se pudo registrar la evolución.');
-    }
-  }
-
   void _onTextChanged() {
     final has = _controller.text.trim().isNotEmpty;
     if (has != _hasText && mounted) {
@@ -210,7 +161,6 @@ class _ChatScreenState extends State<ChatScreen>
     _chatApi = ChatApi(baseUrl: _apiUrl, accessToken: _accessToken);
     _voiceApi = VoiceApi(baseUrl: _apiUrl, accessToken: _accessToken);
     _visionApi = VisionApi(baseUrl: _apiUrl, accessToken: _accessToken);
-    _progressApi = ProgressApi();
     _controller.addListener(_onTextChanged);
     _entryController.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -299,29 +249,156 @@ class _ChatScreenState extends State<ChatScreen>
   }
 
   Future<String?> _chooseVisionType() async {
-    final result = await showDialog<String>(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final result = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Tipo de análisis visual'),
-          content: const Text(
-            'Selecciona qué parte del cuerpo quieres analizar con la imagen.',
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, 'piel'),
-              child: const Text('Piel'),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: isDark ? 0.35 : 0.25),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Tipo de Análisis Visual',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Theme.of(ctx).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Selecciona qué deseas que interprete Biomark AI:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildVisionOptionTile(
+                  ctx: ctx,
+                  icon: Icons.healing_rounded,
+                  color: const Color(0xFFEF4444),
+                  title: 'Lesión o Síntoma en la Piel',
+                  subtitle: 'Erupciones, manchas, golpes o irritaciones cutáneas.',
+                  value: 'piel',
+                ),
+                const SizedBox(height: 10),
+                _buildVisionOptionTile(
+                  ctx: ctx,
+                  icon: Icons.face_rounded,
+                  color: const Color(0xFFF59E0B),
+                  title: 'Garganta y Faringe',
+                  subtitle: 'Enrojecimiento, amígdalas o placas visibles.',
+                  value: 'garganta',
+                ),
+                const SizedBox(height: 10),
+                _buildVisionOptionTile(
+                  ctx: ctx,
+                  icon: Icons.receipt_long_rounded,
+                  color: const Color(0xFF10B981),
+                  title: 'Receta Médica',
+                  subtitle: 'Orientación de medicamentos y cuidados (no prescribe).',
+                  value: 'receta',
+                ),
+                const SizedBox(height: 10),
+                _buildVisionOptionTile(
+                  ctx: ctx,
+                  icon: Icons.biotech_rounded,
+                  color: const Color(0xFF3B82F6),
+                  title: 'Examen de Laboratorio',
+                  subtitle: 'Explicación de rangos normales y parámetros analíticos.',
+                  value: 'examen',
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, 'garganta'),
-              child: const Text('Garganta'),
-            ),
-          ],
+          ),
         );
       },
     );
 
     return result;
+  }
+
+  Widget _buildVisionOptionTile({
+    required BuildContext ctx,
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required String value,
+  }) {
+    final isDark = Theme.of(ctx).brightness == Brightness.dark;
+    return InkWell(
+      onTap: () => Navigator.pop(ctx, value),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(ctx).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _pickImageFromSource(ImageSource source) async {
@@ -395,10 +472,28 @@ class _ChatScreenState extends State<ChatScreen>
 
       if (!mounted) return;
 
+      final String tipoEtiqueta;
+      switch (tipo) {
+        case 'piel':
+          tipoEtiqueta = 'lesión en piel';
+          break;
+        case 'garganta':
+          tipoEtiqueta = 'garganta';
+          break;
+        case 'receta':
+          tipoEtiqueta = 'receta médica';
+          break;
+        case 'examen':
+          tipoEtiqueta = 'examen de laboratorio';
+          break;
+        default:
+          tipoEtiqueta = 'imagen';
+      }
+
       setState(() {
         _messages.add(
           ChatMessage(
-            'Análisis de ${tipo == 'piel' ? 'piel' : 'garganta'}: ${response.condicionDetectada}. ${response.reply}',
+            'Interpretación de $tipoEtiqueta: ${response.condicionDetectada.isNotEmpty ? "${response.condicionDetectada}. " : ""}${response.reply}',
             false,
             riskLevel: response.riskLevel,
             sources: response.sources,
@@ -688,7 +783,6 @@ class _ChatScreenState extends State<ChatScreen>
                     onSend: _sendMessage,
                     onVoice: _toggleRecording,
                     onOpenImagePicker: _chooseImageSource,
-                    onLogEvolution: () => _showProgressDialog(),
                     onSendAudio: _audioDraftPath == null
                         ? null
                         : () => _sendRecording(_audioDraftPath!),
@@ -731,24 +825,6 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
-    // Nota: 'nearest_center' queda excluido a propósito de esta condición.
-    // Si se dejara aquí, el bubble ocultaría el texto real de la respuesta
-    // (que ya incluye el pedido de ubicación o el centro recomendado en
-    // texto plano) y en su lugar mostraría solo la tarjeta genérica de
-    // _FollowUpActionCard con datos de ejemplo/hardcodeados.
-    if (!message.isUser &&
-        message.actionType != null &&
-        message.actionType != 'nearest_center' &&
-        message.recommendedCenter == null) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 10),
-          child: _FollowUpActionCard(actionType: message.actionType!),
-        ),
-      );
-    }
 
     return Align(
       alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -1000,174 +1076,6 @@ class _RecommendedCenter extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FollowUpActionCard extends StatelessWidget {
-  final String actionType;
-
-  const _FollowUpActionCard({required this.actionType});
-
-  @override
-  Widget build(BuildContext context) {
-    final isRegisterProgress = actionType == 'register_progress';
-
-    return Container(
-      width: MediaQuery.sizeOf(context).width * 0.84,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          if (isRegisterProgress) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.insights_rounded,
-                  size: 20,
-                  color: Color(0xFF1B8E44),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Seguimiento de Evolución',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '¿Cómo ha evolucionado tu síntoma hoy?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              alignment: WrapAlignment.center,
-              children: [
-                _EvolutionOptionChip(
-                  label: 'Mejoré',
-                  status: 'MEJORO',
-                  color: const Color(0xFF1B8E44),
-                  icon: Icons.trending_up_rounded,
-                  onTap: () => context
-                      .findAncestorStateOfType<_ChatScreenState>()
-                      ?._showProgressDialog(initialStatus: 'MEJORO'),
-                ),
-                _EvolutionOptionChip(
-                  label: 'Sigo igual',
-                  status: 'IGUAL',
-                  color: const Color(0xFF1D64D8),
-                  icon: Icons.trending_flat_rounded,
-                  onTap: () => context
-                      .findAncestorStateOfType<_ChatScreenState>()
-                      ?._showProgressDialog(initialStatus: 'IGUAL'),
-                ),
-                _EvolutionOptionChip(
-                  label: 'Empeoré',
-                  status: 'EMPEORO',
-                  color: const Color(0xFFD32F2F),
-                  icon: Icons.trending_down_rounded,
-                  onTap: () => context
-                      .findAncestorStateOfType<_ChatScreenState>()
-                      ?._showProgressDialog(initialStatus: 'EMPEORO'),
-                ),
-                _EvolutionOptionChip(
-                  label: 'No seguro',
-                  status: 'NO_SEGURO',
-                  color: const Color(0xFF7C3AED),
-                  icon: Icons.help_outline_rounded,
-                  onTap: () => context
-                      .findAncestorStateOfType<_ChatScreenState>()
-                      ?._showProgressDialog(initialStatus: 'NO_SEGURO'),
-                ),
-              ],
-            ),
-          ] else ...[
-            const Icon(
-              Icons.auto_awesome_rounded,
-              size: 28,
-              color: BiomarkColors.blue,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Biomark AI detectó una acción para tu seguimiento.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _EvolutionOptionChip extends StatelessWidget {
-  final String label;
-  final String status;
-  final Color color;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _EvolutionOptionChip({
-    required this.label,
-    required this.status,
-    required this.color,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 15, color: color),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1491,7 +1399,6 @@ class _ChatInput extends StatelessWidget {
   final VoidCallback onSend;
   final VoidCallback onVoice;
   final VoidCallback onOpenImagePicker;
-  final VoidCallback? onLogEvolution;
   final VoidCallback? onSendAudio;
   final VoidCallback? onDeleteAudio;
   final VoidCallback? onPauseAudio;
@@ -1507,7 +1414,6 @@ class _ChatInput extends StatelessWidget {
     required this.onSend,
     required this.onVoice,
     required this.onOpenImagePicker,
-    this.onLogEvolution,
     this.onSendAudio,
     this.onDeleteAudio,
     this.onPauseAudio,
@@ -1553,17 +1459,7 @@ class _ChatInput extends StatelessWidget {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                IconButton(
-                                  tooltip: 'Registrar evolución médica',
-                                  onPressed: enabled && onLogEvolution != null
-                                      ? onLogEvolution
-                                      : null,
-                                  icon: const Icon(
-                                    Icons.insights_rounded,
-                                    size: 22,
-                                    color: BiomarkColors.blue,
-                                  ),
-                                ),
+                                const SizedBox(width: 16),
                                 Expanded(
                                   child: TextField(
                                     controller: controller,
@@ -1863,132 +1759,6 @@ class _VoiceDraftPreview extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _EvolutionDialog extends StatefulWidget {
-  final String? initialStatus;
-  final String? initialSymptom;
-
-  const _EvolutionDialog({this.initialStatus, this.initialSymptom});
-
-  @override
-  State<_EvolutionDialog> createState() => _EvolutionDialogState();
-}
-
-class _EvolutionDialogState extends State<_EvolutionDialog> {
-  late final TextEditingController _symptomController;
-  late final TextEditingController _notesController;
-  late String _status;
-  double _intensity = 5.0;
-
-  @override
-  void initState() {
-    super.initState();
-    _symptomController = TextEditingController(text: widget.initialSymptom ?? '');
-    _notesController = TextEditingController();
-    _status = widget.initialStatus ?? 'MEJORO';
-  }
-
-  @override
-  void dispose() {
-    _symptomController.dispose();
-    _notesController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: const Row(
-        children: [
-          Icon(Icons.insights_rounded, color: Color(0xFF1B8E44)),
-          SizedBox(width: 8),
-          Text('Registrar evolución'),
-        ],
-      ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _symptomController,
-              decoration: const InputDecoration(
-                labelText: '¿Qué síntoma estás siguiendo?',
-                hintText: 'Ej: Fiebre, dolor de cabeza...',
-              ),
-            ),
-            const SizedBox(height: 14),
-            const Text('Estado de evolución:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<String>(
-              initialValue: _status,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: 'MEJORO', child: Text('Mejoró (MEJORO)')),
-                DropdownMenuItem(value: 'IGUAL', child: Text('Sigue igual (IGUAL)')),
-                DropdownMenuItem(value: 'EMPEORO', child: Text('Empeoró (EMPEORO)')),
-                DropdownMenuItem(value: 'NO_SEGURO', child: Text('No estoy seguro (NO_SEGURO)')),
-              ],
-              onChanged: (value) {
-                if (value != null) setState(() => _status = value);
-              },
-            ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Intensidad del síntoma:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                Text('${_intensity.round()}/10', style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF1B8E44))),
-              ],
-            ),
-            Slider(
-              value: _intensity,
-              min: 0,
-              max: 10,
-              divisions: 10,
-              activeColor: const Color(0xFF1B8E44),
-              onChanged: (v) => setState(() => _intensity = v),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _notesController,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Notas (opcional)',
-                hintText: 'Detalles sobre cómo te sientes...',
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: const Color(0xFF1B8E44)),
-          onPressed: () {
-            if (_symptomController.text.trim().isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Escribe el síntoma que quieres seguir.')),
-              );
-              return;
-            }
-            Navigator.pop(context, {
-              'symptom': _symptomController.text.trim(),
-              'status': _status,
-              'intensity': _intensity.round(),
-              'notes': _notesController.text.trim(),
-            });
-          },
-          child: const Text('Guardar'),
-        ),
-      ],
     );
   }
 }
