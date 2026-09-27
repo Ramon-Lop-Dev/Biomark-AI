@@ -32,33 +32,49 @@ const marcarInvitacionUsada = (id, usuarioResultanteId) =>
     .select()
     .single();
 
-const listarPromotoresPorCentro = (centroSaludId) =>
-  supabase
+const listarPromotoresPorCentro = (centroSaludId) => {
+  let query = supabase
     .from('usuarios')
-    .select('id, correo, rol, activo, estado_cuenta, fecha_creacion, invitado_por, perfiles(nombre_completo, telefono)')
-    .eq('centro_salud_id', centroSaludId)
+    .select('id, correo, rol, activo, estado_cuenta, fecha_creacion, invitado_por, centro_salud_id, centros_salud(nombre), perfiles(nombre_completo, telefono)')
     .in('rol', ['PROMOTOR', 'LIDER_COMUNITARIO'])
     .order('fecha_creacion', { ascending: false });
 
-const listarInvitacionesPorCentro = (centroSaludId) =>
-  supabase
+  if (centroSaludId) {
+    query = query.eq('centro_salud_id', centroSaludId);
+  }
+  return query;
+};
+
+const listarInvitacionesPorCentro = (centroSaludId) => {
+  let query = supabase
     .from('invitaciones')
-    .select('id, token, contacto, rol_destino, expira_en, usado_en, fecha_creacion, creado_por')
-    .eq('centro_salud_id', centroSaludId)
+    .select('id, token, contacto, rol_destino, expira_en, usado_en, fecha_creacion, creado_por, centro_salud_id, centros_salud(nombre)')
     .order('fecha_creacion', { ascending: false });
 
-const actualizarEstadoCuentaPromotor = (usuarioId, centroSaludId, estado) =>
-  supabase
+  if (centroSaludId) {
+    query = query.eq('centro_salud_id', centroSaludId);
+  }
+  return query;
+};
+
+const actualizarEstadoCuentaPromotor = (usuarioId, centroSaludId, estado) => {
+  let query = supabase
     .from('usuarios')
     .update({
       estado_cuenta: estado,
       activo: estado === 'ACTIVO',
       fecha_actualizacion: new Date().toISOString()
     })
-    .eq('id', usuarioId)
-    .eq('centro_salud_id', centroSaludId)
+    .eq('id', usuarioId);
+
+  if (centroSaludId) {
+    query = query.eq('centro_salud_id', centroSaludId);
+  }
+
+  return query
     .select('id, correo, rol, estado_cuenta, activo')
     .maybeSingle();
+};
 
 const asignarRolYCentro = (usuarioId, rol, centroSaludId, invitadoPor) =>
   supabase

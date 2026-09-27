@@ -124,19 +124,25 @@ class InvitationsApi {
     );
   }
 
-  /// El Trabajador de Salud invita a un Promotor asignándole su mismo Centro de Salud
+  /// El Trabajador de Salud o Admin invita a un Promotor (con centro opcional para Admin)
   Future<Map<String, dynamic>> createPromoterInvitation({
     required String contacto,
+    String? centroSaludId,
     int expiraDias = 7,
   }) async {
+    final payload = <String, dynamic>{
+      'contacto': contacto.trim(),
+      'expira_dias': expiraDias,
+    };
+    if (centroSaludId != null) {
+      payload['centro_salud_id'] = centroSaludId;
+    }
+
     return _jsonRequest(
       _client.post(
         Uri.parse('$_base/api/invitations/promoter'),
         headers: _headers,
-        body: jsonEncode({
-          'contacto': contacto.trim(),
-          'expira_dias': expiraDias,
-        }),
+        body: jsonEncode(payload),
       ),
     );
   }

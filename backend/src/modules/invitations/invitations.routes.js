@@ -29,11 +29,11 @@ router.post(
   createHealthWorkerInvitation
 );
 
-// 2. TRABAJADOR_SALUD genera invitación a PROMOTOR (hereda su mismo centro)
+// 2. TRABAJADOR_SALUD o ADMIN genera invitación a PROMOTOR
 router.post(
   '/promoter',
   verifyToken,
-  requireRole('TRABAJADOR_SALUD'),
+  requireRole('ADMIN', 'TRABAJADOR_SALUD'),
   validate(createPromoterInvitationSchema),
   createPromoterInvitation
 );

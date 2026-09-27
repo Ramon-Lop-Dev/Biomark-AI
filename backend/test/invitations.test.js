@@ -25,11 +25,17 @@ test('Validadores de Invitaciones: Zod schemas aplican reglas estrictas de paylo
   });
   assert.equal(invalidHW.success, false);
 
-  // 2. createPromoterInvitationSchema solo requiere contacto
+  // 2. createPromoterInvitationSchema requiere contacto y permite centro_salud_id opcional (asignación por ADMIN)
   const validPromoter = createPromoterInvitationSchema.safeParse({
     contacto: '+505 8888-1234'
   });
   assert.equal(validPromoter.success, true);
+
+  const validPromoterWithCenter = createPromoterInvitationSchema.safeParse({
+    contacto: '+505 8888-1234',
+    centro_salud_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
+  });
+  assert.equal(validPromoterWithCenter.success, true);
 
   // 3. acceptInvitationSchema valida email, formato de contraseña y presencia de token
   const validAccept = acceptInvitationSchema.safeParse({

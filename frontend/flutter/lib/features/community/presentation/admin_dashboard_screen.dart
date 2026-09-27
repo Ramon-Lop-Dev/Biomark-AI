@@ -171,377 +171,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   ];
 
   Future<void> _showAccreditationDialog() async {
-    final contactCtrl = TextEditingController();
-    final searchCenterCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    String selectedRole = 'TRABAJADOR_SALUD';
-    HealthCenter? selectedCenter;
-    String? centerError;
-
-    // Asegurar catálogo de centros de salud cargado
-    if (_healthCenters.isEmpty) {
-      try {
-        _healthCenters = await _gisApi.fetchAllCenters();
-      } catch (_) {}
-    }
-    final allCenters = _healthCenters.isNotEmpty ? _healthCenters : _fallbackCenters;
-
-    if (!mounted) return;
-
-    final created = await showDialog<bool>(
+    final result = await showDialog<dynamic>(
       context: context,
-      builder: (ctx) {
-        bool generating = false;
-        return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Row(
-                children: [
-                  Icon(Icons.verified_user_rounded, color: BiomarkColors.blue, size: 24),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Acreditar Personal SILAIS',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ],
-              ),
-              content: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480),
-                child: Form(
-                  key: formKey,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Genera un código seguro de activación institucional para incorporar personal calificado al sistema.',
-                          style: TextStyle(fontSize: 12.5),
-                        ),
-                        const SizedBox(height: 16),
-                        // 1. Selector de Rol
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedRole,
-                          decoration: const InputDecoration(
-                            labelText: 'Rol institucional a otorgar *',
-                            prefixIcon: Icon(Icons.badge_rounded),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'TRABAJADOR_SALUD',
-                              child: Text('Personal de Salud (Médico / Enfermero)'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'PROMOTOR',
-                              child: Text('Promotor de Salud Comunitario'),
-                            ),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              setDialogState(() => selectedRole = val);
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        // 2. Selector Dinámico con Listbox Interactivo para Centro de Salud
-                        if (selectedCenter == null) ...[
-                          Row(
-                            children: [
-                              const Icon(Icons.local_hospital_rounded, size: 16, color: BiomarkColors.blue),
-                              const SizedBox(width: 6),
-                              const Text(
-                                'Centro de Salud de Adscripción *',
-                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                              ),
-                              const Spacer(),
-                              Text(
-                                '${allCenters.length} centros en BD',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          TextField(
-                            controller: searchCenterCtrl,
-                            decoration: InputDecoration(
-                              hintText: 'Escribe para filtrar (ej. Sócrates, Lang, Altagracia)...',
-                              prefixIcon: const Icon(Icons.search_rounded),
-                              suffixIcon: searchCenterCtrl.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.close_rounded, size: 18),
-                                      onPressed: () {
-                                        searchCenterCtrl.clear();
-                                        setDialogState(() {});
-                                      },
-                                    )
-                                  : null,
-                            ),
-                            onChanged: (_) => setDialogState(() {
-                              centerError = null;
-                            }),
-                          ),
-                          const SizedBox(height: 6),
-                          // Listbox dinámico con scroll
-                          Container(
-                            constraints: const BoxConstraints(maxHeight: 185),
-                            decoration: BoxDecoration(
-                              color: Theme.of(ctx).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: centerError != null
-                                    ? Colors.red
-                                    : Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5),
-                              ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: () {
-                                final query = searchCenterCtrl.text.trim().toLowerCase();
-                                final matches = query.isEmpty
-                                    ? allCenters.take(25).toList()
-                                    : allCenters.where((c) {
-                                        return c.name.toLowerCase().contains(query) ||
-                                            c.address.toLowerCase().contains(query) ||
-                                            c.type.toLowerCase().contains(query);
-                                      }).toList();
-
-                                if (matches.isEmpty) {
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.search_off_rounded, color: Colors.orange, size: 22),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            'No se encontró ningún centro de salud que coincida con "$query" en la base de datos.',
-                                            style: const TextStyle(fontSize: 12),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }
-
-                                return ListView.separated(
-                                  shrinkWrap: true,
-                                  padding: const EdgeInsets.symmetric(vertical: 4),
-                                  itemCount: matches.length,
-                                  separatorBuilder: (context, index) => const Divider(height: 1, indent: 44),
-                                  itemBuilder: (cContext, idx) {
-                                    final center = matches[idx];
-                                    final isCS = center.type == 'CENTRO_SALUD';
-                                    final isHosp = center.type == 'HOSPITAL';
-                                    final color = isHosp
-                                        ? const Color(0xFFDC2626)
-                                        : (isCS ? BiomarkColors.blue : BiomarkColors.green);
-
-                                    return ListTile(
-                                      dense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                                      leading: Container(
-                                        width: 28,
-                                        height: 28,
-                                        decoration: BoxDecoration(
-                                          color: color.withValues(alpha: 0.12),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          isHosp
-                                              ? Icons.local_hospital_rounded
-                                              : (isCS ? Icons.medical_services_rounded : Icons.health_and_safety_rounded),
-                                          size: 16,
-                                          color: color,
-                                        ),
-                                      ),
-                                      title: Text(
-                                        center.name,
-                                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      subtitle: Text(
-                                        center.address.isNotEmpty ? center.address : 'Managua, Nicaragua',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      trailing: const Icon(
-                                        Icons.add_circle_outline_rounded,
-                                        size: 18,
-                                        color: BiomarkColors.blue,
-                                      ),
-                                      onTap: () {
-                                        setDialogState(() {
-                                          selectedCenter = center;
-                                          centerError = null;
-                                          searchCenterCtrl.clear();
-                                        });
-                                      },
-                                    );
-                                  },
-                                );
-                              }(),
-                            ),
-                          ),
-                          if (centerError != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              centerError!,
-                              style: const TextStyle(
-                                color: Colors.red,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ] else ...[
-                          // Centro Seleccionado (Bloqueado y Verificado contra BD)
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: BiomarkColors.green.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: BiomarkColors.green.withValues(alpha: 0.4)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.verified_rounded, color: BiomarkColors.green, size: 24),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Centro Verificado en Base de Datos:',
-                                        style: TextStyle(
-                                          color: BiomarkColors.green,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 10.5,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        selectedCenter!.name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 13.5,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                        selectedCenter!.address.isNotEmpty ? selectedCenter!.address : 'Managua',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                TextButton.icon(
-                                  onPressed: () {
-                                    setDialogState(() {
-                                      selectedCenter = null;
-                                    });
-                                  },
-                                  icon: const Icon(Icons.sync_rounded, size: 16),
-                                  label: const Text('Cambiar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 16),
-
-                        // 3. Contacto Oficial
-                        TextFormField(
-                          controller: contactCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Correo o teléfono oficial *',
-                            hintText: 'ej. doctor@minsa.gob.ni o 8888 1234',
-                            prefixIcon: Icon(Icons.contact_mail_outlined),
-                          ),
-                          validator: (v) =>
-                              (v == null || v.trim().isEmpty) ? 'Ingresa el contacto institucional' : null,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: generating ? null : () => Navigator.pop(ctx, false),
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: generating
-                      ? null
-                      : () async {
-                          if (!formKey.currentState!.validate()) return;
-
-                          if (selectedRole == 'TRABAJADOR_SALUD' && selectedCenter == null) {
-                            setDialogState(() {
-                              centerError = 'Debes seleccionar un centro de salud verificado de la lista.';
-                            });
-                            return;
-                          }
-
-                          setDialogState(() => generating = true);
-
-                          try {
-                            final Map<String, dynamic> res;
-                            if (selectedRole == 'TRABAJADOR_SALUD') {
-                              res = await _invitationsApi.createHealthWorkerInvitation(
-                                contacto: contactCtrl.text.trim(),
-                                centroSaludId: selectedCenter!.id,
-                              );
-                            } else {
-                              res = await _invitationsApi.createPromoterInvitation(
-                                contacto: contactCtrl.text.trim(),
-                              );
-                            }
-
-                            if (!ctx.mounted) return;
-                            Navigator.pop(ctx, true);
-                            _showGeneratedTokenDialog(res['token'] as String? ?? '');
-                          } catch (err) {
-                            if (!ctx.mounted) return;
-                            setDialogState(() => generating = false);
-                            ScaffoldMessenger.of(ctx).showSnackBar(
-                              SnackBar(content: Text('$err'), backgroundColor: Colors.red),
-                            );
-                          }
-                        },
-                  child: Text(generating ? 'Generando...' : 'Acreditar y Emitir'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (ctx) => _AccreditationDialog(
+        initialCenters: _healthCenters,
+        fallbackCenters: _fallbackCenters,
+        invitationsApi: _invitationsApi,
+        gisApi: _gisApi,
+      ),
     );
 
-    contactCtrl.dispose();
-    searchCenterCtrl.dispose();
-
-    if (created == true) {
+    if (result != null) {
       _load();
+      if (result is String && result.isNotEmpty) {
+        _showGeneratedTokenDialog(result);
+      }
     }
   }
 
@@ -1069,13 +713,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               const Icon(Icons.warning_rounded, color: Color(0xFFDC2626), size: 22),
               const SizedBox(width: 8),
-              Text(
-                'TRIAGE CCM CRÍTICO: ${redReports.length} ${redReports.length == 1 ? 'CASO ROJO' : 'CASOS ROJOS'}',
-                style: const TextStyle(
-                  color: Color(0xFF991B1B),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 13,
-                  letterSpacing: 0.3,
+              Expanded(
+                child: Text(
+                  'TRIAGE CCM CRÍTICO: ${redReports.length} ${redReports.length == 1 ? 'CASO ROJO' : 'CASOS ROJOS'}',
+                  style: const TextStyle(
+                    color: Color(0xFF991B1B),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    letterSpacing: 0.3,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -1098,9 +746,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const Expanded(
           child: Text(
             'Reportes Epidemiológicos y Comunitarios',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
+        const SizedBox(width: 8),
         Text(
           'Total: ${_allReports.length}',
           style: TextStyle(
@@ -1215,19 +866,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                 ),
                 if (report.centroSaludNombre != null) ...[
-                  const Spacer(),
-                  const Icon(Icons.local_hospital_rounded, size: 13, color: BiomarkColors.blue),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      report.centroSaludNombre!,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: BiomarkColors.blue,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        const Icon(Icons.local_hospital_rounded, size: 13, color: BiomarkColors.blue),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            report.centroSaludNombre!,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: BiomarkColors.blue,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -1238,16 +896,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             // Fila 2: Enfermedad y Casos
             Row(
               children: [
-                Text(
-                  report.tipoEnfermedad ?? 'Reporte de Salud',
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                Expanded(
+                  child: Text(
+                    report.tipoEnfermedad ?? 'Reporte de Salud',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Text(
                   '${report.cases} ${report.cases == 1 ? 'caso' : 'casos'} · ${report.status}',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: 12,
+                    fontSize: 11.5,
                     color: report.status == 'VALIDADO'
                         ? BiomarkColors.green
                         : (report.status == 'DESCARTADO' ? Colors.grey : Colors.orange),
@@ -1284,6 +946,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Text(
                 'Contacto: ${report.contactoReportante} ${report.reporterName != null ? "(${report.reporterName})" : ""}',
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
 
@@ -1296,7 +960,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () => _updateReportStatus(report.id, 'DESCARTADO'),
                       icon: const Icon(Icons.close_rounded, size: 16),
-                      label: const Text('Descartar'),
+                      label: const Text('Descartar', maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -1305,13 +969,418 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       onPressed: () => _updateReportStatus(report.id, 'VALIDADO'),
                       style: FilledButton.styleFrom(backgroundColor: BiomarkColors.green),
                       icon: const Icon(Icons.verified_rounded, size: 16),
-                      label: const Text('Validar MINSA'),
+                      label: const Text('Validar MINSA', maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 ],
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Diálogo modal con gestión de ciclo de vida seguro y adaptabilidad para teclados virtuales.
+class _AccreditationDialog extends StatefulWidget {
+  const _AccreditationDialog({
+    required this.initialCenters,
+    required this.fallbackCenters,
+    required this.invitationsApi,
+    required this.gisApi,
+  });
+
+  final List<HealthCenter> initialCenters;
+  final List<HealthCenter> fallbackCenters;
+  final InvitationsApi invitationsApi;
+  final GisApi gisApi;
+
+  @override
+  State<_AccreditationDialog> createState() => _AccreditationDialogState();
+}
+
+class _AccreditationDialogState extends State<_AccreditationDialog> {
+  late final TextEditingController _contactCtrl;
+  late final TextEditingController _searchCenterCtrl;
+  final _formKey = GlobalKey<FormState>();
+
+  String _selectedRole = 'TRABAJADOR_SALUD';
+  HealthCenter? _selectedCenter;
+  String? _centerError;
+  bool _generating = false;
+  late List<HealthCenter> _centers;
+
+  @override
+  void initState() {
+    super.initState();
+    _contactCtrl = TextEditingController();
+    _searchCenterCtrl = TextEditingController();
+    _centers = widget.initialCenters.isNotEmpty ? widget.initialCenters : widget.fallbackCenters;
+    if (widget.initialCenters.isEmpty) {
+      widget.gisApi.fetchAllCenters().then((loaded) {
+        if (mounted && loaded.isNotEmpty) {
+          setState(() => _centers = loaded);
+        }
+      }).catchError((_) {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _contactCtrl.dispose();
+    _searchCenterCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedCenter == null) {
+      setState(() => _centerError = 'Debes seleccionar un centro de salud de la lista.');
+      return;
+    }
+
+    setState(() => _generating = true);
+
+    try {
+      final Map<String, dynamic> res;
+      if (_selectedRole == 'TRABAJADOR_SALUD') {
+        res = await widget.invitationsApi.createHealthWorkerInvitation(
+          contacto: _contactCtrl.text.trim(),
+          centroSaludId: _selectedCenter!.id,
+        );
+      } else {
+        res = await widget.invitationsApi.createPromoterInvitation(
+          contacto: _contactCtrl.text.trim(),
+          centroSaludId: _selectedCenter!.id,
+        );
+      }
+
+      if (!mounted) return;
+      final invMap = res['invitacion'] is Map<String, dynamic> ? res['invitacion'] as Map<String, dynamic> : null;
+      final token = (invMap?['token'] ?? res['token'] ?? '') as String;
+      Navigator.pop(context, token.isNotEmpty ? token : true);
+    } catch (err) {
+      if (!mounted) return;
+      setState(() => _generating = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$err'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _searchCenterCtrl.text.trim().toLowerCase();
+    final matches = query.isEmpty
+        ? _centers.take(20).toList()
+        : _centers.where((c) {
+            return c.name.toLowerCase().contains(query) ||
+                c.address.toLowerCase().contains(query) ||
+                c.type.toLowerCase().contains(query);
+          }).toList();
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Encabezado
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: BiomarkColors.blue.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.verified_user_rounded, color: BiomarkColors.blue, size: 22),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Acreditar Personal SILAIS',
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Genera un código oficial de activación para incorporar personal calificado a la red de salud.',
+                  style: TextStyle(fontSize: 12, height: 1.35),
+                ),
+                const SizedBox(height: 16),
+
+                // 1. Selector de Rol
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedRole,
+                  decoration: const InputDecoration(
+                    labelText: 'Rol institucional a otorgar *',
+                    prefixIcon: Icon(Icons.badge_rounded),
+                    isDense: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'TRABAJADOR_SALUD',
+                      child: Text('Personal de Salud (Médico / Enfermero)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'PROMOTOR',
+                      child: Text('Promotor de Salud Comunitario'),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _selectedRole = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 14),
+
+                // 2. Selector de Centro de Salud
+                if (_selectedCenter == null) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.local_hospital_rounded, size: 16, color: BiomarkColors.blue),
+                      const SizedBox(width: 6),
+                      const Expanded(
+                        child: Text(
+                          'Centro de Salud de Adscripción *',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${_centers.length} en BD',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _searchCenterCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Filtrar por nombre o barrio...',
+                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                      isDense: true,
+                      suffixIcon: _searchCenterCtrl.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 18),
+                              onPressed: () {
+                                _searchCenterCtrl.clear();
+                                setState(() {});
+                              },
+                            )
+                          : null,
+                    ),
+                    onChanged: (_) => setState(() => _centerError = null),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 140),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _centerError != null
+                            ? Colors.red
+                            : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: matches.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.search_off_rounded, color: Colors.orange, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'No se encontró ningún centro coincidente.',
+                                      style: TextStyle(fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              itemCount: matches.length,
+                              separatorBuilder: (context, index) => const Divider(height: 1, indent: 40),
+                              itemBuilder: (context, idx) {
+                                final center = matches[idx];
+                                final isCS = center.type == 'CENTRO_SALUD';
+                                final isHosp = center.type == 'HOSPITAL';
+                                final color = isHosp
+                                    ? const Color(0xFFDC2626)
+                                    : (isCS ? BiomarkColors.blue : BiomarkColors.green);
+
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: ListTile(
+                                    dense: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                                    leading: Container(
+                                      width: 26,
+                                      height: 26,
+                                      decoration: BoxDecoration(
+                                        color: color.withValues(alpha: 0.12),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(
+                                        isHosp
+                                            ? Icons.local_hospital_rounded
+                                            : (isCS ? Icons.medical_services_rounded : Icons.health_and_safety_rounded),
+                                        size: 15,
+                                        color: color,
+                                      ),
+                                    ),
+                                    title: Text(
+                                      center.name,
+                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    subtitle: Text(
+                                      center.address.isNotEmpty ? center.address : 'Managua, Nicaragua',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    trailing: const Icon(
+                                      Icons.add_circle_outline_rounded,
+                                      size: 18,
+                                      color: BiomarkColors.blue,
+                                    ),
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedCenter = center;
+                                        _centerError = null;
+                                        _searchCenterCtrl.clear();
+                                      });
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                  if (_centerError != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _centerError!,
+                      style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ] else ...[
+                  // Centro Seleccionado
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: BiomarkColors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: BiomarkColors.green.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.verified_rounded, color: BiomarkColors.green, size: 22),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Centro Verificado:',
+                                style: TextStyle(
+                                  color: BiomarkColors.green,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 10,
+                                ),
+                              ),
+                              Text(
+                                _selectedCenter!.name,
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                _selectedCenter!.address.isNotEmpty ? _selectedCenter!.address : 'Managua',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => setState(() => _selectedCenter = null),
+                          icon: const Icon(Icons.sync_rounded, size: 18, color: BiomarkColors.green),
+                          tooltip: 'Cambiar centro',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+
+                // 3. Contacto Oficial
+                TextFormField(
+                  controller: _contactCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Correo o teléfono oficial *',
+                    hintText: 'ej. doctor@minsa.gob.ni o 8888 1234',
+                    prefixIcon: Icon(Icons.contact_mail_outlined),
+                    isDense: true,
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Ingresa el contacto institucional' : null,
+                ),
+                const SizedBox(height: 20),
+
+                // Botones
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: _generating ? null : () => Navigator.pop(context, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: _generating ? null : _submit,
+                      child: Text(_generating ? 'Generando...' : 'Acreditar y Emitir'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

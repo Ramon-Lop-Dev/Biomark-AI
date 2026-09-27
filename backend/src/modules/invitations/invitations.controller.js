@@ -12,7 +12,7 @@ const createHealthWorkerInvitation = asyncHandler(async (req, res) => {
 
 const createPromoterInvitation = asyncHandler(async (req, res) => {
   const workerId = req.usuarioId;
-  const centroSaludId = req.centroSaludId || req.usuario?.centro_salud_id;
+  const centroSaludId = req.body.centro_salud_id || req.centroSaludId || req.usuario?.centro_salud_id;
   const result = await invitationsService.invitePromoter(workerId, centroSaludId, req.body);
   return res.status(201).json({
     mensaje: 'Invitación para promotor comunitario generada exitosamente.',

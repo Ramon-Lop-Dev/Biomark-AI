@@ -88,17 +88,17 @@ const listarReportesParaHeatmap = () =>
 const listarReportesParaOperacion = async (estado, scopeCentroSaludId = null) => {
   let query = supabase
     .from('reportes_comunitarios')
-    .select('id, usuario_id, cantidad_casos, descripcion, latitud, longitud, estado, clasificacion_ccm, centro_salud_id, fecha_creacion, tipo_enfermedad, direccion_exacta, fecha_inicio_sintomas, medidas_tomadas, contacto_reportante, centros_salud(id, nombre, codigo_establecimiento), usuarios(correo, perfiles(nombre_completo))')
+    .select('id, usuario_id, cantidad_casos, descripcion, latitud, longitud, estado, clasificacion_ccm, centro_salud_id, fecha_creacion, tipo_enfermedad, direccion_exacta, fecha_inicio_sintomas, medidas_tomadas, contacto_reportante, centros_salud(id, nombre, codigo_establecimiento), usuarios!reportes_comunitarios_usuario_id_fkey(correo, perfiles(nombre_completo))')
     .order('fecha_creacion', { ascending: false });
 
   if (estado) query = query.eq('estado', estado);
   if (scopeCentroSaludId) query = query.eq('centro_salud_id', scopeCentroSaludId);
 
   const res = await query;
-  if (res.error && (res.error.code === '42703' || res.error.message?.includes('column'))) {
+  if (res.error && (res.error.code === '42703' || res.error.code === 'PGRST200' || res.error.code === 'PGRST201' || res.error.message?.includes('column') || res.error.message?.includes('relationship'))) {
     let fallbackQuery = supabase
       .from('reportes_comunitarios')
-      .select('id, usuario_id, cantidad_casos, descripcion, latitud, longitud, estado, fecha_creacion, usuarios(correo, perfiles(nombre_completo))')
+      .select('id, usuario_id, cantidad_casos, descripcion, latitud, longitud, estado, fecha_creacion, usuarios!reportes_comunitarios_usuario_id_fkey(correo, perfiles(nombre_completo))')
       .order('fecha_creacion', { ascending: false });
     if (estado) fallbackQuery = fallbackQuery.eq('estado', estado);
     if (scopeCentroSaludId) fallbackQuery = fallbackQuery.eq('centro_salud_id', scopeCentroSaludId);

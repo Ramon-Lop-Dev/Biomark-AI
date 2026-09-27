@@ -14,6 +14,7 @@ const createHealthWorkerInvitationSchema = z.object({
 
 const createPromoterInvitationSchema = z.object({
   contacto: z.string().trim().min(3, 'El contacto (correo o teléfono) es obligatorio'),
+  centro_salud_id: z.string().uuid('El ID del centro de salud debe ser un UUID válido').optional(),
   expira_dias: z.number().int().min(1).max(30).optional().default(7)
 });
 

@@ -49,16 +49,21 @@ const inviteHealthWorker = async (adminId, { contacto, centro_salud_id, expira_d
   return invitacion;
 };
 
-const invitePromoter = async (workerId, workerCentroSaludId, { contacto, expira_dias = 7 }) => {
-  if (!workerCentroSaludId) {
-    throw new AppError('El trabajador de salud no tiene un centro de salud asignado', 403);
+const invitePromoter = async (workerId, workerCentroSaludId, { contacto, centro_salud_id, expira_dias = 7 }) => {
+  const centroId = workerCentroSaludId || centro_salud_id;
+  if (!centroId) {
+    throw new AppError('El promotor debe estar adscrito a un centro de salud', 400);
   }
 
   const { data: centro } = await supabase
     .from('centros_salud')
     .select('id, nombre')
-    .eq('id', workerCentroSaludId)
+    .eq('id', centroId)
     .maybeSingle();
+
+  if (!centro) {
+    throw new AppError('El centro de salud especificado no existe', 404);
+  }
 
   const token = generarCodigoInvitacion();
   const expira_en = new Date(Date.now() + expira_dias * 24 * 60 * 60 * 1000).toISOString();
@@ -67,7 +72,7 @@ const invitePromoter = async (workerId, workerCentroSaludId, { contacto, expira_
     token,
     contacto,
     rol_destino: 'PROMOTOR',
-    centro_salud_id: workerCentroSaludId,
+    centro_salud_id: centroId,
     creado_por: workerId,
     expira_en
   });
@@ -81,7 +86,7 @@ const invitePromoter = async (workerId, workerCentroSaludId, { contacto, expira_
     tipoEntidad: 'invitaciones',
     idEntidad: invitacion.id,
     accion: 'INVITACION_PROMOTOR_CREADA',
-    detalle: { contacto, centro_salud_id: workerCentroSaludId, centro_nombre: centro?.nombre, rol: 'PROMOTOR' }
+    detalle: { contacto, centro_salud_id: centroId, centro_nombre: centro.nombre, rol: 'PROMOTOR' }
   });
 
   return invitacion;
