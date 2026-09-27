@@ -108,6 +108,24 @@ class AuthSession extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateRoleAndCenter({
+    required String role,
+    required String healthCenterId,
+    String? healthCenterName,
+  }) async {
+    _role = role;
+    _healthCenterId = healthCenterId;
+    if (healthCenterName != null && healthCenterName.isNotEmpty) {
+      _healthCenterName = healthCenterName;
+    }
+    await _storage.write(key: _kRole, value: _role);
+    await _storage.write(key: _kHealthCenterId, value: healthCenterId);
+    if (_healthCenterName != null) {
+      await _storage.write(key: _kHealthCenterName, value: _healthCenterName!);
+    }
+    notifyListeners();
+  }
+
   Future<void> updateProfile({String? name, String? email}) async {
     if (name != null && name.isNotEmpty) {
       _userName = name;

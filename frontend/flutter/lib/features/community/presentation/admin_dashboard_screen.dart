@@ -7,6 +7,7 @@ import '../../gis/domain/health_center.dart';
 import '../data/invitations_api.dart';
 import '../promoter_screens.dart';
 import '../recommendations_management_screen.dart';
+import 'role_tutorial_dialog.dart';
 
 /// Pantalla de mando institucional para la Dirección Departamental SILAIS Managua.
 /// Permite monitoreo macroepidemiológico, acreditación formal de personal de salud,
@@ -202,6 +203,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               child: Text(
                 'Código de Acreditación',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                softWrap: true,
               ),
             ),
           ],
@@ -212,7 +214,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           children: [
             const Text(
               'Comparte este código oficial con el profesional o brigadista para que active su rol institucional. Puedes enviárselo por WhatsApp, SMS desde tu celular o en persona:',
-              style: TextStyle(fontSize: 13),
+              style: TextStyle(fontSize: 13, height: 1.35),
+              softWrap: true,
             ),
             const SizedBox(height: 16),
             Container(
@@ -254,6 +257,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         fontWeight: FontWeight.w600,
                         color: BiomarkColors.green,
                       ),
+                      softWrap: true,
                     ),
                   ),
                 ],
@@ -478,20 +482,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                       ),
+                      softWrap: true,
                     ),
                   ],
                 ),
               ),
+              IconButton(
+                onPressed: () => RoleTutorialDialog.show(context, initialRole: 'ADMIN'),
+                icon: const Icon(Icons.school_rounded, color: Colors.white, size: 24),
+                tooltip: 'Guía y Tutorial SILAIS',
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            'Supervisión y vigilancia epidemiológica en tiempo real, acreditación de personal de salud y triaje comunitario.',
+          const Text(
+            'Supervisión y vigilancia epidemiológica en tiempo real, acreditación oficial de personal de salud y triaje comunitario.',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.85),
+              color: Colors.white70,
               fontSize: 12,
               height: 1.35,
             ),
+            softWrap: true,
           ),
         ],
       ),
@@ -527,16 +538,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Acreditar Personal / Emitir Token',
+                        'Emitir Acreditación Oficial',
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                        softWrap: true,
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Genera códigos para Trabajadores de Salud y Promotores adscritos a centros.',
+                        'Genera códigos para Médicos, Enfermeros y Promotores adscritos a centros de Managua.',
                         style: TextStyle(
                           fontSize: 11.5,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
+                        softWrap: true,
                       ),
                     ],
                   ),
@@ -572,22 +585,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     );
                   },
                   borderRadius: BorderRadius.circular(14),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
+                  child: const Padding(
+                    padding: EdgeInsets.all(12),
                     child: Row(
                       children: [
-                        const Icon(Icons.supervised_user_circle_rounded, color: BiomarkColors.green, size: 22),
-                        const SizedBox(width: 8),
-                        const Expanded(
+                        Icon(Icons.supervised_user_circle_rounded, color: BiomarkColors.green, size: 22),
+                        SizedBox(width: 8),
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Red Territorial', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
-                              Text('Supervisar agentes', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text('Red Departamental', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5), softWrap: true),
+                              Text('Supervisar promotores', style: TextStyle(fontSize: 11, color: Colors.grey), softWrap: true),
                             ],
                           ),
                         ),
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                        Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                       ],
                     ),
                   ),
@@ -608,22 +621,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     );
                   },
                   borderRadius: BorderRadius.circular(14),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
+                  child: const Padding(
+                    padding: EdgeInsets.all(12),
                     child: Row(
                       children: [
-                        const Icon(Icons.health_and_safety_rounded, color: Color(0xFFD97706), size: 22),
-                        const SizedBox(width: 8),
-                        const Expanded(
+                        Icon(Icons.health_and_safety_rounded, color: Color(0xFFD97706), size: 22),
+                        SizedBox(width: 8),
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Avisos MINSA', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
-                              Text('Guías oficiales', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text('Pautas y Guías', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5), softWrap: true),
+                              Text('Avisos oficiales MINSA', style: TextStyle(fontSize: 11, color: Colors.grey), softWrap: true),
                             ],
                           ),
                         ),
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                        Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
                       ],
                     ),
                   ),
@@ -1140,8 +1153,7 @@ class _AccreditationDialogState extends State<_AccreditationDialog> {
                       child: Text(
                         'Acreditar Personal SILAIS',
                         style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
                       ),
                     ),
                   ],
@@ -1150,6 +1162,7 @@ class _AccreditationDialogState extends State<_AccreditationDialog> {
                 const Text(
                   'Genera un código oficial de activación para incorporar personal calificado a la red de salud.',
                   style: TextStyle(fontSize: 12, height: 1.35),
+                  softWrap: true,
                 ),
                 const SizedBox(height: 16),
 
@@ -1189,8 +1202,7 @@ class _AccreditationDialogState extends State<_AccreditationDialog> {
                         child: Text(
                           'Centro de Salud de Adscripción *',
                           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          softWrap: true,
                         ),
                       ),
                       Text(

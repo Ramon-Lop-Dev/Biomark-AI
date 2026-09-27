@@ -327,12 +327,97 @@ const updatePromoterStatus = async (workerId, centroSaludId, promoterId, estado)
   return promotor;
 };
 
+const redeemInvitation = async (usuarioId, token) => {
+  const verificacion = await verifyInvitation(token);
+  const tokenLimpio = token.trim().toUpperCase();
+
+  // 1. Obtener datos del usuario actual
+  const { data: usuario, error: userErr } = await supabase
+    .from('usuarios')
+    .select('id, correo, rol, perfiles(nombre_completo)')
+    .eq('id', usuarioId)
+    .single();
+
+  if (userErr || !usuario) {
+    throw new AppError('Usuario no encontrado en el sistema', 404);
+  }
+
+  // 2. Seguridad de rol: Evitar suplantación de identidad si el token fue nominal por correo
+  const contactoDestino = (verificacion.contacto || '').trim().toLowerCase();
+  const userEmail = (usuario.correo || '').trim().toLowerCase();
+
+  if (contactoDestino.includes('@') && contactoDestino !== userEmail) {
+    throw new AppError(
+      `Seguridad de rol: Este código de activación fue emitido exclusivamente para "${verificacion.contacto}". Tu cuenta actual ("${usuario.correo}") no coincide.`,
+      403
+    );
+  }
+
+  // 3. Buscar invitación
+  const { data: inv } = await invitationsRepo.buscarInvitacionPorToken(tokenLimpio);
+
+  // 4. Asignar rol y centro de salud de forma atómica e irreversible
+  const { error: updateError } = await invitationsRepo.asignarRolYCentro(
+    usuario.id,
+    inv.rol_destino,
+    inv.centro_salud_id,
+    inv.creado_por
+  );
+
+  if (updateError) {
+    throw new AppError('No se pudo asignar el rol y centro de salud a la cuenta', 500);
+  }
+
+  // 5. Marcar invitación como utilizada
+  await invitationsRepo.marcarInvitacionUsada(inv.id, usuario.id);
+
+  // 6. Auditoría Sanitaria SILAIS
+  await auditService.registrar({
+    usuarioId: usuario.id,
+    tipoEntidad: 'invitaciones',
+    idEntidad: inv.id,
+    accion: 'INVITACION_CANJEADA',
+    detalle: {
+      contacto: inv.contacto,
+      email_usuario: usuario.correo,
+      rol_asignado: inv.rol_destino,
+      centro_salud_id: inv.centro_salud_id,
+      centro_nombre: inv.centros_salud?.nombre,
+      invitado_por: inv.creado_por,
+      descripcion: `El usuario ${usuario.correo} canjeó exitosamente la acreditación emitida para ${inv.contacto} en ${inv.centros_salud?.nombre || inv.centro_salud_id}`
+    }
+  });
+
+  // Notificación automática a n8n
+  try {
+    await publicarEvento('acreditacion_sanitaria.canjeada', {
+      token: tokenLimpio,
+      usuario_id: usuario.id,
+      email: usuario.correo,
+      nombre_completo: usuario.perfiles?.nombre_completo || 'Usuario',
+      rol_asignado: inv.rol_destino,
+      centro_salud_id: inv.centro_salud_id,
+      centro_nombre: inv.centros_salud?.nombre
+    });
+  } catch (err) {
+    console.error('[Invitations] No se pudo publicar canje en n8n:', err.message);
+  }
+
+  return {
+    mensaje: `¡Acreditación confirmada! Tu cuenta ha sido activada con rol ${inv.rol_destino}.`,
+    rol: inv.rol_destino,
+    centro_salud_id: inv.centro_salud_id,
+    centro_salud_nombre: inv.centros_salud?.nombre || null
+  };
+};
+
 module.exports = {
   generarCodigoInvitacion,
   inviteHealthWorker,
   invitePromoter,
   verifyInvitation,
   acceptInvitation,
+  redeemInvitation,
   listMyPromoters,
   updatePromoterStatus
 };

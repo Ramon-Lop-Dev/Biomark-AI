@@ -29,9 +29,14 @@ const updatePromoterStatusSchema = z.object({
   estado: z.enum(['ACTIVO', 'SUSPENDIDO'])
 });
 
+const redeemInvitationSchema = z.object({
+  token: z.string().trim().min(4, 'Código de acreditación inválido')
+});
+
 module.exports = {
   createHealthWorkerInvitationSchema,
   createPromoterInvitationSchema,
   acceptInvitationSchema,
-  updatePromoterStatusSchema
+  updatePromoterStatusSchema,
+  redeemInvitationSchema
 };

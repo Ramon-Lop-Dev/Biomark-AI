@@ -11,6 +11,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/design/biomark_glass_surface.dart';
 import '../data/gis_api.dart';
 import '../domain/health_center.dart';
+import '../domain/disease_epidemiology_info.dart';
 import 'community_report_screen.dart';
 
 class GisMapScreen extends StatefulWidget {
@@ -775,236 +776,467 @@ class _GisMapScreenState extends State<GisMapScreen>
 
   void _showReportDetails(CommunityReportPoint report) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final info = DiseaseEpidemiologyInfo.forDisease(report.displayIllness, report.description);
+
+    String formatDate(DateTime? dt) {
+      if (dt == null) return 'Fecha no registrada';
+      const months = [
+        '', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+      ];
+      final m = dt.month >= 1 && dt.month <= 12 ? months[dt.month] : '${dt.month}';
+      return '${dt.day} $m ${dt.year}';
+    }
+
+    final ccm = report.clasificacionCcm?.toUpperCase() ?? 'VERDE';
+    final ccmColor = ccm == 'ROJO'
+        ? const Color(0xFFDC2626)
+        : (ccm == 'AMARILLO'
+            ? const Color(0xFFD97706)
+            : const Color(0xFF059669));
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Theme.of(ctx).cardColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Theme.of(ctx).dividerColor.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(10),
+        return DraggableScrollableSheet(
+          initialChildSize: 0.65,
+          minChildSize: 0.40,
+          maxChildSize: 0.92,
+          builder: (_, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(ctx).scaffoldBackgroundColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 16,
+                    offset: Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Theme.of(ctx).dividerColor.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFEF4444)),
-                          const SizedBox(width: 6),
-                          Text(
-                            report.tipoEnfermedad?.isNotEmpty == true
-                                ? 'EPIDEMIA CONFIRMADA: ${report.tipoEnfermedad!.toUpperCase()}'
-                                : 'ALERTA EPIDEMIOLÓGICA VALIDADA',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFFEF4444),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(info.icon, size: 16, color: const Color(0xFFEF4444)),
+                                  const SizedBox(width: 6),
+                                  const Text(
+                                    'ALERTA EPIDEMIOLÓGICA OFICIAL',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFFEF4444),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(Icons.close_rounded),
+                              onPressed: () => Navigator.pop(ctx),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          info.diseaseName.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.3,
                           ),
-                        ],
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.pop(ctx),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  report.tipoEnfermedad?.isNotEmpty == true
-                      ? report.tipoEnfermedad!
-                      : 'Brote Infeccioso Sospechoso',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${report.caseCount} ${report.caseCount == 1 ? 'caso confirmado' : 'casos confirmados'}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFFDC2626),
+                          softWrap: true,
                         ),
-                      ),
-                    ),
-                    if (report.clasificacionCcm != null && report.clasificacionCcm!.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: report.clasificacionCcm == 'ROJO'
-                              ? const Color(0xFFEF4444).withValues(alpha: 0.12)
-                              : (report.clasificacionCcm == 'AMARILLO'
-                                  ? Colors.orange.withValues(alpha: 0.12)
-                                  : const Color(0xFF10B981).withValues(alpha: 0.12)),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Triaje CCM: ${report.clasificacionCcm}',
+                        const SizedBox(height: 2),
+                        Text(
+                          info.officialClassification,
                           style: TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: report.clasificacionCcm == 'ROJO'
-                                ? const Color(0xFFDC2626)
-                                : (report.clasificacionCcm == 'AMARILLO'
-                                    ? Colors.orange.shade800
-                                    : const Color(0xFF059669)),
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                          ),
+                          softWrap: true,
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.people_alt_rounded, size: 14, color: Color(0xFFDC2626)),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    '${report.caseCount} ${report.caseCount == 1 ? 'caso confirmado' : 'casos confirmados'}',
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFFDC2626),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: ccmColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.shield_rounded, size: 14, color: ccmColor),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Triaje CCM: $ccm',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: ccmColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blueGrey.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.event_note_rounded, size: 14, color: Colors.blueGrey),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    formatDate(report.fechaCreacion),
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.blueGrey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.check_circle_outline_rounded, size: 14, color: Color(0xFF059669)),
+                                  SizedBox(width: 5),
+                                  Text(
+                                    'Validado MINSA',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF059669),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.location_on_rounded, size: 20, color: Color(0xFFEF4444)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  report.displayAddress,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: Theme.of(ctx).colorScheme.onSurface,
+                                  ),
+                                  softWrap: true,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on_rounded, size: 18, color: Color(0xFFEF4444)),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        report.direccionExacta?.isNotEmpty == true
-                            ? report.direccionExacta!
-                            : 'Sector Georreferenciado, Managua',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(ctx).colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.medical_information_rounded, size: 16, color: BiomarkColors.blue),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Información clínica del reporte:',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Theme.of(ctx).colorScheme.onSurface,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        report.description.isNotEmpty
-                            ? report.description
-                            : 'Vigilancia activa comunitaria por reporte de casos sospechosos en el vecindario.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.4,
-                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.medical_information_rounded, size: 17, color: BiomarkColors.blue),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Detalle clínico y epidemiológico:',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Theme.of(ctx).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                report.description.isNotEmpty
+                                    ? report.description
+                                    : 'Brote validado bajo protocolo de vigilancia activa por el equipo médico y brigadistas comunitarios.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.45,
+                                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                                ),
+                                softWrap: true,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.15 : 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: isDark ? 0.12 : 0.06),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.blue.withValues(alpha: 0.25),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.route_rounded, size: 16, color: Color(0xFF0284C7)),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Mecanismo de Transmisión / Vector:',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF0284C7),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                info.transmissionMechanism,
+                                style: const TextStyle(fontSize: 12.5, height: 1.4),
+                                softWrap: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: isDark ? 0.12 : 0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: Colors.amber.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.sick_rounded, size: 16, color: Color(0xFFD97706)),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Síntomas Frecuentes Reportados:',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFFD97706),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              ...info.commonSymptoms.map(
+                                (s) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 3),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      Expanded(
+                                        child: Text(s, style: const TextStyle(fontSize: 12.5, height: 1.35), softWrap: true),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEF4444).withValues(alpha: isDark ? 0.14 : 0.07),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: const Color(0xFFEF4444).withValues(alpha: 0.28),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.verified_user_rounded, size: 16, color: Color(0xFFEF4444)),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Medidas de Prevención Oficiales del MINSA:',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFFEF4444),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              ...info.minsaPreventionMeasures.map(
+                                (m) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('• ', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFDC2626))),
+                                      Expanded(
+                                        child: Text(m, style: const TextStyle(fontSize: 12.5, height: 1.35), softWrap: true),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade900.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.shade400.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.emergency_rounded, size: 18, color: Color(0xFFDC2626)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Signos de Alarma - Acudir a Urgencias:',
+                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFFDC2626)),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      info.warningSigns,
+                                      style: const TextStyle(fontSize: 12, height: 1.35),
+                                      softWrap: true,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _mapController.move(LatLng(report.latitude, report.longitude), 17.0);
+                            },
+                            icon: const Icon(Icons.center_focus_strong_rounded, size: 18),
+                            label: const Text('Centrar en el Punto Epidemiológico'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: const Color(0xFFEF4444),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Recomendaciones del MINSA:',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFEF4444)),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        '• Elimine recipientes con agua estancada y mantenga depósitos bien tapados.\n• Si presenta síntomas de alarma acuda al centro de salud más cercano. No se automedique.',
-                        style: TextStyle(fontSize: 12.5, height: 1.4),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      _mapController.move(LatLng(report.latitude, report.longitude), 17.0);
-                    },
-                    icon: const Icon(Icons.center_focus_strong_rounded, size: 18),
-                    label: const Text('Centrar en el Punto'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFEF4444),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -1091,8 +1323,8 @@ class _GisMapScreenState extends State<GisMapScreen>
         ..._reports.map(
           (report) => Marker(
             point: LatLng(report.latitude, report.longitude),
-            width: 180,
-            height: 56,
+            width: 48,
+            height: 48,
             alignment: Alignment.center,
             child: GestureDetector(
               onTap: () => _showReportDetails(report),
@@ -2050,108 +2282,53 @@ class _CommunityReportMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final illness = report.tipoEnfermedad?.trim();
-    final hasIllness = illness != null && illness.isNotEmpty;
-    final hasDesc = report.description.trim().isNotEmpty;
-    final descText = hasIllness
-        ? '$illness (${report.caseCount})'
-        : (hasDesc
-            ? (report.description.trim().length > 16
-                ? '${report.description.trim().substring(0, 16)}…'
-                : report.description.trim())
-            : '${report.caseCount} ${report.caseCount == 1 ? 'caso' : 'casos'}');
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        AnimatedBuilder(
-          animation: pulseAnimation,
-          builder: (context, child) {
-            final t = pulseAnimation.value;
-            return Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: 28 + (t * 10),
-                  height: 28 + (t * 10),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(
-                      0xFFFF1744,
-                    ).withValues(alpha: (1.0 - t) * 0.45),
-                  ),
+    final info = DiseaseEpidemiologyInfo.forDisease(report.displayIllness, report.description);
+    return Tooltip(
+      message: '${info.diseaseName} (${report.caseCount} ${report.caseCount == 1 ? 'caso' : 'casos'}) - ${report.displayAddress}',
+      child: AnimatedBuilder(
+        animation: pulseAnimation,
+        builder: (context, child) {
+          final t = pulseAnimation.value;
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              // Anillo exterior de pulso concéntrico sutil
+              Container(
+                width: 38 + (t * 10),
+                height: 38 + (t * 10),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFEF4444).withValues(alpha: (1.0 - t) * 0.45),
                 ),
-                Container(
-                  width: 26,
-                  height: 26,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD50000),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.report_problem_rounded,
-                    color: Colors.white,
-                    size: 14,
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFFF1744), width: 1.2),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 4,
-                  offset: Offset(0, 1),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFF1744),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    descText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFB71C1C),
+              ),
+              // Marcador circular unificado con estilo idéntico a jornadas/centros
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDC2626),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2.5),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 5,
+                      offset: Offset(0, 2),
                     ),
+                  ],
+                ),
+                child: Center(
+                  child: Icon(
+                    info.icon,
+                    color: Colors.white,
+                    size: 20,
                   ),
                 ),
-              ],
-            ),
-          ),
-        ),
-      ],
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

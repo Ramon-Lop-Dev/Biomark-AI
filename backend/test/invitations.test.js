@@ -5,7 +5,8 @@ const {
   createHealthWorkerInvitationSchema,
   createPromoterInvitationSchema,
   acceptInvitationSchema,
-  updatePromoterStatusSchema
+  updatePromoterStatusSchema,
+  redeemInvitationSchema
 } = require('../src/modules/invitations/invitations.validator');
 const { requireScope } = require('../src/middleware/requireScope.middleware');
 const { clasificarCCM } = require('../src/modules/community/community.service');
@@ -60,6 +61,13 @@ test('Validadores de Invitaciones: Zod schemas aplican reglas estrictas de paylo
 
   const invalidStatus = updatePromoterStatusSchema.safeParse({ estado: 'ELIMINADO' });
   assert.equal(invalidStatus.success, false);
+
+  // 5. redeemInvitationSchema valida presencia de token válido
+  const validRedeem = redeemInvitationSchema.safeParse({ token: 'BM-7A3F9C' });
+  assert.equal(validRedeem.success, true);
+
+  const invalidRedeem = redeemInvitationSchema.safeParse({ token: '12' });
+  assert.equal(invalidRedeem.success, false);
 });
 
 test('Middleware requireScope: Restringe acceso territorial por centro_salud_id', () => {

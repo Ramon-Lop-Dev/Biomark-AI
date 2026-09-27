@@ -4,6 +4,7 @@ const {
   createPromoterInvitation,
   verifyInvitation,
   acceptInvitation,
+  redeemInvitation,
   getMyPromoters,
   updatePromoterStatus
 } = require('./invitations.controller');
@@ -15,12 +16,21 @@ const {
   createHealthWorkerInvitationSchema,
   createPromoterInvitationSchema,
   acceptInvitationSchema,
-  updatePromoterStatusSchema
+  updatePromoterStatusSchema,
+  redeemInvitationSchema
 } = require('./invitations.validator');
 
 const router = express.Router();
 
-// 1. ADMIN genera invitación a TRABAJADOR_SALUD fijando un centro de salud
+// 1. Canje autenticado de invitación para usuarios ya registrados
+router.post(
+  '/redeem',
+  verifyToken,
+  validate(redeemInvitationSchema),
+  redeemInvitation
+);
+
+// 2. ADMIN genera invitación a TRABAJADOR_SALUD fijando un centro de salud
 router.post(
   '/health-worker',
   verifyToken,

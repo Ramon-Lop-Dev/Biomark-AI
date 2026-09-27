@@ -162,22 +162,27 @@ class CommunityReportPoint {
     double number(dynamic value) =>
         value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
 
+    final lat = number(json['latitud']);
+    final lon = number(json['longitud']);
+
     final rawDesc = '${json['descripcion'] ?? ''}'.trim();
     String? illness = json['tipo_enfermedad'] as String?;
     if (illness == null || illness.trim().isEmpty) {
       final lower = rawDesc.toLowerCase();
-      if (lower.contains('leptospirosis')) {
+      if (lower.contains('lepto')) {
         illness = 'Leptospirosis';
-      } else if (lower.contains('chikungunya')) {
+      } else if (lower.contains('chikung') || lower.contains('chicung')) {
         illness = 'Chikungunya';
       } else if (lower.contains('dengue')) {
         illness = 'Dengue';
       } else if (lower.contains('zika')) {
         illness = 'Zika';
-      } else if (lower.contains('malaria')) {
+      } else if (lower.contains('malaria') || lower.contains('paludismo')) {
         illness = 'Malaria';
-      } else if (lower.contains('vomito') || lower.contains('vómito')) {
+      } else if (lower.contains('vomito') || lower.contains('vómito') || lower.contains('diarrea') || lower.contains('gastro')) {
         illness = 'Gastroenteritis Aguda';
+      } else {
+        illness = 'Alerta Sanitaria Comunitaria';
       }
     }
 
@@ -185,20 +190,47 @@ class CommunityReportPoint {
     if (address == null || address.trim().isEmpty || address.trim().toLowerCase() == 'managua') {
       final lower = rawDesc.toLowerCase();
       if (lower.contains('morazan') || lower.contains('morazán')) {
-        address = 'Barrio Morazán, Managua';
-      } else if (lower.contains('lezcano')) {
-        address = 'Barrio Monseñor Lezcano, Managua';
+        address = 'Barrio Morazán, Distrito II, Managua';
+      } else if (lower.contains('lezcano') || lower.contains('monseñor')) {
+        address = 'Barrio Monseñor Lezcano, Distrito II, Managua';
       } else if (lower.contains('altagracia')) {
-        address = 'Barrio Altagracia, Managua';
+        address = 'Barrio Altagracia, Distrito III, Managua';
       } else if (lower.contains('san judas')) {
-        address = 'Barrio San Judas, Managua';
+        address = 'Barrio San Judas, Distrito III, Managua';
+      } else if (lower.contains('bello horizonte')) {
+        address = 'Barrio Bello Horizonte, Distrito IV, Managua';
+      } else if (lat != 0 && lon != 0) {
+        // Encontrar el barrio o distrito de Managua geográficamente más cercano
+        const landmarks = <String, (double, double)>{
+          'Barrio Morazán, Distrito II, Managua': (12.1485, -86.2912),
+          'Barrio Monseñor Lezcano, Distrito II, Managua': (12.1520, -86.2865),
+          'Barrio Altagracia, Distrito III, Managua': (12.1320, -86.2890),
+          'Barrio San Judas, Distrito III, Managua': (12.1080, -86.2880),
+          'Distrito V, Managua': (12.1150, -86.2300),
+          'Barrio Bello Horizonte, Distrito IV, Managua': (12.1450, -86.2350),
+        };
+
+        String closestBarrio = 'Distrito II, Managua';
+        double minDistanceSq = double.infinity;
+        for (final entry in landmarks.entries) {
+          final dLat = lat - entry.value.$1;
+          final dLon = lon - entry.value.$2;
+          final distSq = (dLat * dLat) + (dLon * dLon);
+          if (distSq < minDistanceSq) {
+            minDistanceSq = distSq;
+            closestBarrio = entry.key;
+          }
+        }
+        address = closestBarrio;
+      } else {
+        address = 'Distrito Sanitario Managua';
       }
     }
 
     return CommunityReportPoint(
       id: '${json['id'] ?? ''}',
-      latitude: number(json['latitud']),
-      longitude: number(json['longitud']),
+      latitude: lat,
+      longitude: lon,
       caseCount: (json['cantidad_casos'] as num?)?.toInt() ?? 1,
       description: rawDesc,
       tipoEnfermedad: illness,
@@ -209,4 +241,14 @@ class CommunityReportPoint {
           : null,
     );
   }
+
+  String get displayAddress =>
+      (direccionExacta != null && direccionExacta!.trim().isNotEmpty)
+          ? direccionExacta!.trim()
+          : 'Distrito Sanitario Managua';
+
+  String get displayIllness =>
+      (tipoEnfermedad != null && tipoEnfermedad!.trim().isNotEmpty)
+          ? tipoEnfermedad!.trim()
+          : 'Alerta Epidemiológica';
 }

@@ -20,6 +20,7 @@ import '../domain/health_content_item.dart';
 import '../domain/health_recommendation.dart';
 import '../../gis/data/gis_api.dart';
 import '../../gis/domain/health_center.dart';
+import '../../gis/domain/disease_epidemiology_info.dart';
 
 typedef GisMapNavigator = void Function({
   LatLng? location,
@@ -783,7 +784,7 @@ class _HomeScreenState extends State<HomeScreen> {
           )
         else
           SizedBox(
-            height: 252,
+            height: 300,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
@@ -802,6 +803,16 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isAlert = item.tipoAviso == 'ALERTA_EPIDEMIOLOGICA';
 
+    String cleanNormativa = item.normativaCodigo?.trim() ?? '';
+    if (cleanNormativa.contains(' - ')) {
+      cleanNormativa = cleanNormativa.split(' - ').first;
+    } else if (cleanNormativa.toLowerCase().contains('emergencias')) {
+      cleanNormativa = 'Guía Emergencias MINSA';
+    } else if (cleanNormativa.toLowerCase().contains('normativa')) {
+      final match = RegExp(r'Normativa\s+\d+', caseSensitive: false).firstMatch(cleanNormativa);
+      if (match != null) cleanNormativa = match.group(0)!;
+    }
+
     return Semantics(
       label: 'Aviso oficial: ${item.titulo}. Fuente: ${item.fuente}',
       button: true,
@@ -809,7 +820,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: () => _openArticleModal(item),
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          width: 275,
+          width: 295,
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -831,6 +842,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -859,8 +871,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                  const Spacer(),
-                  if (item.normativaCodigo != null)
+                  if (cleanNormativa.isNotEmpty) ...[
+                    const SizedBox(width: 6),
                     Flexible(
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -869,28 +881,26 @@ class _HomeScreenState extends State<HomeScreen> {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          item.normativaCodigo!.split(' - ').first,
+                          cleanNormativa,
                           style: TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w800,
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
+                          softWrap: true,
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
               const SizedBox(height: 10),
               Text(
                 item.titulo,
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-                maxLines: 3,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, height: 1.25),
                 softWrap: true,
-                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 6),
               Expanded(
                 child: Text(
                   item.descripcion,
@@ -899,16 +909,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 1.35,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                  maxLines: 4,
                   softWrap: true,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(height: 6),
               if (item.condicionesObjetivo.isNotEmpty)
                 Wrap(
                   spacing: 4,
-                  children: item.condicionesObjetivo.take(2).map((c) {
+                  children: item.condicionesObjetivo.take(3).map((c) {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                       decoration: BoxDecoration(
@@ -933,10 +941,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontSize: 10.5,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
+                      softWrap: true,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Row(
                     children: [
                       Text(
@@ -1186,9 +1194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             height: 1.3,
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
-                          maxLines: 3,
                           softWrap: true,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     const SizedBox(height: 6),
@@ -1254,16 +1260,20 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     for (final r in _communityReports) {
-      final enf = (r.tipoEnfermedad?.trim().isNotEmpty == true) ? r.tipoEnfermedad!.trim() : 'Brote Comunitario';
-      final dir = (r.direccionExacta?.trim().isNotEmpty == true) ? r.direccionExacta!.trim() : 'Sector Georreferenciado, Managua';
+      final enf = r.displayIllness;
+      final dir = r.displayAddress;
       final triage = r.clasificacionCcm?.isNotEmpty == true ? ' · Triaje CCM ${r.clasificacionCcm}' : '';
+      final info = DiseaseEpidemiologyInfo.forDisease(enf, r.description);
+      final recTexto = info.minsaPreventionMeasures.isNotEmpty
+          ? info.minsaPreventionMeasures.first
+          : 'Refuerce medidas sanitarias, evite aguas estancadas y acuda al puesto médico ante fiebre o vómito.';
       brotes.add(
         _OutbreakItem(
           alerta: 'EPIDEMIA CONFIRMADA: ${enf.toUpperCase()}',
           distrito: dir,
           nivel: '${r.caseCount} ${r.caseCount == 1 ? 'caso confirmado' : 'casos confirmados'}$triage',
           casos: r.description.isNotEmpty ? r.description : 'Zona bajo vigilancia epidemiológica activa por brigadas del MINSA.',
-          recomendacion: 'Refuerce medidas sanitarias, evite aguas estancadas y acuda al puesto médico ante fiebre o vómito.',
+          recomendacion: recTexto,
           color: const Color(0xFFEF4444),
           latitude: r.latitude,
           longitude: r.longitude,
@@ -1291,7 +1301,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w900,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
-                      maxLines: 2,
                       softWrap: true,
                     ),
                   ),
@@ -1323,7 +1332,6 @@ class _HomeScreenState extends State<HomeScreen> {
             fontSize: 12,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          maxLines: 2,
           softWrap: true,
         ),
         const SizedBox(height: 14),
@@ -1358,7 +1366,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Theme.of(context).colorScheme.onSurface,
                         ),
                         softWrap: true,
-                        maxLines: 2,
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -1368,7 +1375,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         softWrap: true,
-                        maxLines: 3,
                       ),
                     ],
                   ),
@@ -1418,7 +1424,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: color,
                             ),
                             softWrap: true,
-                            maxLines: 2,
                           ),
                         ),
                       ),
@@ -1432,7 +1437,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: color,
                           ),
                           softWrap: true,
-                          maxLines: 2,
                         ),
                       ),
                     ],
@@ -1442,7 +1446,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     b.distrito,
                     style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                     softWrap: true,
-                    maxLines: 3,
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -1453,7 +1456,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     softWrap: true,
-                    maxLines: 3,
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -1464,7 +1466,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
                     softWrap: true,
-                    maxLines: 4,
                   ),
                   const SizedBox(height: 12),
                   Row(

@@ -9,7 +9,10 @@ import 'package:latlong2/latlong.dart';
 import '../../biomark_brand.dart';
 import '../../core/auth/auth_session.dart';
 import '../../core/config/app_config.dart';
+import '../gis/data/gis_api.dart';
+import '../gis/domain/health_center.dart';
 import 'data/invitations_api.dart';
+import 'presentation/role_tutorial_dialog.dart';
 
 class CommunityReportItem {
   final String id;
@@ -363,71 +366,6 @@ class PromoterReportsScreen extends StatefulWidget {
   State<PromoterReportsScreen> createState() => _PromoterReportsScreenState();
 }
 
-class AdminRoleRequestsScreen extends StatefulWidget {
-  const AdminRoleRequestsScreen({super.key});
-  @override
-  State<AdminRoleRequestsScreen> createState() => _AdminRoleRequestsScreenState();
-}
-
-class _AdminRoleRequestsScreenState extends State<AdminRoleRequestsScreen> {
-  List<Map<String, dynamic>> _requests = const [];
-  bool _loading = true;
-
-  @override
-  void initState() { super.initState(); _load(); }
-
-  Future<void> _load() async {
-    final base = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
-    try {
-      final response = await http.get(Uri.parse('$base/api/auth/promotor/solicitudes'), headers: {'Authorization': 'Bearer ${AuthSession.instance.accessToken ?? ''}'});
-      final body = response.body.isEmpty ? null : jsonDecode(response.body);
-      if (!mounted) return;
-      setState(() { _requests = response.statusCode >= 200 && response.statusCode < 300 && body is List ? body.whereType<Map<String, dynamic>>().toList() : const []; _loading = false; });
-    } catch (_) { if (mounted) setState(() => _loading = false); }
-  }
-
-  Future<void> _review(String id, String status) async {
-    final base = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
-    try {
-      await http.patch(Uri.parse('$base/api/auth/promotor/solicitudes/$id'), headers: {'Authorization': 'Bearer ${AuthSession.instance.accessToken ?? ''}', 'Content-Type': 'application/json'}, body: jsonEncode({'estado': status}));
-      _load();
-    } catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Widget content;
-    if (_loading) {
-      content = const Center(child: CircularProgressIndicator());
-    } else if (_requests.isEmpty) {
-      content = const _PanelMessage(message: 'No hay solicitudes pendientes.', icon: Icons.inbox_rounded);
-    } else {
-      content = ListView(
-        padding: const EdgeInsets.all(16),
-        children: _requests.map((request) {
-          final user = request['usuarios'] is Map<String, dynamic> ? request['usuarios'] as Map<String, dynamic> : const <String, dynamic>{};
-          final profiles = user['perfiles'] is Map<String, dynamic> ? user['perfiles'] as Map<String, dynamic> : const <String, dynamic>{};
-          return Card(
-            child: ListTile(
-              title: Text('${profiles['nombre_completo'] ?? user['correo'] ?? 'Usuario'}'),
-              subtitle: Text('${user['correo'] ?? ''}\nSolicitud pendiente'),
-              isThreeLine: true,
-              trailing: PopupMenuButton<String>(
-                onSelected: (value) => _review('${request['id']}', value),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'APROBADA', child: Text('Aprobar')),
-                  PopupMenuItem(value: 'RECHAZADA', child: Text('Rechazar')),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      );
-    }
-    return Scaffold(appBar: AppBar(title: const Text('Solicitudes de promotor', maxLines: 2, softWrap: true)), body: content);
-  }
-}
-
 class _PromoterReportsScreenState extends State<PromoterReportsScreen> {
   final _api = PromoterApi();
   String _status = 'PENDIENTE_VALIDACION';
@@ -752,9 +690,94 @@ class MyPromotersScreen extends StatefulWidget {
 
 class _MyPromotersScreenState extends State<MyPromotersScreen> {
   final _invitationsApi = InvitationsApi();
+  final _gisApi = GisApi();
   List<PromoterItem> _promoters = const [];
+  List<HealthCenter> _centers = const [];
   bool _loading = true;
   String? _error;
+
+  static const _fallbackCenters = [
+    HealthCenter(
+      id: '76720771-9c30-4592-952d-42bf0a56e1b6',
+      name: 'Centro de Salud Edgar Lang',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1180,
+      longitude: -86.2850,
+      address: 'Bo San Judas Contiguo al Mercado, D3',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000001',
+      name: 'Centro de Salud Sócrates Flores',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1380,
+      longitude: -86.2900,
+      address: 'Santa Ana Sur, Portón Cementerio General 2c al Norte, D2',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000002',
+      name: 'Centro de Salud Altagracia',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1200,
+      longitude: -86.2900,
+      address: 'B Altagracia Frente a Costado Sur Policía Nacional, D3',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'f6a3910e-45c8-4c6f-8c74-a65f4ca907a0',
+      name: 'Centro de Salud Silvia Ferrufino',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1500,
+      longitude: -86.2700,
+      address: 'Carretera Norte Gasolinera Uno Waspan 1c al Norte, D6',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000003',
+      name: 'Centro de Salud Villa Libertad',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1400,
+      longitude: -86.2550,
+      address: 'Frente a los pozos de ENACAL Villa Libertad, D7',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000004',
+      name: 'Centro de Salud Francisco Buitrago',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1150,
+      longitude: -86.2750,
+      address: 'Bo San Luis Sur detrás del Catastro, D4',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000005',
+      name: 'Centro de Salud Pedro Altamirano',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1210,
+      longitude: -86.2450,
+      address: 'Detrás del Mercado Roberto Huembes, D5',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000006',
+      name: 'Centro de Salud Francisco Morazán',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1400,
+      longitude: -86.2950,
+      address: 'Colonia Francisco Morazán, D2',
+      phone: '',
+      distanceKm: 0,
+    ),
+  ];
 
   @override
   void initState() {
@@ -765,6 +788,7 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
   @override
   void dispose() {
     _invitationsApi.dispose();
+    _gisApi.dispose();
     super.dispose();
   }
 
@@ -775,6 +799,13 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
     });
     try {
       final list = await _invitationsApi.getMyPromoters();
+      if (AuthSession.instance.isAdmin) {
+        _gisApi.fetchAllCenters().then((loaded) {
+          if (mounted && loaded.isNotEmpty) {
+            setState(() => _centers = loaded);
+          }
+        }).catchError((_) {});
+      }
       if (!mounted) return;
       setState(() {
         _promoters = list;
@@ -790,76 +821,176 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
   }
 
   Future<void> _openInviteModal() async {
-    final contactCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
+    final isAdmin = AuthSession.instance.isAdmin;
+    final centersList = _centers.isNotEmpty ? _centers : _fallbackCenters;
+    HealthCenter? selectedCenter = isAdmin ? centersList.first : null;
+    String? centerError;
 
     final created = await showDialog<bool>(
       context: context,
       builder: (ctx) {
         bool generating = false;
+
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            return AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(Icons.person_add_alt_1_rounded, color: BiomarkColors.green),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text('Invitar Promotor', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                  ),
-                ],
-              ),
-              content: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'El promotor quedará adscrito a tu centro de salud (${AuthSession.instance.healthCenterName ?? 'Managua'}).',
-                      style: const TextStyle(fontSize: 12.5),
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: contactCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Correo o teléfono celular *',
-                        hintText: 'ej. +505 8888 1234 o nombre@minsa.gob.ni',
-                        prefixIcon: Icon(Icons.contact_mail_outlined),
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: BiomarkColors.green.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.person_add_alt_1_rounded, color: BiomarkColors.green, size: 22),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'Acreditar Promotor Comunitario',
+                              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                              softWrap: true,
+                            ),
+                          ),
+                        ],
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Ingresa el contacto' : null,
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      if (isAdmin) ...[
+                        const Text(
+                          'Selecciona el Centro de Salud de Managua al que quedará adscrito el promotor:',
+                          style: TextStyle(fontSize: 13, height: 1.35),
+                          softWrap: true,
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<HealthCenter>(
+                          initialValue: selectedCenter,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Centro de Salud *',
+                            prefixIcon: Icon(Icons.local_hospital_rounded),
+                          ),
+                          items: centersList.map((c) {
+                            return DropdownMenuItem<HealthCenter>(
+                              value: c,
+                              child: Text(c.name, softWrap: true, overflow: TextOverflow.ellipsis),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            setDialogState(() {
+                              selectedCenter = val;
+                              centerError = null;
+                            });
+                          },
+                        ),
+                        if (centerError != null) ...[
+                          const SizedBox(height: 4),
+                          Text(centerError!, style: const TextStyle(fontSize: 12, color: Colors.red)),
+                        ],
+                      ] else ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: BiomarkColors.blue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.25)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.local_hospital_rounded, color: BiomarkColors.blue, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'El promotor quedará adscrito a tu centro: ${AuthSession.instance.healthCenterName ?? 'Centro asignado'}.',
+                                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                                  softWrap: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: BiomarkColors.green.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: BiomarkColors.green.withValues(alpha: 0.25)),
+                        ),
+                        child: const Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Icon(Icons.info_outline_rounded, color: BiomarkColors.green, size: 16),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'El código oficial es válido por 7 días. Podrás copiarlo al portapapeles y compartirlo por WhatsApp, SMS o entregarlo en persona.',
+                                style: TextStyle(fontSize: 11.5, color: BiomarkColors.green, height: 1.35),
+                                softWrap: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: generating ? null : () => Navigator.pop(ctx, false),
+                            child: const Text('Cancelar'),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            onPressed: generating
+                                ? null
+                                : () async {
+                                    if (isAdmin && selectedCenter == null) {
+                                      setDialogState(() => centerError = 'Selecciona un centro');
+                                      return;
+                                    }
+                                    setDialogState(() => generating = true);
+                                    try {
+                                      final res = await _invitationsApi.createPromoterInvitation(
+                                        centroSaludId: isAdmin ? selectedCenter!.id : AuthSession.instance.healthCenterId,
+                                      );
+                                      if (!ctx.mounted) return;
+                                      Navigator.pop(ctx, true);
+                                      final invMap = res['invitacion'] is Map<String, dynamic>
+                                          ? res['invitacion'] as Map<String, dynamic>
+                                          : null;
+                                      final token = (invMap?['token'] ?? res['token'] ?? '') as String;
+                                      _showTokenDialog(token);
+                                    } catch (err) {
+                                      if (!ctx.mounted || !mounted) return;
+                                      setDialogState(() => generating = false);
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$err')));
+                                    }
+                                  },
+                            style: FilledButton.styleFrom(
+                              backgroundColor: BiomarkColors.green,
+                            ),
+                            child: Text(generating ? 'Generando...' : 'Generar código'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: generating ? null : () => Navigator.pop(ctx, false),
-                  child: const Text('Cancelar'),
-                ),
-                FilledButton(
-                  onPressed: generating
-                      ? null
-                      : () async {
-                          if (!formKey.currentState!.validate()) return;
-                          setDialogState(() => generating = true);
-                          try {
-                            final contacto = contactCtrl.text.trim();
-                            final res = await _invitationsApi.createPromoterInvitation(
-                              contacto: contacto,
-                            );
-                            if (!ctx.mounted) return;
-                            Navigator.pop(ctx, true);
-                            _showTokenDialog(res['token'] as String? ?? '');
-                          } catch (err) {
-                            if (!ctx.mounted || !mounted) return;
-                            setDialogState(() => generating = false);
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$err')));
-                          }
-                        },
-                  child: Text(generating ? 'Generando...' : 'Generar código'),
-                ),
-              ],
             );
           },
         );
@@ -875,11 +1006,18 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.vpn_key_rounded, color: BiomarkColors.blue),
+            Icon(Icons.vpn_key_rounded, color: BiomarkColors.blue, size: 24),
             SizedBox(width: 8),
-            Text('Código de Invitación', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Expanded(
+              child: Text(
+                'Código de Acreditación',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                softWrap: true,
+              ),
+            ),
           ],
         ),
         content: Column(
@@ -888,7 +1026,8 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
           children: [
             const Text(
               'Comparte este código oficial con el promotor comunitario para que active su cuenta institucional en la app:',
-              style: TextStyle(fontSize: 13),
+              style: TextStyle(fontSize: 13, height: 1.35),
+              softWrap: true,
             ),
             const SizedBox(height: 16),
             Container(
@@ -902,9 +1041,9 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
                 child: SelectableText(
                   token,
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 2.0,
+                    letterSpacing: 2.5,
                     color: BiomarkColors.blue,
                   ),
                 ),
@@ -930,6 +1069,7 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
                         fontWeight: FontWeight.w600,
                         color: BiomarkColors.green,
                       ),
+                      softWrap: true,
                     ),
                   ),
                 ],
@@ -1004,10 +1144,20 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isAdmin = AuthSession.instance.isAdmin;
+    final titleText = isAdmin
+        ? 'Red Departamental de Promotores (SILAIS Managua)'
+        : 'Red de Promotores · ${AuthSession.instance.healthCenterName ?? 'Centro de Salud'}';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Red de Promotores', maxLines: 2, softWrap: true),
+        title: Text(titleText, maxLines: 2, softWrap: true),
         actions: [
+          IconButton(
+            tooltip: 'Guía y Tutorial',
+            icon: const Icon(Icons.help_outline_rounded),
+            onPressed: () => RoleTutorialDialog.show(context, initialRole: AuthSession.instance.role),
+          ),
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
         ],
       ),
@@ -1015,7 +1165,7 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
         onPressed: _openInviteModal,
         backgroundColor: BiomarkColors.green,
         icon: const Icon(Icons.person_add_rounded, color: Colors.white),
-        label: const Text('Invitar Promotor', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        label: const Text('Acreditar Promotor', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
       ),
       body: Center(
         child: ConstrainedBox(
@@ -1031,7 +1181,7 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
                           children: [
                             const Icon(Icons.cloud_off_rounded, size: 48, color: Colors.grey),
                             const SizedBox(height: 12),
-                            Text(_error!, textAlign: TextAlign.center),
+                            Text(_error!, textAlign: TextAlign.center, softWrap: true),
                             const SizedBox(height: 12),
                             FilledButton(onPressed: _load, child: const Text('Reintentar')),
                           ],
@@ -1047,22 +1197,26 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
                               children: [
                                 const Icon(Icons.people_outline_rounded, size: 56, color: Colors.grey),
                                 const SizedBox(height: 14),
-                                const Text(
-                                  'Aún no hay promotores registrados en tu centro.',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                Text(
+                                  isAdmin
+                                      ? 'Aún no hay promotores registrados en la red territorial de Managua.'
+                                      : 'Aún no hay promotores registrados en tu centro de salud.',
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                                   textAlign: TextAlign.center,
+                                  softWrap: true,
                                 ),
                                 const SizedBox(height: 6),
                                 const Text(
-                                  'Toca "Invitar Promotor" para generar un código institucional de acceso.',
+                                  'Toca "Acreditar Promotor" para generar un código oficial de acceso.',
                                   style: TextStyle(fontSize: 13, color: Colors.grey),
                                   textAlign: TextAlign.center,
+                                  softWrap: true,
                                 ),
                                 const SizedBox(height: 18),
                                 FilledButton.icon(
                                   onPressed: _openInviteModal,
                                   icon: const Icon(Icons.person_add_rounded),
-                                  label: const Text('Invitar Promotor'),
+                                  label: const Text('Acreditar Promotor'),
                                 ),
                               ],
                             ),
@@ -1085,8 +1239,33 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
                                     color: p.isActivo ? BiomarkColors.green : Colors.red,
                                   ),
                                 ),
-                                title: Text(p.fullName, style: const TextStyle(fontWeight: FontWeight.w700)),
-                                subtitle: Text(p.email),
+                                title: Text(p.fullName, style: const TextStyle(fontWeight: FontWeight.w700), softWrap: true),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 2),
+                                    Text(p.email, softWrap: true),
+                                    if (p.centroSaludNombre != null && p.centroSaludNombre!.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: BiomarkColors.blue.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          p.centroSaludNombre!,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            color: BiomarkColors.blue,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          softWrap: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [

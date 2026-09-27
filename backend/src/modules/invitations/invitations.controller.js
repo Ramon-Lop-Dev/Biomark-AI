@@ -52,11 +52,19 @@ const updatePromoterStatus = asyncHandler(async (req, res) => {
   });
 });
 
+const redeemInvitation = asyncHandler(async (req, res) => {
+  const usuarioId = req.usuarioId;
+  const { token } = req.body;
+  const result = await invitationsService.redeemInvitation(usuarioId, token);
+  return res.status(200).json(result);
+});
+
 module.exports = {
   createHealthWorkerInvitation,
   createPromoterInvitation,
   verifyInvitation,
   acceptInvitation,
+  redeemInvitation,
   getMyPromoters,
   updatePromoterStatus
 };

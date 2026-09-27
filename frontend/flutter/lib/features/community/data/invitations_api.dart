@@ -48,6 +48,7 @@ class PromoterItem {
   final String fullName;
   final String estadoCuenta;
   final DateTime? fechaCreacion;
+  final String? centroSaludNombre;
 
   const PromoterItem({
     required this.id,
@@ -55,6 +56,7 @@ class PromoterItem {
     required this.fullName,
     required this.estadoCuenta,
     this.fechaCreacion,
+    this.centroSaludNombre,
   });
 
   bool get isActivo => estadoCuenta == 'ACTIVO';
@@ -66,12 +68,17 @@ class PromoterItem {
             ? (json['perfiles'] as List).first as Map<String, dynamic>
             : null;
 
+    final centro = json['centros_salud'] is Map<String, dynamic>
+        ? json['centros_salud'] as Map<String, dynamic>
+        : null;
+
     return PromoterItem(
       id: '${json['id'] ?? ''}',
       email: '${json['correo'] ?? ''}',
       fullName: '${perfil?['nombre_completo'] ?? json['correo'] ?? 'Sin nombre'}',
       estadoCuenta: '${json['estado_cuenta'] ?? 'ACTIVO'}',
       fechaCreacion: DateTime.tryParse('${json['fecha_creacion'] ?? ''}'),
+      centroSaludNombre: centro?['nombre'] as String?,
     );
   }
 }
@@ -122,6 +129,19 @@ class InvitationsApi {
           'email': email.trim(),
           'password': password,
           'full_name': fullName.trim(),
+        }),
+      ),
+    );
+  }
+
+  /// Canjea el código de acreditación desde una sesión ya autenticada
+  Future<Map<String, dynamic>> redeemInvitation(String token) async {
+    return _jsonRequest(
+      _client.post(
+        Uri.parse('$_base/api/invitations/redeem'),
+        headers: _headers,
+        body: jsonEncode({
+          'token': token.trim().toUpperCase(),
         }),
       ),
     );

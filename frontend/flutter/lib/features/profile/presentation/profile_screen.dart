@@ -14,9 +14,10 @@ import 'package:flutter_biomark/main.dart';
 import 'package:flutter_biomark/core/auth/auth_api.dart';
 import 'package:flutter_biomark/core/auth/auth_session.dart';
 import 'package:flutter_biomark/core/config/app_config.dart';
-import 'package:flutter_biomark/features/community/promoter_screens.dart';
 import 'package:flutter_biomark/core/profile/user_profile_api.dart';
 import 'package:flutter_biomark/core/ui/biomark_dialog.dart';
+import 'package:flutter_biomark/features/community/data/invitations_api.dart';
+import 'package:flutter_biomark/features/community/presentation/role_tutorial_dialog.dart';
 import 'package:flutter_biomark/features/community/recommendations_management_screen.dart';
 import 'package:flutter_biomark/health_history.dart';
 class ProfileScreen extends StatefulWidget {
@@ -291,25 +292,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (mounted) await _cargarPerfil();
                 },
               ),
+              _ItemPerfil(
+                icon: Icons.school_outlined,
+                label: 'Guía y Tutorial de la Aplicación',
+                onTap: () => RoleTutorialDialog.show(context),
+              ),
               if (!AuthSession.instance.isPromoter &&
+                  !AuthSession.instance.isHealthWorker &&
                   !AuthSession.instance.isAdmin)
                 _ItemPerfil(
-                  icon: Icons.volunteer_activism_outlined,
-                  label: 'Solicitar ser promotor',
-                  onTap: () => _solicitarPromotor(context),
+                  icon: Icons.vpn_key_rounded,
+                  label: 'Canjear código de acreditación',
+                  onTap: () => _showRedeemTokenDialog(context),
                 ),
-              if (AuthSession.instance.isAdmin)
-                _ItemPerfil(
-                  icon: Icons.admin_panel_settings_outlined,
-                  label: 'Solicitudes de promotor',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AdminRoleRequestsScreen(),
-                    ),
-                  ),
-                ),
-              if (AuthSession.instance.isPromoter || AuthSession.instance.isAdmin)
+              if (AuthSession.instance.isPromoter ||
+                  AuthSession.instance.isHealthWorker ||
+                  AuthSession.instance.isAdmin)
                 _ItemPerfil(
                   icon: Icons.verified_user_outlined,
                   label: 'Pautas y Recomendaciones MINSA',
@@ -596,73 +594,275 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _solicitarPromotor(BuildContext context) async {
-    final token = AuthSession.instance.accessToken;
-    if (token == null || token.isEmpty) return;
-    final base = AppConfig.apiUrl.replaceFirst(RegExp(r'/$'), '');
-    final headers = {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    };
-    try {
-      final current = await http.get(
-        Uri.parse('$base/api/auth/promotor/solicitud'),
-        headers: headers,
-      );
-      if (!context.mounted) return;
-      final currentBody = current.body.isEmpty
-          ? null
-          : jsonDecode(current.body);
-      final currentStatus = currentBody is Map<String, dynamic>
-          ? currentBody['estado'] as String?
-          : null;
-      if (currentStatus == 'PENDIENTE') {
-        _showPromoterMessage(
-          context,
-          'Tu solicitud está pendiente de revisión administrativa.',
-        );
-        return;
-      }
-      final confirmed = await BiomarkDialog.showConfirm(
-        context,
-        icon: Icons.volunteer_activism_rounded,
-        iconColor: BiomarkColors.green,
-        title: 'Solicitar rol de promotor',
-        message: 'Podrás organizar jornadas y validar reportes comunitarios. Un administrador revisará tu solicitud antes de activar el rol.',
-        confirmLabel: 'Enviar solicitud',
-        cancelLabel: 'Cancelar',
-      );
-      if (!confirmed || !context.mounted) return;
-      final response = await http.post(
-        Uri.parse('$base/api/auth/promotor/solicitud'),
-        headers: headers,
-      );
-      if (!context.mounted) return;
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        _showPromoterMessage(
-          context,
-          'Solicitud enviada. Te avisaremos cuando sea revisada.',
-        );
-      } else {
-        final body = response.body.isEmpty ? null : jsonDecode(response.body);
-        _showPromoterMessage(
-          context,
-          body is Map<String, dynamic>
-              ? '${body['error'] ?? 'No se pudo enviar la solicitud.'}'
-              : 'No se pudo enviar la solicitud.',
-        );
-      }
-    } catch (_) {
-      if (context.mounted) {
-        _showPromoterMessage(context, 'No se pudo conectar con el servidor.');
-      }
-    }
-  }
+  Future<void> _showRedeemTokenDialog(BuildContext context) async {
+    final codeCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
-  void _showPromoterMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    final res = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) {
+        bool redeeming = false;
+        String? errorMsg;
+
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Encabezado
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: BiomarkColors.blue.withValues(alpha: 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.vpn_key_rounded, color: BiomarkColors.blue, size: 22),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'Acreditación Oficial MINSA',
+                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                                softWrap: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Explicación pedagógica e institucional
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: BiomarkColors.blue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.25)),
+                          ),
+                          child: const Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(top: 2),
+                                child: Icon(Icons.verified_user_rounded, color: BiomarkColors.blue, size: 18),
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Para garantizar la veracidad epidemiológica y proteger a la comunidad, la validación de brotes y el triaje territorial están reservados a personal y brigadistas acreditados por el MINSA.',
+                                  style: TextStyle(fontSize: 12, height: 1.4),
+                                  softWrap: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+
+                        const Text(
+                          'Ingresa el código oficial entregado por tu Centro de Salud o el SILAIS Managua (ej. BM-7A3F9C):',
+                          style: TextStyle(fontSize: 13, height: 1.35),
+                          softWrap: true,
+                        ),
+                        const SizedBox(height: 10),
+
+                        TextFormField(
+                          controller: codeCtrl,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: const InputDecoration(
+                            labelText: 'Código de acreditación *',
+                            hintText: 'ej. BM-7A3F9C',
+                            prefixIcon: Icon(Icons.password_rounded),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().length < 4) {
+                              return 'Ingresa un código de acreditación válido';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Nota informativa sobre dónde conseguir código
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(top: 2),
+                                child: Icon(Icons.info_outline_rounded, size: 16, color: Colors.grey),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '¿No tienes código? Si eres líder comunitario o profesional sanitario, acércate a la Dirección de tu Centro de Salud más cercano para tu registro oficial.',
+                                  style: TextStyle(fontSize: 11.5, color: Colors.grey, height: 1.35),
+                                  softWrap: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        if (errorMsg != null) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline_rounded, color: Colors.red, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    errorMsg!,
+                                    style: const TextStyle(fontSize: 12, color: Colors.red),
+                                    softWrap: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 18),
+
+                        // Botones de acción
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: redeeming ? null : () => Navigator.pop(ctx),
+                              child: const Text('Cancelar'),
+                            ),
+                            const SizedBox(width: 10),
+                            FilledButton(
+                              onPressed: redeeming
+                                  ? null
+                                  : () async {
+                                      if (!formKey.currentState!.validate()) return;
+                                      setDialogState(() {
+                                        redeeming = true;
+                                        errorMsg = null;
+                                      });
+                                      try {
+                                        final api = InvitationsApi();
+                                        final redeemResult = await api.redeemInvitation(codeCtrl.text.trim());
+                                        api.dispose();
+                                        if (!ctx.mounted) return;
+                                        Navigator.pop(ctx, redeemResult);
+                                      } catch (e) {
+                                        if (!ctx.mounted) return;
+                                        setDialogState(() {
+                                          redeeming = false;
+                                          errorMsg = '$e'.replaceAll('Exception: ', '');
+                                        });
+                                      }
+                                    },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: BiomarkColors.green,
+                              ),
+                              child: Text(redeeming ? 'Canjeando...' : 'Canjear Acreditación'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
+
+    if (res != null && mounted) {
+      final role = (res['rol'] as String?) ?? 'PROMOTOR';
+      final centerName = (res['centro_salud_nombre'] as String?) ?? 'Centro de Salud MINSA';
+      final centerId = (res['centro_salud_id'] as String?) ?? '';
+
+      await AuthSession.instance.updateRoleAndCenter(
+        role: role,
+        healthCenterId: centerId,
+        healthCenterName: centerName,
+      );
+
+      await _cargarPerfil();
+
+      if (!context.mounted) return;
+
+      // Diálogo de felicitación institucional y apertura de tutorial
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.verified_rounded, color: BiomarkColors.green, size: 26),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '¡Acreditación Verificada!',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  softWrap: true,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Bienvenido a la Red Oficial de Salud de Nicaragua. Tu cuenta ha sido activada con permisos de $role adscrito a $centerName.',
+                style: const TextStyle(fontSize: 13.5, height: 1.4),
+                softWrap: true,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Tus herramientas territoriales y permisos de vigilancia sanitaria ya están listos en la aplicación.',
+                style: TextStyle(fontSize: 12.5, color: Colors.grey, height: 1.35),
+                softWrap: true,
+              ),
+            ],
+          ),
+          actions: [
+            OutlinedButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cerrar'),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                RoleTutorialDialog.show(context, initialRole: role);
+              },
+              icon: const Icon(Icons.school_rounded, size: 18),
+              label: const Text('Ver tutorial de mi rol'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildBotonCerrarSesion(BuildContext context) {
