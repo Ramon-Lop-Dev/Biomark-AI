@@ -136,26 +136,43 @@ class CommunityEvent {
 }
 
 class CommunityReportPoint {
+  final String id;
   final double latitude;
   final double longitude;
   final int caseCount;
   final String description;
+  final String? tipoEnfermedad;
+  final String? direccionExacta;
+  final String? clasificacionCcm;
+  final DateTime? fechaCreacion;
 
   const CommunityReportPoint({
+    this.id = '',
     required this.latitude,
     required this.longitude,
     required this.caseCount,
     this.description = '',
+    this.tipoEnfermedad,
+    this.direccionExacta,
+    this.clasificacionCcm,
+    this.fechaCreacion,
   });
 
   factory CommunityReportPoint.fromJson(Map<String, dynamic> json) {
     double number(dynamic value) =>
         value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
     return CommunityReportPoint(
+      id: '${json['id'] ?? ''}',
       latitude: number(json['latitud']),
       longitude: number(json['longitud']),
       caseCount: (json['cantidad_casos'] as num?)?.toInt() ?? 1,
       description: '${json['descripcion'] ?? ''}',
+      tipoEnfermedad: json['tipo_enfermedad'] as String?,
+      direccionExacta: json['direccion_exacta'] as String?,
+      clasificacionCcm: json['clasificacion_ccm'] as String?,
+      fechaCreacion: json['fecha_creacion'] != null
+          ? DateTime.tryParse('${json['fecha_creacion']}')
+          : null,
     );
   }
 }

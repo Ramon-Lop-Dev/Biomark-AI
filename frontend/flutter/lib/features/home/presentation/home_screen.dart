@@ -15,7 +15,9 @@ import '../../../core/design/responsive_layout.dart';
 import '../../profile/presentation/notifications_inbox_screen.dart';
 import '../../../survey_service.dart';
 import '../data/health_content_api.dart';
+import '../data/recommendations_service.dart';
 import '../domain/health_content_item.dart';
+import '../domain/health_recommendation.dart';
 import '../../gis/data/gis_api.dart';
 import '../../gis/domain/health_center.dart';
 
@@ -136,7 +138,45 @@ class _HomeScreenState extends State<HomeScreen> {
       if (_selectedSegmentFilter == 'Para mis condiciones' && _userConditions.isNotEmpty) {
         condParam = _userConditions.first;
       }
-      final items = await HealthContentApi.fetchContent(condicion: condParam);
+
+      final items = <HealthContentItem>[];
+
+      // 1. Cargar pautas y avisos oficiales MINSA (incluye pautas creadas por el Admin)
+      try {
+        final recs = await RecommendationsService.fetchRecommendations();
+        for (final r in recs) {
+          final isDengue = r.category == RecommendationCategory.dengue;
+          items.add(
+            HealthContentItem(
+              id: r.id,
+              titulo: r.title,
+              descripcion: r.summary,
+              contenido: '${r.details}\n\n${r.keyPoints.isNotEmpty ? "Puntos clave MINSA:\n• ${r.keyPoints.join("\n• ")}" : ""}',
+              categoria: HealthRecommendation.labelForCategory(r.category).toUpperCase(),
+              fuente: r.tag.isNotEmpty ? r.tag : 'MINSA Nicaragua',
+              fechaPublicacion: DateTime.now(),
+              normativaCodigo: r.minsaNormative,
+              tipoAviso: isDengue ? 'ALERTA_EPIDEMIOLOGICA' : 'NORMATIVA',
+              prioridad: isDengue ? 'ALTA' : 'MEDIA',
+              condicionesObjetivo: r.targetConditions,
+              barrioComunidad: r.targetMunicipalities.isNotEmpty ? r.targetMunicipalities.first : 'Managua',
+              silais: 'SILAIS Managua',
+            ),
+          );
+        }
+      } catch (_) {}
+
+      // 2. Complementar con artículos de contenido oficial
+      try {
+        final contentItems = await HealthContentApi.fetchContent(condicion: condParam);
+        final existingIds = items.map((i) => i.id).toSet();
+        for (final ci in contentItems) {
+          if (!existingIds.contains(ci.id)) {
+            items.add(ci);
+          }
+        }
+      } catch (_) {}
+
       if (!mounted) return;
 
       List<HealthContentItem> filtrados = items;
@@ -1202,17 +1242,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     for (final r in _communityReports) {
+      final enf = (r.tipoEnfermedad?.trim().isNotEmpty == true) ? r.tipoEnfermedad!.trim() : 'Reporte Epidemiológico';
+      final dir = (r.direccionExacta?.trim().isNotEmpty == true) ? r.direccionExacta!.trim() : 'Managua';
       brotes.add(
         _OutbreakItem(
-          alerta: 'REPORTE COMUNITARIO DE SALUD',
-          distrito: 'Managua (Punto Georreferenciado)',
-          nivel: '${r.caseCount} ${r.caseCount == 1 ? 'Caso Sospechoso' : 'Casos Sospechosos'}',
-          casos: r.description.isNotEmpty ? r.description : 'Reporte validado de síntomas en la comunidad',
+          alerta: 'BROTE VALIDADO: ${enf.toUpperCase()}',
+          distrito: '$dir (Georreferenciado)',
+          nivel: '${r.caseCount} ${r.caseCount == 1 ? 'caso confirmado' : 'casos confirmados'}',
+          casos: r.description.isNotEmpty ? r.description : 'Zona bajo vigilancia epidemiológica por personal del MINSA.',
           recomendacion: 'Refuerce medidas higiénicas y consulte de inmediato ante signos de alarma.',
           color: const Color(0xFFEF4444),
           latitude: r.latitude,
           longitude: r.longitude,
-          title: 'Reporte Comunitario',
+          title: enf,
         ),
       );
     }

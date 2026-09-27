@@ -17,16 +17,14 @@ const {
 
 const router = express.Router();
 
-// Todas las rutas requieren usuario autenticado
-router.use(verifyToken);
-
-// Lectura: Cualquier usuario autenticado puede consultar las recomendaciones validadas
+// Lectura pública: Cualquier usuario o visitante puede consultar las recomendaciones oficiales validadas
 router.get('/', getRecommendations);
 router.get('/:id', getRecommendationById);
 
 // Gestión: Exclusiva para personal de salud validado (TRABAJADOR_SALUD, PROMOTOR, ADMIN)
 router.post(
   '/',
+  verifyToken,
   requireRole('TRABAJADOR_SALUD', 'PROMOTOR', 'ADMIN'),
   validate(createRecommendationSchema),
   createRecommendation
@@ -34,6 +32,7 @@ router.post(
 
 router.put(
   '/:id',
+  verifyToken,
   requireRole('TRABAJADOR_SALUD', 'PROMOTOR', 'ADMIN'),
   validate(updateRecommendationSchema),
   updateRecommendation
@@ -41,6 +40,7 @@ router.put(
 
 router.delete(
   '/:id',
+  verifyToken,
   requireRole('TRABAJADOR_SALUD', 'PROMOTOR', 'ADMIN'),
   deleteRecommendation
 );

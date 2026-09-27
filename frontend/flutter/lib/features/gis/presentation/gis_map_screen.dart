@@ -812,14 +812,16 @@ class _GisMapScreenState extends State<GisMapScreen>
                         color: const Color(0xFFEF4444).withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFEF4444)),
-                          SizedBox(width: 6),
+                          const Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFEF4444)),
+                          const SizedBox(width: 6),
                           Text(
-                            'ALERTA COMUNITARIA',
-                            style: TextStyle(
+                            report.tipoEnfermedad?.isNotEmpty == true
+                                ? 'EPIDEMIA VALIDADA: ${report.tipoEnfermedad!.toUpperCase()}'
+                                : 'ALERTA COMUNITARIA VALIDADA',
+                            style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w900,
                               color: Color(0xFFEF4444),
@@ -838,13 +840,76 @@ class _GisMapScreenState extends State<GisMapScreen>
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '${report.caseCount} ${report.caseCount == 1 ? 'Caso Sospechoso Reportado' : 'Casos Sospechosos Reportados'}',
+                  report.tipoEnfermedad?.isNotEmpty == true
+                      ? report.tipoEnfermedad!
+                      : '${report.caseCount} ${report.caseCount == 1 ? 'Caso Sospechoso Reportado' : 'Casos Sospechosos Reportados'}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.3,
                   ),
                 ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${report.caseCount} ${report.caseCount == 1 ? 'caso confirmado' : 'casos confirmados'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFFDC2626),
+                        ),
+                      ),
+                    ),
+                    if (report.clasificacionCcm != null && report.clasificacionCcm!.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: report.clasificacionCcm == 'ROJO'
+                              ? const Color(0xFFEF4444).withValues(alpha: 0.12)
+                              : const Color(0xFF10B981).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Triaje CCM: ${report.clasificacionCcm}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: report.clasificacionCcm == 'ROJO'
+                                ? const Color(0xFFDC2626)
+                                : const Color(0xFF059669),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (report.direccionExacta?.isNotEmpty == true) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_rounded, size: 16, color: Color(0xFFEF4444)),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          report.direccionExacta!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(ctx).colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Text(
                   report.description.isNotEmpty
@@ -1943,12 +2008,16 @@ class _CommunityReportMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final illness = report.tipoEnfermedad?.trim();
+    final hasIllness = illness != null && illness.isNotEmpty;
     final hasDesc = report.description.trim().isNotEmpty;
-    final descText = hasDesc
-        ? (report.description.trim().length > 16
-            ? '${report.description.trim().substring(0, 16)}…'
-            : report.description.trim())
-        : '${report.caseCount} ${report.caseCount == 1 ? 'caso' : 'casos'}';
+    final descText = hasIllness
+        ? '$illness (${report.caseCount})'
+        : (hasDesc
+            ? (report.description.trim().length > 16
+                ? '${report.description.trim().substring(0, 16)}…'
+                : report.description.trim())
+            : '${report.caseCount} ${report.caseCount == 1 ? 'caso' : 'casos'}');
 
     return Row(
       mainAxisSize: MainAxisSize.min,

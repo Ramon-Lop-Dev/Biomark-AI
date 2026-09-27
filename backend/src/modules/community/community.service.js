@@ -167,15 +167,21 @@ const getStatistics = async () => {
 };
 
 // Coordenadas agregadas (redondeadas) para no exponer la ubicación exacta
-// de un reporte individual asociado a una persona.
+// Entrega reportes comunitarios validados con georreferenciación y metadatos clínicos.
 const getHeatmap = async () => {
   const { data, error } = await communityRepo.listarReportesParaHeatmap();
   if (error) throw new AppError('Error al obtener el mapa de calor', 500);
 
-  return data.map((r) => ({
-    latitud: Math.round(r.latitud * 100) / 100,
-    longitud: Math.round(r.longitud * 100) / 100,
-    cantidad_casos: r.cantidad_casos
+  return (data || []).map((r) => ({
+    id: r.id,
+    latitud: Number(r.latitud),
+    longitud: Number(r.longitud),
+    cantidad_casos: r.cantidad_casos,
+    descripcion: r.descripcion || '',
+    tipo_enfermedad: r.tipo_enfermedad || null,
+    direccion_exacta: r.direccion_exacta || null,
+    clasificacion_ccm: r.clasificacion_ccm || 'VERDE',
+    fecha_creacion: r.fecha_creacion || null
   }));
 };
 

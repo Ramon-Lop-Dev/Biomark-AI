@@ -83,7 +83,11 @@ const listarReportesParaEstadisticas = () =>
   supabase.from('reportes_comunitarios').select('estado, cantidad_casos');
 
 const listarReportesParaHeatmap = () =>
-  supabase.from('reportes_comunitarios').select('latitud, longitud, cantidad_casos, descripcion').eq('estado', 'VALIDADO');
+  supabase
+    .from('reportes_comunitarios')
+    .select('id, latitud, longitud, cantidad_casos, descripcion, tipo_enfermedad, direccion_exacta, clasificacion_ccm, fecha_creacion')
+    .eq('estado', 'VALIDADO')
+    .order('fecha_creacion', { ascending: false });
 
 const listarReportesParaOperacion = async (estado, scopeCentroSaludId = null) => {
   let query = supabase
