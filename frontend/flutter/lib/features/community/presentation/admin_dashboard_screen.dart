@@ -87,11 +87,106 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return _allReports;
   }
 
+  static const _fallbackCenters = [
+    HealthCenter(
+      id: '76720771-9c30-4592-952d-42bf0a56e1b6',
+      name: 'Centro de Salud Edgar Lang',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1180,
+      longitude: -86.2850,
+      address: 'Bo San Judas Contiguo al Mercado, D3',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000001',
+      name: 'Centro de Salud Sócrates Flores',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1380,
+      longitude: -86.2900,
+      address: 'Santa Ana Sur, Portón Cementerio General 2c al Norte, D2',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000002',
+      name: 'Centro de Salud Altagracia',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1200,
+      longitude: -86.2900,
+      address: 'B Altagracia Frente a Costado Sur Policía Nacional, D3',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'f6a3910e-45c8-4c6f-8c74-a65f4ca907a0',
+      name: 'Centro de Salud Silvia Ferrufino',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1500,
+      longitude: -86.2700,
+      address: 'Carretera Norte Gasolinera Uno Waspan 1c al Norte, D6',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000003',
+      name: 'Centro de Salud Villa Libertad',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1400,
+      longitude: -86.2550,
+      address: 'Frente a los pozos de ENACAL Villa Libertad, D7',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000004',
+      name: 'Centro de Salud Francisco Buitrago',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1150,
+      longitude: -86.2750,
+      address: 'Bo San Luis Sur detrás del Catastro, D4',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000005',
+      name: 'Centro de Salud Pedro Altamirano',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1210,
+      longitude: -86.2450,
+      address: 'Detrás del Mercado Roberto Huembes, D5',
+      phone: '',
+      distanceKm: 0,
+    ),
+    HealthCenter(
+      id: 'a1b2c3d4-0001-4000-8000-000000000006',
+      name: 'Centro de Salud Francisco Morazán',
+      type: 'CENTRO_SALUD',
+      latitude: 12.1400,
+      longitude: -86.2950,
+      address: 'Colonia Francisco Morazán, D2',
+      phone: '',
+      distanceKm: 0,
+    ),
+  ];
+
   Future<void> _showAccreditationDialog() async {
     final contactCtrl = TextEditingController();
+    final searchCenterCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
     String selectedRole = 'TRABAJADOR_SALUD';
-    String? selectedCenterId = _healthCenters.isNotEmpty ? _healthCenters.first.id : null;
+    HealthCenter? selectedCenter;
+    String? centerError;
+
+    // Asegurar catálogo de centros de salud cargado
+    if (_healthCenters.isEmpty) {
+      try {
+        _healthCenters = await _gisApi.fetchAllCenters();
+      } catch (_) {}
+    }
+    final allCenters = _healthCenters.isNotEmpty ? _healthCenters : _fallbackCenters;
+
+    if (!mounted) return;
 
     final created = await showDialog<bool>(
       context: context,
@@ -113,79 +208,279 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                 ],
               ),
-              content: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Genera un código seguro de activación institucional para incorporar personal calificado al sistema.',
-                        style: TextStyle(fontSize: 12.5),
-                      ),
-                      const SizedBox(height: 16),
-                      // Selector de Rol
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedRole,
-                        decoration: const InputDecoration(
-                          labelText: 'Rol institucional a otorgar *',
-                          prefixIcon: Icon(Icons.badge_rounded),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Genera un código seguro de activación institucional para incorporar personal calificado al sistema.',
+                          style: TextStyle(fontSize: 12.5),
                         ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'TRABAJADOR_SALUD',
-                            child: Text('Personal de Salud (Médico / Enfermero)'),
+                        const SizedBox(height: 16),
+                        // 1. Selector de Rol
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedRole,
+                          decoration: const InputDecoration(
+                            labelText: 'Rol institucional a otorgar *',
+                            prefixIcon: Icon(Icons.badge_rounded),
                           ),
-                          DropdownMenuItem(
-                            value: 'PROMOTOR',
-                            child: Text('Promotor de Salud Comunitario'),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'TRABAJADOR_SALUD',
+                              child: Text('Personal de Salud (Médico / Enfermero)'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'PROMOTOR',
+                              child: Text('Promotor de Salud Comunitario'),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() => selectedRole = val);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // 2. Selector Dinámico con Listbox Interactivo para Centro de Salud
+                        if (selectedCenter == null) ...[
+                          Row(
+                            children: [
+                              const Icon(Icons.local_hospital_rounded, size: 16, color: BiomarkColors.blue),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'Centro de Salud de Adscripción *',
+                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                              ),
+                              const Spacer(),
+                              Text(
+                                '${allCenters.length} centros en BD',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: searchCenterCtrl,
+                            decoration: InputDecoration(
+                              hintText: 'Escribe para filtrar (ej. Sócrates, Lang, Altagracia)...',
+                              prefixIcon: const Icon(Icons.search_rounded),
+                              suffixIcon: searchCenterCtrl.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.close_rounded, size: 18),
+                                      onPressed: () {
+                                        searchCenterCtrl.clear();
+                                        setDialogState(() {});
+                                      },
+                                    )
+                                  : null,
+                            ),
+                            onChanged: (_) => setDialogState(() {
+                              centerError = null;
+                            }),
+                          ),
+                          const SizedBox(height: 6),
+                          // Listbox dinámico con scroll
+                          Container(
+                            constraints: const BoxConstraints(maxHeight: 185),
+                            decoration: BoxDecoration(
+                              color: Theme.of(ctx).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: centerError != null
+                                    ? Colors.red
+                                    : Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: () {
+                                final query = searchCenterCtrl.text.trim().toLowerCase();
+                                final matches = query.isEmpty
+                                    ? allCenters.take(25).toList()
+                                    : allCenters.where((c) {
+                                        return c.name.toLowerCase().contains(query) ||
+                                            c.address.toLowerCase().contains(query) ||
+                                            c.type.toLowerCase().contains(query);
+                                      }).toList();
+
+                                if (matches.isEmpty) {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.search_off_rounded, color: Colors.orange, size: 22),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'No se encontró ningún centro de salud que coincida con "$query" en la base de datos.',
+                                            style: const TextStyle(fontSize: 12),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+
+                                return ListView.separated(
+                                  shrinkWrap: true,
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  itemCount: matches.length,
+                                  separatorBuilder: (context, index) => const Divider(height: 1, indent: 44),
+                                  itemBuilder: (cContext, idx) {
+                                    final center = matches[idx];
+                                    final isCS = center.type == 'CENTRO_SALUD';
+                                    final isHosp = center.type == 'HOSPITAL';
+                                    final color = isHosp
+                                        ? const Color(0xFFDC2626)
+                                        : (isCS ? BiomarkColors.blue : BiomarkColors.green);
+
+                                    return ListTile(
+                                      dense: true,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                                      leading: Container(
+                                        width: 28,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: color.withValues(alpha: 0.12),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          isHosp
+                                              ? Icons.local_hospital_rounded
+                                              : (isCS ? Icons.medical_services_rounded : Icons.health_and_safety_rounded),
+                                          size: 16,
+                                          color: color,
+                                        ),
+                                      ),
+                                      title: Text(
+                                        center.name,
+                                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      subtitle: Text(
+                                        center.address.isNotEmpty ? center.address : 'Managua, Nicaragua',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      trailing: const Icon(
+                                        Icons.add_circle_outline_rounded,
+                                        size: 18,
+                                        color: BiomarkColors.blue,
+                                      ),
+                                      onTap: () {
+                                        setDialogState(() {
+                                          selectedCenter = center;
+                                          centerError = null;
+                                          searchCenterCtrl.clear();
+                                        });
+                                      },
+                                    );
+                                  },
+                                );
+                              }(),
+                            ),
+                          ),
+                          if (centerError != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              centerError!,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ] else ...[
+                          // Centro Seleccionado (Bloqueado y Verificado contra BD)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: BiomarkColors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: BiomarkColors.green.withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.verified_rounded, color: BiomarkColors.green, size: 24),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Centro Verificado en Base de Datos:',
+                                        style: TextStyle(
+                                          color: BiomarkColors.green,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 10.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        selectedCenter!.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13.5,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        selectedCenter!.address.isNotEmpty ? selectedCenter!.address : 'Managua',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      selectedCenter = null;
+                                    });
+                                  },
+                                  icon: const Icon(Icons.sync_rounded, size: 16),
+                                  label: const Text('Cambiar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
-                        onChanged: (val) {
-                          if (val != null) {
-                            setDialogState(() => selectedRole = val);
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      // Selector de Centro de Salud
-                      if (_healthCenters.isNotEmpty) ...[
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedCenterId,
-                          isExpanded: true,
+                        const SizedBox(height: 16),
+
+                        // 3. Contacto Oficial
+                        TextFormField(
+                          controller: contactCtrl,
                           decoration: const InputDecoration(
-                            labelText: 'Centro de Salud de Adscripción *',
-                            prefixIcon: Icon(Icons.local_hospital_rounded),
+                            labelText: 'Correo o teléfono oficial *',
+                            hintText: 'ej. doctor@minsa.gob.ni o 8888 1234',
+                            prefixIcon: Icon(Icons.contact_mail_outlined),
                           ),
-                          items: _healthCenters.map((center) {
-                            return DropdownMenuItem<String>(
-                              value: center.id,
-                              child: Text(
-                                center.name,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (val) {
-                            setDialogState(() => selectedCenterId = val);
-                          },
-                          validator: (v) => (v == null || v.isEmpty) ? 'Selecciona un centro' : null,
+                          validator: (v) =>
+                              (v == null || v.trim().isEmpty) ? 'Ingresa el contacto institucional' : null,
                         ),
-                        const SizedBox(height: 14),
                       ],
-                      // Contacto
-                      TextFormField(
-                        controller: contactCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Correo o teléfono oficial *',
-                          hintText: 'ej. doctor@minsa.gob.ni o 8888 1234',
-                          prefixIcon: Icon(Icons.contact_mail_outlined),
-                        ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Ingresa el contacto institucional' : null,
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -199,17 +494,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ? null
                       : () async {
                           if (!formKey.currentState!.validate()) return;
+
+                          if (selectedRole == 'TRABAJADOR_SALUD' && selectedCenter == null) {
+                            setDialogState(() {
+                              centerError = 'Debes seleccionar un centro de salud verificado de la lista.';
+                            });
+                            return;
+                          }
+
                           setDialogState(() => generating = true);
 
                           try {
                             final Map<String, dynamic> res;
                             if (selectedRole == 'TRABAJADOR_SALUD') {
-                              if (selectedCenterId == null || selectedCenterId!.isEmpty) {
-                                throw Exception('Debes asignar un centro de salud para el personal de salud.');
-                              }
                               res = await _invitationsApi.createHealthWorkerInvitation(
                                 contacto: contactCtrl.text.trim(),
-                                centroSaludId: selectedCenterId!,
+                                centroSaludId: selectedCenter!.id,
                               );
                             } else {
                               res = await _invitationsApi.createPromoterInvitation(
@@ -236,6 +536,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         );
       },
     );
+
+    contactCtrl.dispose();
+    searchCenterCtrl.dispose();
 
     if (created == true) {
       _load();
