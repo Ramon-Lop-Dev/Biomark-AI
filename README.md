@@ -87,8 +87,24 @@ flowchart TD
 * **Ergonomía táctil:** Áreas de interacción táctil con dimensiones mínimas de 48x48 dp para facilitar la pulsación.
 * **Auditoría Antisolapamiento:** Interfaz responsiva con controles de scroll y restricciones de altura para evitar errores de desbordamiento en cualquier pantalla.
 
-### Panorama Comunitario, Triaje CCM y Gobernanza en Cascada (Piloto Managua)
-* **Gobernanza Sanitaria en Cascada:** Arquitectura de delegación de confianza donde el `ADMIN` acredita a `TRABAJADOR_SALUD` adscrito a su centro de salud de referencia, y este a su vez acredita y supervisa a `PROMOTOR` comunitario con códigos institucionales de un solo uso. Se erradica la autoasignación no autorizada de roles privilegiados.
+### Sistema de Roles y Confianza en Cascada (¿Quién ve y hace qué?)
+
+Para proteger los datos clínicos de la población y evitar que cualquier persona se autoasigne privilegios dentro del sistema, Biomark AI implementa un modelo de **gobernanza en cascada** articulado con el MINSA:
+
+| Rol | ¿Quién es? | ¿Cómo se activa? | Pantalla de Inicio (Home) | Menú Inferior (Navbar) | Permisos y Capacidades |
+|---|---|---|---|---|---|
+| 👤 **`USUARIO`**<br/>*(Ciudadano / Paciente)* | Cualquier persona o paciente en Managua. | **Registro libre** con Correo o botón de Google. | **Pantalla de Salud:** Medición de pulso SCG, encuestas clínicas y evolución de salud. | `[Inicio, Evolución, Mapa, Recordatorio, Perfil]` | Registra signos vitales y síntomas. Emite reportes comunitarios de su barrio (ej. dengue, diarrea, criaderos) asignados automáticamente a su centro más cercano. |
+| 🤝 **`PROMOTOR`**<br/>*(Líder Comunitario)* | Brigadista barrial o voluntario de la Red Comunitaria de Salud. | **Código de invitación (`BM-XXXXXX`)** emitido por el Trabajador de Salud de su centro. | **Panel Comunitario:** Señales de alerta territorial y reportes de su zona. | `[Panel, Mapa, Jornadas, Reportes, Perfil]` | Supervisa señales epidemiológicas de su jurisdicción, orienta a vecinos y organiza jornadas comunitarias de vacunación y fumigación. |
+| 🩺 **`TRABAJADOR_SALUD`**<br/>*(Personal Médico MINSA)* | Médico, enfermero o epidemiólogo de un Centro de Salud (ej. Sócrates Flores, Edgar Lang). | **Código oficial** emitido por el Administrador SILAIS con Centro de Salud asignado. | **Panel Operativo Territorial:** Filtrado estricto por jurisdicción (`requireScope`). | `[Panel, Mapa, Jornadas, Reportes, Perfil]` | Triaje clínico CCM de reportes, validación o descarte oficial, atención prioritaria de alertas rojas urgentes y emisión de invitaciones para sus promotores. |
+| 🏛️ **`ADMIN`**<br/>*(SILAIS Managua / Central)* | Dirección General Departamental SILAIS Managua. | **Credenciales maestras** institucionales preconfiguradas. | **Centro de Comando Departamental (`AdminDashboardScreen`)**. | `[Panel Admin, Mapa Global, Jornadas, Reportes, Perfil]` | Visión macro de todo el departamento, mesa de triaje crítico CCM ROJO, acreditación de directores/médicos por centro de salud y emisión de avisos oficiales MINSA. |
+
+#### Principios Clave del Sistema:
+* **Sin Autoasignación:** Nadie puede registrarse directamente como Promotor o Trabajador de Salud desde el formulario general; el registro público solo crea cuentas de `USUARIO`.
+* **Tokens Seguros de Un Solo Uso:** Las invitaciones (`BM-XXXXXX`) tienen vigencia de 7 días, un solo uso y heredan de forma inmutable el centro de salud de quien las emitió.
+* **Aislamiento Territorial Estricto (`requireScope`):** El personal de salud y promotores de un centro (ej. Edgar Lang en San Judas) únicamente ven reportes de su sector; no pueden ver ni modificar reportes de otros centros (ej. Sócrates Flores).
+* **Unificación de Cuentas (Google OAuth vs. Email):** Se normalizan los correos con `toLowerCase().trim()`. Si un profesional o ciudadano se registra con contraseña y luego accede con Google, el sistema vincula automáticamente su `auth_id`, **preservando su rol privilegiado** y evitando duplicados.
+
+### Panorama Comunitario, Triaje CCM y Vigilancia Epidemiológica (Piloto Managua)
 * **Scoping Territorial Forzado:** Restricción estricta mediante middleware (`requireScope`) que limita la consulta y gestión de reportes comunitarios y eventos a la jurisdicción territorial de cada promotor y centro médico.
 * **Motor de Triaje Comunitario CCM (Normativa 112 MINSA):**
   * Detección automatizada de banderas rojas clínicas: convulsiones, letargo, vómito persistente, signos de choque y tiraje grave.

@@ -26,6 +26,15 @@ Biomark AI adopta un modelo de **confianza en cascada (Cascade Trust Governance)
    * Los reportes ciudadanos se vinculan automáticamente al centro de salud más cercano mediante cálculo geodésico Haversine en el backend (`gisService.getClosestHealthCenter`).
    * Motor de triaje clínico CCM que clasifica en **ROJO** (prioridad inmediata / signos de alarma), **AMARILLO** (moderado) y **VERDE** (leve / preventivo). Si es **ROJO**, dispara notificación prioritaria inmediata hacia el personal del centro.
 
+### Matriz Comparativa de Roles en Biomark AI
+
+| Rol | ¿Quién es? | ¿Cómo se activa? | Pantalla Principal (Home) | Menú Inferior (Navbar) | Permisos y Capacidades |
+|---|---|---|---|---|---|
+| 👤 **`USUARIO`**<br/>*(Ciudadano / Paciente)* | Cualquier habitante o paciente en Managua. | **Registro libre** con Correo o botón de Google. | **Pantalla de Salud:** Medición de pulso SCG, encuestas clínicas y evolución. | `[Inicio, Evolución, Mapa, Recordatorio, Perfil]` | Registra signos vitales y síntomas. Emite reportes comunitarios de su barrio asignados automáticamente a su centro más cercano. |
+| 🤝 **`PROMOTOR`**<br/>*(Líder Comunitario)* | Brigadista barrial o voluntario de la Red Comunitaria. | **Código de invitación (`BM-XXXXXX`)** emitido por el Trabajador de Salud de su centro. | **Panel Comunitario:** Señales de alerta territorial y reportes de su zona. | `[Panel, Mapa, Jornadas, Reportes, Perfil]` | Supervisa señales epidemiológicas de su jurisdicción, orienta a vecinos y organiza jornadas comunitarias de salud. |
+| 🩺 **`TRABAJADOR_SALUD`**<br/>*(Personal Médico MINSA)* | Médico, enfermero o epidemiólogo de un Centro de Salud (ej. Edgar Lang, Sócrates Flores). | **Código oficial** emitido por el Administrador SILAIS con Centro de Salud asignado. | **Panel Operativo Territorial:** Filtrado estricto por jurisdicción (`requireScope`). | `[Panel, Mapa, Jornadas, Reportes, Perfil]` | Triaje clínico CCM de reportes, validación o descarte oficial, atención prioritaria de alertas rojas y emisión de invitaciones para sus promotores. |
+| 🏛️ **`ADMIN`**<br/>*(SILAIS Managua / Central)* | Dirección General Departamental SILAIS Managua. | **Credenciales maestras** institucionales preconfiguradas. | **Centro de Comando Departamental (`AdminDashboardScreen`)**. | `[Panel Admin, Mapa Global, Jornadas, Reportes, Perfil]` | Visión macro de todo el departamento, mesa de triaje crítico CCM ROJO, acreditación de personal médico y emisión de avisos oficiales MINSA. |
+
 ---
 
 ## 2. Diagrama de Arquitectura y Flujo de Confianza
@@ -47,20 +56,21 @@ flowchart TD
     Reporte["Reporte Ciudadano (lat, lon, síntomas)"]
     GIS["gisService.getClosestHealthCenter()"]
     Triage["Motor de Triaje CCM (clasificarCCM)"]
-    DB[(Supabase: reportes_comunitarios)]
+    DB[("Supabase: reportes_comunitarios")]
     Alertas["n8n / Push Alerta Urgente (ROJO)"]
 
-    Ciudadano -->|POST /api/community/reports| Reporte
-    Reporte --> GIS -->|Asigna centro_salud_id| DB
+    Ciudadano -->|"POST /api/community/reports"| Reporte
+    Reporte --> GIS
+    GIS -->|"Asigna centro_salud_id"| DB
     Reporte --> Triage
-    Triage -->|ROJO: Signos Alarma| Alertas
-    Triage -->|ROJO / AMARILLO / VERDE| DB
+    Triage -->|"ROJO: Signos Alarma"| Alertas
+    Triage -->|"ROJO / AMARILLO / VERDE"| DB
   end
 
   subgraph Operacion ["3. Control Territorial (requireScope)"]
-    TS -->|GET /reports/operational (Scope: Edgar Lang)| DB
-    PR -->|GET /reports/operational (Scope: Edgar Lang)| DB
-    TS -->|PATCH /reports/:id/estado (Validar / Descartar)| DB
+    TS -->|"GET /reports/operational (Scope: Edgar Lang)"| DB
+    PR -->|"GET /reports/operational (Scope: Edgar Lang)"| DB
+    TS -->|"PATCH /reports/:id/estado (Validar / Descartar)"| DB
   end
 ```
 
@@ -151,10 +161,10 @@ Implementado en `backend/src/modules/community/community.service.js` mediante la
 ```mermaid
 flowchart TD
   Inicio(["Nuevo Reporte Comunitario"]) --> ChequeoSignos{"¿Presenta signos de peligro / alarma?"}
-  ChequeoSignos -- SÍ --> ROJO["ROJO (Alto Riesgo / Emergencia)<br/>- Dificultad respiratoria / tiraje<br/>- Sangrado espontáneo / petequias<br/>- Convulsiones / letargia<br/>- Vómitos incoercibles / intolerancia<br/>- Deshidratación grave"]
-  ChequeoSignos -- NO --> ChequeoModerado{"¿Presenta síntomas moderados?"}
-  ChequeoModerado -- SÍ --> AMARILLO["AMARILLO (Moderado / 24h)<br/>- Fiebre 1-3 días<br/>- Exantema / rash<br/>- Mialgias / artralgias intensas<br/>- Cefalea / dolor retroocular<br/>- Diarrea / tos"]
-  ChequeoModerado -- NO --> VERDE["VERDE (Leve / Preventivo)<br/>- Criaderos de zancudos<br/>- Acumulación de basura / charcos<br/>- Solicitud de abatización / fumigación"]
+  ChequeoSignos -->|"SÍ (Signos de Alarma)"| ROJO["ROJO (Alto Riesgo / Emergencia)<br/>- Dificultad respiratoria / tiraje<br/>- Sangrado espontáneo / petequias<br/>- Convulsiones / letargia<br/>- Vómitos incoercibles / intolerancia<br/>- Deshidratación grave"]
+  ChequeoSignos -->|"NO"| ChequeoModerado{"¿Presenta síntomas moderados?"}
+  ChequeoModerado -->|"SÍ (Síntomas Moderados)"| AMARILLO["AMARILLO (Moderado / 24h)<br/>- Fiebre 1-3 días<br/>- Exantema / rash<br/>- Mialgias / artralgias intensas<br/>- Cefalea / dolor retroocular<br/>- Diarrea / tos"]
+  ChequeoModerado -->|"NO (Sin Síntomas)"| VERDE["VERDE (Leve / Preventivo)<br/>- Criaderos de zancudos<br/>- Acumulación de basura / charcos<br/>- Solicitud de abatización / fumigación"]
 
   ROJO --> AlertaPrioritaria["Evento n8n: reporte_comunitario.urgente_rojo<br/>Notificación Push prioritaria al C/S"]
 ```
