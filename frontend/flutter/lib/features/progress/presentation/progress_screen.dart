@@ -317,14 +317,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Curva Histórica de Intensidad',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  color: Theme.of(context).colorScheme.onSurface,
+              Expanded(
+                child: Text(
+                  'Curva Histórica de Intensidad',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                 decoration: BoxDecoration(
@@ -459,14 +463,18 @@ class _ProgressScreenState extends State<ProgressScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Historial de Síntomas',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: Theme.of(context).colorScheme.onSurface,
+            Expanded(
+              child: Text(
+                'Historial de Síntomas',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            const SizedBox(width: 8),
             Text(
               '${filtered.length} registrados',
               style: TextStyle(
@@ -531,17 +539,21 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       color: const Color(0xFF10B981).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: [
+                      children: const [
                         Icon(Icons.add_circle_outline_rounded, size: 16, color: Color(0xFF10B981)),
                         SizedBox(width: 6),
-                        Text(
-                          'Toca aquí o el botón (+) para registrar',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF10B981),
+                        Flexible(
+                          child: Text(
+                            'Toca aquí o el botón (+) para registrar',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF10B981),
+                            ),
                           ),
                         ),
                       ],
@@ -637,28 +649,35 @@ class _ProgressScreenState extends State<ProgressScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: badgeBg,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(badgeIcon, size: 14, color: badgeFg),
-                    const SizedBox(width: 4),
-                    Text(
-                      badgeLabel,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: badgeFg,
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(badgeIcon, size: 14, color: badgeFg),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          badgeLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: badgeFg,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 _formatRecordDate(record.fechaRegistro),
                 style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -671,6 +690,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
               Expanded(
                 child: Text(
                   record.sintoma,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -678,7 +699,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   ),
                 ),
               ),
-              if (record.intensidad != null)
+              if (record.intensidad != null) ...[
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
@@ -694,6 +716,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
           if (record.notas != null && record.notas!.trim().isNotEmpty) ...[

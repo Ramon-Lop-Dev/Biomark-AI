@@ -420,27 +420,33 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
               color: isSelected ? Colors.white : Colors.white60,
             ),
             const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontFamily: 'Syne',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: isSelected ? Colors.white : Colors.white70,
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Syne',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: isSelected ? Colors.white : Colors.white70,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 10,
-                    color: isSelected ? Colors.white.withValues(alpha: 0.85) : Colors.white38,
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 10,
+                      color: isSelected ? Colors.white.withValues(alpha: 0.85) : Colors.white38,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -636,22 +642,29 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
-                  children: [
-                    Icon(Icons.show_chart, color: BiomarkColors.green, size: 16),
-                    SizedBox(width: 6),
-                    Text(
-                      'Micro-aceleraciones torácicas (SCG)',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 11,
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Row(
+                    children: const [
+                      Icon(Icons.show_chart, color: BiomarkColors.green, size: 16),
+                      SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Micro-aceleraciones torácicas (SCG)',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 11,
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                if (_isMeasuring)
+                if (_isMeasuring) ...[
+                  const SizedBox(width: 8),
                   Text(
                     'Calidad: ${(_signalQuality * 100).toInt()}%',
                     style: TextStyle(
@@ -661,6 +674,7 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                       color: _signalQuality > 0.6 ? BiomarkColors.green : const Color(0xFFFF9800),
                     ),
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 6),
@@ -766,13 +780,17 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
               children: [
                 Icon(statusIcon, color: statusColor, size: 16),
                 const SizedBox(width: 6),
-                Text(
-                  m.statusLabel,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
+                Flexible(
+                  child: Text(
+                    m.statusLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
                   ),
                 ),
               ],

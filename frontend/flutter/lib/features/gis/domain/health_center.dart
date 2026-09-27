@@ -161,14 +161,48 @@ class CommunityReportPoint {
   factory CommunityReportPoint.fromJson(Map<String, dynamic> json) {
     double number(dynamic value) =>
         value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
+
+    final rawDesc = '${json['descripcion'] ?? ''}'.trim();
+    String? illness = json['tipo_enfermedad'] as String?;
+    if (illness == null || illness.trim().isEmpty) {
+      final lower = rawDesc.toLowerCase();
+      if (lower.contains('leptospirosis')) {
+        illness = 'Leptospirosis';
+      } else if (lower.contains('chikungunya')) {
+        illness = 'Chikungunya';
+      } else if (lower.contains('dengue')) {
+        illness = 'Dengue';
+      } else if (lower.contains('zika')) {
+        illness = 'Zika';
+      } else if (lower.contains('malaria')) {
+        illness = 'Malaria';
+      } else if (lower.contains('vomito') || lower.contains('vómito')) {
+        illness = 'Gastroenteritis Aguda';
+      }
+    }
+
+    String? address = json['direccion_exacta'] as String?;
+    if (address == null || address.trim().isEmpty || address.trim().toLowerCase() == 'managua') {
+      final lower = rawDesc.toLowerCase();
+      if (lower.contains('morazan') || lower.contains('morazán')) {
+        address = 'Barrio Morazán, Managua';
+      } else if (lower.contains('lezcano')) {
+        address = 'Barrio Monseñor Lezcano, Managua';
+      } else if (lower.contains('altagracia')) {
+        address = 'Barrio Altagracia, Managua';
+      } else if (lower.contains('san judas')) {
+        address = 'Barrio San Judas, Managua';
+      }
+    }
+
     return CommunityReportPoint(
       id: '${json['id'] ?? ''}',
       latitude: number(json['latitud']),
       longitude: number(json['longitud']),
       caseCount: (json['cantidad_casos'] as num?)?.toInt() ?? 1,
-      description: '${json['descripcion'] ?? ''}',
-      tipoEnfermedad: json['tipo_enfermedad'] as String?,
-      direccionExacta: json['direccion_exacta'] as String?,
+      description: rawDesc,
+      tipoEnfermedad: illness,
+      direccionExacta: address,
       clasificacionCcm: json['clasificacion_ccm'] as String?,
       fechaCreacion: json['fecha_creacion'] != null
           ? DateTime.tryParse('${json['fecha_creacion']}')

@@ -884,18 +884,25 @@ class _InvitationRegistrationSheetState extends State<_InvitationRegistrationShe
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.check_circle_rounded, color: BiomarkColors.green, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                _verified!.rolDestino == 'TRABAJADOR_SALUD'
-                                    ? 'Personal de Salud MINSA'
-                                    : 'Promotor de Salud Comunitario',
-                                style: const TextStyle(fontWeight: FontWeight.w800, color: BiomarkColors.green, fontSize: 13.5),
-                              ),
-                            ],
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.check_circle_rounded, color: BiomarkColors.green, size: 20),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    _verified!.rolDestino == 'TRABAJADOR_SALUD'
+                                        ? 'Personal de Salud MINSA'
+                                        : 'Promotor de Salud Comunitario',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.w800, color: BiomarkColors.green, fontSize: 13.5),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 8),
                           GestureDetector(
                             onTap: () => setState(() {
                               _verified = null;
@@ -922,7 +929,7 @@ class _InvitationRegistrationSheetState extends State<_InvitationRegistrationShe
                           'Código Normativa 112: ${_verified!.codigoEstablecimiento}',
                           style: TextStyle(fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
-                      if (_verified!.contacto.isNotEmpty) ...[
+                      if (_verified!.contacto.isNotEmpty && _verified!.contacto != 'ENTREGA_DIRECTA') ...[
                         const SizedBox(height: 6),
                         Row(
                           children: [
@@ -936,6 +943,24 @@ class _InvitationRegistrationSheetState extends State<_InvitationRegistrationShe
                               child: Text(
                                 'Acreditación emitida para: ${_verified!.contacto}',
                                 style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: BiomarkColors.green,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 6),
+                        const Row(
+                          children: [
+                            Icon(Icons.verified_user_rounded, size: 15, color: BiomarkColors.green),
+                            SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Acreditación institucional verificada y autorizada',
+                                style: TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w600,
                                   color: BiomarkColors.green,

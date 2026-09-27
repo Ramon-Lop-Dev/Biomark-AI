@@ -267,14 +267,18 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Row(
+                      : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Continuar',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
+                          children: const [
+                            Flexible(
+                              child: Text(
+                                'Continuar',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
                             SizedBox(width: 8),
@@ -361,6 +365,8 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                     Expanded(
                       child: Text(
                         title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -368,12 +374,14 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                         ),
                       ),
                     ),
-                    if (isGranted)
+                    if (isGranted) ...[
+                      const SizedBox(width: 8),
                       const Icon(
                         Icons.check_circle_rounded,
                         color: BiomarkColors.primary,
                         size: 20,
                       ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 4),

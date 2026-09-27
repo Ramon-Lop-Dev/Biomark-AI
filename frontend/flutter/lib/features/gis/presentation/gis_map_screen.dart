@@ -819,8 +819,8 @@ class _GisMapScreenState extends State<GisMapScreen>
                           const SizedBox(width: 6),
                           Text(
                             report.tipoEnfermedad?.isNotEmpty == true
-                                ? 'EPIDEMIA VALIDADA: ${report.tipoEnfermedad!.toUpperCase()}'
-                                : 'ALERTA COMUNITARIA VALIDADA',
+                                ? 'EPIDEMIA CONFIRMADA: ${report.tipoEnfermedad!.toUpperCase()}'
+                                : 'ALERTA EPIDEMIOLÓGICA VALIDADA',
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w900,
@@ -842,9 +842,9 @@ class _GisMapScreenState extends State<GisMapScreen>
                 Text(
                   report.tipoEnfermedad?.isNotEmpty == true
                       ? report.tipoEnfermedad!
-                      : '${report.caseCount} ${report.caseCount == 1 ? 'Caso Sospechoso Reportado' : 'Casos Sospechosos Reportados'}',
+                      : 'Brote Infeccioso Sospechoso',
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.3,
                   ),
@@ -874,7 +874,9 @@ class _GisMapScreenState extends State<GisMapScreen>
                         decoration: BoxDecoration(
                           color: report.clasificacionCcm == 'ROJO'
                               ? const Color(0xFFEF4444).withValues(alpha: 0.12)
-                              : const Color(0xFF10B981).withValues(alpha: 0.12),
+                              : (report.clasificacionCcm == 'AMARILLO'
+                                  ? Colors.orange.withValues(alpha: 0.12)
+                                  : const Color(0xFF10B981).withValues(alpha: 0.12)),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -884,41 +886,77 @@ class _GisMapScreenState extends State<GisMapScreen>
                             fontWeight: FontWeight.w800,
                             color: report.clasificacionCcm == 'ROJO'
                                 ? const Color(0xFFDC2626)
-                                : const Color(0xFF059669),
+                                : (report.clasificacionCcm == 'AMARILLO'
+                                    ? Colors.orange.shade800
+                                    : const Color(0xFF059669)),
                           ),
                         ),
                       ),
                     ],
                   ],
                 ),
-                if (report.direccionExacta?.isNotEmpty == true) ...[
-                  const SizedBox(height: 10),
-                  Row(
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_rounded, size: 18, color: Color(0xFFEF4444)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        report.direccionExacta?.isNotEmpty == true
+                            ? report.direccionExacta!
+                            : 'Sector Georreferenciado, Managua',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Theme.of(ctx).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.location_on_rounded, size: 16, color: Color(0xFFEF4444)),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          report.direccionExacta!,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Theme.of(ctx).colorScheme.onSurface,
+                      Row(
+                        children: [
+                          const Icon(Icons.medical_information_rounded, size: 16, color: BiomarkColors.blue),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Información clínica del reporte:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Theme.of(ctx).colorScheme.onSurface,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        report.description.isNotEmpty
+                            ? report.description
+                            : 'Vigilancia activa comunitaria por reporte de casos sospechosos en el vecindario.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
-                  ),
-                ],
-                const SizedBox(height: 10),
-                Text(
-                  report.description.isNotEmpty
-                      ? report.description
-                      : 'Zona bajo vigilancia comunitaria por reporte de cuadros febriles o respiratorios en el vecindario.',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    height: 1.4,
-                    color: Theme.of(ctx).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -1679,9 +1717,13 @@ class _SelectedCenterCard extends StatelessWidget {
                     children: [
                       const Icon(Icons.info_outline_rounded, size: 14, color: Colors.deepOrange),
                       const SizedBox(width: 4),
-                      Text(
-                        'Ubicación aproximada. Confirma antes de ir.',
-                        style: TextStyle(color: Colors.deepOrange.shade700, fontSize: 11),
+                      Expanded(
+                        child: Text(
+                          'Ubicación aproximada. Confirma antes de ir.',
+                          style: TextStyle(color: Colors.deepOrange.shade700, fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
+                        ),
                       ),
                     ],
                   ),

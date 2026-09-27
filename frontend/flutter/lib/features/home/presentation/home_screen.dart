@@ -570,12 +570,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: isNormal ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        vital.status,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: isNormal ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                      Flexible(
+                        child: Text(
+                          vital.status,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: isNormal ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                     ],
@@ -857,18 +861,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const Spacer(),
                   if (item.normativaCodigo != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        item.normativaCodigo!.split(' - ').first,
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          item.normativaCodigo!.split(' - ').first,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
                     ),
@@ -918,11 +926,15 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Managua',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  Expanded(
+                    child: Text(
+                      item.barrioComunidad.isNotEmpty ? item.barrioComunidad : item.silais,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                   Row(
@@ -1242,15 +1254,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     for (final r in _communityReports) {
-      final enf = (r.tipoEnfermedad?.trim().isNotEmpty == true) ? r.tipoEnfermedad!.trim() : 'Reporte Epidemiológico';
-      final dir = (r.direccionExacta?.trim().isNotEmpty == true) ? r.direccionExacta!.trim() : 'Managua';
+      final enf = (r.tipoEnfermedad?.trim().isNotEmpty == true) ? r.tipoEnfermedad!.trim() : 'Brote Comunitario';
+      final dir = (r.direccionExacta?.trim().isNotEmpty == true) ? r.direccionExacta!.trim() : 'Sector Georreferenciado, Managua';
+      final triage = r.clasificacionCcm?.isNotEmpty == true ? ' · Triaje CCM ${r.clasificacionCcm}' : '';
       brotes.add(
         _OutbreakItem(
-          alerta: 'BROTE VALIDADO: ${enf.toUpperCase()}',
-          distrito: '$dir (Georreferenciado)',
-          nivel: '${r.caseCount} ${r.caseCount == 1 ? 'caso confirmado' : 'casos confirmados'}',
-          casos: r.description.isNotEmpty ? r.description : 'Zona bajo vigilancia epidemiológica por personal del MINSA.',
-          recomendacion: 'Refuerce medidas higiénicas y consulte de inmediato ante signos de alarma.',
+          alerta: 'EPIDEMIA CONFIRMADA: ${enf.toUpperCase()}',
+          distrito: dir,
+          nivel: '${r.caseCount} ${r.caseCount == 1 ? 'caso confirmado' : 'casos confirmados'}$triage',
+          casos: r.description.isNotEmpty ? r.description : 'Zona bajo vigilancia epidemiológica activa por brigadas del MINSA.',
+          recomendacion: 'Refuerce medidas sanitarias, evite aguas estancadas y acuda al puesto médico ante fiebre o vómito.',
           color: const Color(0xFFEF4444),
           latitude: r.latitude,
           longitude: r.longitude,
@@ -1536,6 +1549,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 isAlert ? Icons.warning_amber_rounded : Icons.verified_rounded,
@@ -1543,12 +1557,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: isAlert ? const Color(0xFFDC2626) : const Color(0xFF059669),
                               ),
                               const SizedBox(width: 5),
-                              Text(
-                                item.fuente,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: isAlert ? const Color(0xFFDC2626) : const Color(0xFF059669),
+                              Flexible(
+                                child: Text(
+                                  item.fuente,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: isAlert ? const Color(0xFFDC2626) : const Color(0xFF059669),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
                                 ),
                               ),
                             ],

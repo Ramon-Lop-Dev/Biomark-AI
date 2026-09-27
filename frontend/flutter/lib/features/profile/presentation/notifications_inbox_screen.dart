@@ -190,12 +190,16 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
           children: [
             Icon(badgeIcon, size: 12, color: badgeTextColor),
             const SizedBox(width: 4),
-            Text(
-              badgeText,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                color: badgeTextColor,
+            Flexible(
+              child: Text(
+                badgeText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: badgeTextColor,
+                ),
               ),
             ),
           ],
@@ -209,17 +213,21 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
           color: const Color(0xFFE53935).withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: const [
             Icon(Icons.shield_outlined, size: 12, color: Color(0xFFE53935)),
             SizedBox(width: 4),
-            Text(
-              'Aviso MINSA Oficial',
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFFE53935),
+            Flexible(
+              child: Text(
+                'Aviso MINSA Oficial',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFE53935),
+                ),
               ),
             ),
           ],
@@ -395,6 +403,7 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
                                                         ),
                                                       ),
                                                     ),
+                                                    const SizedBox(width: 8),
                                                     if (!item.isRead) ...[
                                                       Container(
                                                         width: 8,

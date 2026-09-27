@@ -387,11 +387,15 @@ class _CommunityReportSheetState extends State<_CommunityReportSheet> {
                               children: [
                                 const Icon(Icons.calendar_month_rounded, size: 20, color: Color(0xFF8B5CF6)),
                                 const SizedBox(width: 10),
-                                Text(
-                                  '${_fechaInicioSintomas.day.toString().padLeft(2, '0')}/${_fechaInicioSintomas.month.toString().padLeft(2, '0')}/${_fechaInicioSintomas.year}',
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                Expanded(
+                                  child: Text(
+                                    '${_fechaInicioSintomas.day.toString().padLeft(2, '0')}/${_fechaInicioSintomas.month.toString().padLeft(2, '0')}/${_fechaInicioSintomas.year}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                  ),
                                 ),
-                                const Spacer(),
+                                const SizedBox(width: 8),
                                 const Icon(Icons.edit_calendar_rounded, size: 18, color: Colors.grey),
                               ],
                             ),

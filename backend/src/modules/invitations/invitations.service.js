@@ -11,7 +11,8 @@ const generarCodigoInvitacion = () => {
   return `BM-${randomBytes}`;
 };
 
-const inviteHealthWorker = async (adminId, { contacto, centro_salud_id, expira_dias = 7 }) => {
+const inviteHealthWorker = async (adminId, { contacto = 'ENTREGA_DIRECTA', centro_salud_id, expira_dias = 7 }) => {
+  const contactoEfectivo = contacto?.trim() || 'ENTREGA_DIRECTA';
   // Validar existencia del centro de salud
   const { data: centro, error: centroError } = await supabase
     .from('centros_salud')
@@ -28,7 +29,7 @@ const inviteHealthWorker = async (adminId, { contacto, centro_salud_id, expira_d
 
   const { data: invitacion, error } = await invitationsRepo.crearInvitacion({
     token,
-    contacto,
+    contacto: contactoEfectivo,
     rol_destino: 'TRABAJADOR_SALUD',
     centro_salud_id,
     creado_por: adminId,
@@ -46,19 +47,19 @@ const inviteHealthWorker = async (adminId, { contacto, centro_salud_id, expira_d
     idEntidad: invitacion.id,
     accion: 'INVITACION_TRABAJADOR_CREADA',
     detalle: {
-      contacto,
+      contacto: contactoEfectivo,
       centro_salud_id,
       centro_nombre: centro.nombre,
       rol: 'TRABAJADOR_SALUD',
-      descripcion: `Acreditación emitida por Administrador SILAIS para ${contacto} en ${centro.nombre}`
+      descripcion: `Acreditación emitida por Administrador SILAIS para ${contactoEfectivo} en ${centro.nombre}`
     }
   });
 
-  // Entrega automática n8n / SMS
+  // Entrega automática n8n / SMS (opcional, no bloqueante)
   try {
     await publicarEvento('acreditacion_sanitaria.creada', {
       token,
-      contacto,
+      contacto: contactoEfectivo,
       rol_destino: 'TRABAJADOR_SALUD',
       centro_salud_id,
       centro_nombre: centro.nombre,
@@ -75,7 +76,8 @@ const inviteHealthWorker = async (adminId, { contacto, centro_salud_id, expira_d
   return invitacion;
 };
 
-const invitePromoter = async (workerId, workerCentroSaludId, { contacto, centro_salud_id, expira_dias = 7 }) => {
+const invitePromoter = async (workerId, workerCentroSaludId, { contacto = 'ENTREGA_DIRECTA', centro_salud_id, expira_dias = 7 }) => {
+  const contactoEfectivo = contacto?.trim() || 'ENTREGA_DIRECTA';
   const centroId = workerCentroSaludId || centro_salud_id;
   if (!centroId) {
     throw new AppError('El promotor debe estar adscrito a un centro de salud', 400);
@@ -96,7 +98,7 @@ const invitePromoter = async (workerId, workerCentroSaludId, { contacto, centro_
 
   const { data: invitacion, error } = await invitationsRepo.crearInvitacion({
     token,
-    contacto,
+    contacto: contactoEfectivo,
     rol_destino: 'PROMOTOR',
     centro_salud_id: centroId,
     creado_por: workerId,
@@ -114,19 +116,19 @@ const invitePromoter = async (workerId, workerCentroSaludId, { contacto, centro_
     idEntidad: invitacion.id,
     accion: 'INVITACION_PROMOTOR_CREADA',
     detalle: {
-      contacto,
+      contacto: contactoEfectivo,
       centro_salud_id: centroId,
       centro_nombre: centro.nombre,
       rol: 'PROMOTOR',
-      descripcion: `Acreditación emitida para promotor comunitario ${contacto} en ${centro.nombre}`
+      descripcion: `Acreditación emitida para promotor comunitario ${contactoEfectivo} en ${centro.nombre}`
     }
   });
 
-  // Entrega automática n8n / SMS
+  // Entrega automática n8n / SMS (opcional, no bloqueante)
   try {
     await publicarEvento('acreditacion_sanitaria.creada', {
       token,
-      contacto,
+      contacto: contactoEfectivo,
       rol_destino: 'PROMOTOR',
       centro_salud_id: centroId,
       centro_nombre: centro.nombre,
@@ -221,7 +223,7 @@ const acceptInvitation = async ({ token, email, password, full_name }) => {
   }
 
   // Si el contacto fue un teléfono, asociarlo al perfil del usuario
-  if (!contactoDestino.includes('@') && contactoDestino.length >= 7) {
+  if (!contactoDestino.includes('@') && contactoDestino.length >= 7 && !contactoDestino.includes('entrega')) {
     try {
       await supabase
         .from('perfiles')

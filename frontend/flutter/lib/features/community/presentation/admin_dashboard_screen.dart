@@ -183,19 +183,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     if (result != null) {
       _load();
-      if (result is Map<String, dynamic>) {
-        final token = result['token'] as String? ?? '';
-        final contacto = result['contacto'] as String? ?? '';
-        if (token.isNotEmpty) {
-          _showGeneratedTokenDialog(token, contacto: contacto);
-        }
-      } else if (result is String && result.isNotEmpty) {
+      if (result is String && result.isNotEmpty) {
         _showGeneratedTokenDialog(result);
       }
     }
   }
 
-  void _showGeneratedTokenDialog(String token, {String contacto = ''}) {
+  void _showGeneratedTokenDialog(String token) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -217,7 +211,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Comparte este código seguro de 8 caracteres con el profesional o promotor para activar su credencial institucional:',
+              'Comparte este código oficial con el profesional o brigadista para que active su rol institucional. Puedes enviárselo por WhatsApp, SMS desde tu celular o en persona:',
               style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 16),
@@ -240,37 +234,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ),
             ),
-            if (contacto.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: BiomarkColors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: BiomarkColors.green.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      contacto.contains('@') ? Icons.mark_email_read_rounded : Icons.phone_android_rounded,
-                      size: 16,
-                      color: BiomarkColors.green,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Acreditación vinculada a: $contacto\n(Despacho n8n / SMS activo · Auditoría SILAIS)',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: BiomarkColors.green,
-                        ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: BiomarkColors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: BiomarkColors.green.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle_outline_rounded, size: 18, color: BiomarkColors.green),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Listo para entrega directa. La persona se registra en la app e ingresa este código.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: BiomarkColors.green,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
             const SizedBox(height: 12),
             const Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -283,20 +271,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ],
         ),
         actions: [
-          TextButton.icon(
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+          FilledButton.icon(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: token));
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Código copiado al portapapeles.')),
+                const SnackBar(
+                  content: Text('Código copiado al portapapeles. Listo para enviar por WhatsApp o mensaje.'),
+                  backgroundColor: BiomarkColors.green,
+                ),
               );
               Navigator.pop(ctx);
             },
-            icon: const Icon(Icons.copy_rounded, size: 16),
+            icon: const Icon(Icons.copy_rounded, size: 18),
             label: const Text('Copiar código'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Entendido'),
           ),
         ],
       ),
@@ -945,14 +936,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  '${report.cases} ${report.cases == 1 ? 'caso' : 'casos'} · ${report.status}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11.5,
-                    color: report.status == 'VALIDADO'
-                        ? BiomarkColors.green
-                        : (report.status == 'DESCARTADO' ? Colors.grey : Colors.orange),
+                Flexible(
+                  child: Text(
+                    '${report.cases} ${report.cases == 1 ? 'caso' : 'casos'} · ${report.status}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11.5,
+                      color: report.status == 'VALIDADO'
+                          ? BiomarkColors.green
+                          : (report.status == 'DESCARTADO' ? Colors.grey : Colors.orange),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -1041,7 +1036,6 @@ class _AccreditationDialog extends StatefulWidget {
 }
 
 class _AccreditationDialogState extends State<_AccreditationDialog> {
-  late final TextEditingController _contactCtrl;
   late final TextEditingController _searchCenterCtrl;
   final _formKey = GlobalKey<FormState>();
 
@@ -1054,7 +1048,6 @@ class _AccreditationDialogState extends State<_AccreditationDialog> {
   @override
   void initState() {
     super.initState();
-    _contactCtrl = TextEditingController();
     _searchCenterCtrl = TextEditingController();
     _centers = widget.initialCenters.isNotEmpty ? widget.initialCenters : widget.fallbackCenters;
     if (widget.initialCenters.isEmpty) {
@@ -1068,7 +1061,6 @@ class _AccreditationDialogState extends State<_AccreditationDialog> {
 
   @override
   void dispose() {
-    _contactCtrl.dispose();
     _searchCenterCtrl.dispose();
     super.dispose();
   }
@@ -1087,12 +1079,10 @@ class _AccreditationDialogState extends State<_AccreditationDialog> {
       final Map<String, dynamic> res;
       if (_selectedRole == 'TRABAJADOR_SALUD') {
         res = await widget.invitationsApi.createHealthWorkerInvitation(
-          contacto: _contactCtrl.text.trim(),
           centroSaludId: _selectedCenter!.id,
         );
       } else {
         res = await widget.invitationsApi.createPromoterInvitation(
-          contacto: _contactCtrl.text.trim(),
           centroSaludId: _selectedCenter!.id,
         );
       }
@@ -1100,11 +1090,7 @@ class _AccreditationDialogState extends State<_AccreditationDialog> {
       if (!mounted) return;
       final invMap = res['invitacion'] is Map<String, dynamic> ? res['invitacion'] as Map<String, dynamic> : null;
       final token = (invMap?['token'] ?? res['token'] ?? '') as String;
-      Navigator.pop(context, {
-        'token': token,
-        'contacto': _contactCtrl.text.trim(),
-        'rol': _selectedRole,
-      });
+      Navigator.pop(context, token.isNotEmpty ? token : true);
     } catch (err) {
       if (!mounted) return;
       setState(() => _generating = false);
@@ -1391,20 +1377,6 @@ class _AccreditationDialogState extends State<_AccreditationDialog> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 14),
-
-                // 3. Contacto Oficial
-                TextFormField(
-                  controller: _contactCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo o teléfono oficial *',
-                    hintText: 'ej. doctor@minsa.gob.ni o 8888 1234',
-                    prefixIcon: Icon(Icons.contact_mail_outlined),
-                    isDense: true,
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Ingresa el contacto institucional' : null,
-                ),
                 const SizedBox(height: 20),
 
                 // Botones

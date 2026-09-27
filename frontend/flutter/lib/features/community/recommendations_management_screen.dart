@@ -461,6 +461,7 @@ class _CrearRecomendacionSheetState extends State<_CrearRecomendacionSheet> {
                   child: Text(
                     'Nueva Pauta de Salud MINSA',
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
@@ -506,7 +507,12 @@ class _CrearRecomendacionSheetState extends State<_CrearRecomendacionSheet> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Text(HealthRecommendation.labelForCategory(cat)),
+                              Expanded(
+                                child: Text(
+                                  HealthRecommendation.labelForCategory(cat),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ],
                           ),
                         );

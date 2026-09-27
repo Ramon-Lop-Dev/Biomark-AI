@@ -7,13 +7,13 @@ const passwordSchema = z
   .regex(/[0-9]/, 'La contraseña debe incluir al menos un número');
 
 const createHealthWorkerInvitationSchema = z.object({
-  contacto: z.string().trim().min(3, 'El contacto (correo o teléfono) es obligatorio'),
+  contacto: z.string().trim().optional().default('ENTREGA_DIRECTA'),
   centro_salud_id: z.string().uuid('El ID del centro de salud debe ser un UUID válido'),
   expira_dias: z.number().int().min(1).max(30).optional().default(7)
 });
 
 const createPromoterInvitationSchema = z.object({
-  contacto: z.string().trim().min(3, 'El contacto (correo o teléfono) es obligatorio'),
+  contacto: z.string().trim().optional().default('ENTREGA_DIRECTA'),
   centro_salud_id: z.string().uuid('El ID del centro de salud debe ser un UUID válido').optional(),
   expira_dias: z.number().int().min(1).max(30).optional().default(7)
 });

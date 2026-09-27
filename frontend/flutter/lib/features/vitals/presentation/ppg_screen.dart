@@ -461,28 +461,35 @@ class _PpgScreenState extends State<PpgScreen> with SingleTickerProviderStateMix
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _fingerDetected ? const Color(0xFF10B981) : Colors.red,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _fingerDetected ? const Color(0xFF10B981) : Colors.red,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'PULSO EN TIEMPO REAL',
-                          style: TextStyle(
-                            fontSize: 11,
-                            letterSpacing: 0.8,
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.white70 : Colors.black54,
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'PULSO EN TIEMPO REAL',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                letterSpacing: 0.8,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white70 : Colors.black54,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       'Calidad: ${(_signalQuality * 100).toInt()}%',
                       style: const TextStyle(

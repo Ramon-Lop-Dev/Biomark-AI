@@ -360,6 +360,8 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
             children: [
               Text(
                 titulo,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
@@ -369,6 +371,8 @@ class _SeguridadScreenState extends State<SeguridadScreen> {
               const SizedBox(height: 2),
               Text(
                 correo,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12.5,
                   color: correoDeshabilitado

@@ -223,12 +223,17 @@ class _RemindersScreenState extends State<RemindersScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _calendarNavButton(Icons.chevron_left_rounded, _previousMonth),
-              Text(
-                '$monthName ${_selectedDate.year}',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: Theme.of(context).colorScheme.onSurface,
+              Expanded(
+                child: Text(
+                  '$monthName ${_selectedDate.year}',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
               ),
               _calendarNavButton(Icons.chevron_right_rounded, _nextMonth),
@@ -568,12 +573,16 @@ class _RemindersScreenState extends State<RemindersScreen> {
                           color: Color(0xFFD97706),
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          'Aviso: ${_getAvisoPrevioLabel(reminder.avisoPrevio)}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFFD97706),
+                        Flexible(
+                          child: Text(
+                            'Aviso: ${_getAvisoPrevioLabel(reminder.avisoPrevio)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFD97706),
+                            ),
                           ),
                         ),
                       ],
@@ -609,21 +618,25 @@ class _RemindersScreenState extends State<RemindersScreen> {
                             width: 1,
                           ),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: [
+                          children: const [
                             Icon(
                               Icons.location_on_rounded,
                               size: 13,
                               color: BiomarkColors.blue,
                             ),
                             SizedBox(width: 4),
-                            Text(
-                              'Ver en Mapa GIS',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: BiomarkColors.blue,
+                            Flexible(
+                              child: Text(
+                                'Ver en Mapa GIS',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: BiomarkColors.blue,
+                                ),
                               ),
                             ),
                           ],
@@ -639,21 +652,31 @@ class _RemindersScreenState extends State<RemindersScreen> {
               itemBuilder: (context) => [
                 PopupMenuItem(
                   onTap: () => _completeReminder(reminder.id),
-                  child: const Row(
-                    children: [
+                  child: Row(
+                    children: const [
                       Icon(Icons.check_circle_outline, size: 18),
                       SizedBox(width: 8),
-                      Text('Completar'),
+                      Expanded(
+                        child: Text(
+                          'Completar',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 PopupMenuItem(
                   onTap: () => _archiveReminder(reminder.id),
-                  child: const Row(
-                    children: [
+                  child: Row(
+                    children: const [
                       Icon(Icons.archive_outlined, size: 18),
                       SizedBox(width: 8),
-                      Text('Archivar'),
+                      Expanded(
+                        child: Text(
+                          'Archivar',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                 ),

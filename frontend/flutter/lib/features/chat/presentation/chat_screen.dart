@@ -745,7 +745,13 @@ class _ChatScreenState extends State<ChatScreen>
                   semanticLabel: 'Biomark AI',
                 ),
                 const SizedBox(width: 8),
-                Text('Chat', style: Theme.of(context).textTheme.titleLarge),
+                Flexible(
+                  child: Text(
+                    'Chat',
+                    style: Theme.of(context).textTheme.titleLarge,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
           ),
@@ -856,7 +862,13 @@ class _MessageBubble extends StatelessWidget {
                           semanticLabel: 'Avatar de Biomark AI',
                         ),
                         const SizedBox(width: 8),
-                        Text('Biomark AI', style: textTheme.labelLarge),
+                        Expanded(
+                          child: Text(
+                            'Biomark AI',
+                            style: textTheme.labelLarge,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -889,11 +901,15 @@ class _MessageBubble extends StatelessWidget {
                       children: [
                         const Icon(Icons.wifi_off_rounded, size: 13, color: Color(0xFFD97706)),
                         const SizedBox(width: 5),
-                        Text(
-                          'Modo Sin Conexión · Guía Oficial MINSA',
-                          style: textTheme.labelSmall?.copyWith(
-                            color: const Color(0xFFD97706),
-                            fontWeight: FontWeight.w700,
+                        Flexible(
+                          child: Text(
+                            'Modo Sin Conexión · Guía Oficial MINSA',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.labelSmall?.copyWith(
+                              color: const Color(0xFFD97706),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ],
@@ -1302,16 +1318,21 @@ class _WhatsAppAudioBubbleState extends State<_WhatsAppAudioBubble> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        isPlaying || _position > Duration.zero
-                            ? _formatDuration(_position)
-                            : _formatDuration(_duration),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
+                      Flexible(
+                        child: Text(
+                          isPlaying || _position > Duration.zero
+                              ? _formatDuration(_position)
+                              : _formatDuration(_duration),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       GestureDetector(
                         onTap: _cycleSpeed,
                         child: Container(
@@ -1349,19 +1370,25 @@ class _TypingBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Align(
+    return Align(
       alignment: Alignment.centerLeft,
       child: BiomarkClaySurface(
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: const [
             SizedBox(
               width: 16,
               height: 16,
               child: CircularProgressIndicator(strokeWidth: 2),
             ),
             SizedBox(width: 8),
-            Text('Analizando...'),
+            Flexible(
+              child: Text(
+                'Analizando...',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
       ),

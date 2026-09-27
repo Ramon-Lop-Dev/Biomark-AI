@@ -537,30 +537,36 @@ class _ReportTile extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: (hasDisease ? const Color(0xFFEF4444) : Colors.orange).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        hasDisease ? Icons.coronavirus_rounded : Icons.report_problem_outlined,
-                        size: 15,
-                        color: hasDisease ? const Color(0xFFEF4444) : Colors.orange,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        report.tipoEnfermedad ?? 'Reporte Epidemiológico',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (hasDisease ? const Color(0xFFEF4444) : Colors.orange).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          hasDisease ? Icons.coronavirus_rounded : Icons.report_problem_outlined,
+                          size: 15,
                           color: hasDisease ? const Color(0xFFEF4444) : Colors.orange,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            report.tipoEnfermedad ?? 'Reporte Epidemiológico',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: hasDisease ? const Color(0xFFEF4444) : Colors.orange,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -844,7 +850,7 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
                             );
                             if (!ctx.mounted) return;
                             Navigator.pop(ctx, true);
-                            _showTokenDialog(res['token'] as String? ?? '', contacto: contacto);
+                            _showTokenDialog(res['token'] as String? ?? '');
                           } catch (err) {
                             if (!ctx.mounted || !mounted) return;
                             setDialogState(() => generating = false);
@@ -865,7 +871,7 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
     }
   }
 
-  void _showTokenDialog(String token, {String contacto = ''}) {
+  void _showTokenDialog(String token) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -881,7 +887,7 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              'Comparte este código seguro de un solo uso con el promotor para que active su cuenta institucional:',
+              'Comparte este código oficial con el promotor comunitario para que active su cuenta institucional en la app:',
               style: TextStyle(fontSize: 13),
             ),
             const SizedBox(height: 16),
@@ -904,37 +910,31 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
                 ),
               ),
             ),
-            if (contacto.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: BiomarkColors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: BiomarkColors.green.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      contacto.contains('@') ? Icons.mark_email_read_rounded : Icons.phone_android_rounded,
-                      size: 16,
-                      color: BiomarkColors.green,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Acreditación vinculada a: $contacto\n(Despacho n8n / SMS activo · Auditoría SILAIS)',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: BiomarkColors.green,
-                        ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: BiomarkColors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: BiomarkColors.green.withValues(alpha: 0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle_outline_rounded, size: 18, color: BiomarkColors.green),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Listo para entrega directa. Puedes copiarlo y enviarlo por WhatsApp o en persona.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: BiomarkColors.green,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
             const SizedBox(height: 10),
             const Center(
               child: Text('Válido por 7 días · Un solo uso', style: TextStyle(fontSize: 11.5, color: Colors.grey)),
@@ -942,20 +942,23 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
           ],
         ),
         actions: [
-          TextButton.icon(
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cerrar'),
+          ),
+          FilledButton.icon(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: token));
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Código copiado al portapapeles.')),
+                const SnackBar(
+                  content: Text('Código copiado al portapapeles. Listo para enviar por WhatsApp o mensaje.'),
+                  backgroundColor: BiomarkColors.green,
+                ),
               );
               Navigator.pop(ctx);
             },
-            icon: const Icon(Icons.copy_rounded, size: 16),
+            icon: const Icon(Icons.copy_rounded, size: 18),
             label: const Text('Copiar código'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Listo'),
           ),
         ],
       ),

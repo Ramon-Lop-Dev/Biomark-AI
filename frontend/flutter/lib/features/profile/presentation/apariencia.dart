@@ -115,6 +115,8 @@ class _AparienciaScreenState extends State<AparienciaScreen> {
                                   Expanded(
                                     child: Text(
                                       modo.etiqueta,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 13.5,
                                         fontWeight: seleccionado ? FontWeight.w800 : FontWeight.w600,
@@ -124,12 +126,14 @@ class _AparienciaScreenState extends State<AparienciaScreen> {
                                       ),
                                     ),
                                   ),
-                                  if (seleccionado)
+                                  if (seleccionado) ...[
+                                    const SizedBox(width: 8),
                                     Icon(
                                       Icons.check_circle_rounded,
                                       color: tema.colorScheme.primary,
                                       size: 20,
                                     ),
+                                  ],
                                 ],
                               ),
                             ),

@@ -193,13 +193,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          _currentPage == _pages.length - 1
-                              ? 'Empezar ahora'
-                              : 'Continuar',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                        Flexible(
+                          child: Text(
+                            _currentPage == _pages.length - 1
+                                ? 'Empezar ahora'
+                                : 'Continuar',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),

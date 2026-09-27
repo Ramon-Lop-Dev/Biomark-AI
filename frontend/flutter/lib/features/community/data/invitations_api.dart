@@ -129,7 +129,7 @@ class InvitationsApi {
 
   /// El Trabajador de Salud o Admin invita a un Promotor (con centro opcional para Admin)
   Future<Map<String, dynamic>> createPromoterInvitation({
-    required String contacto,
+    String contacto = 'ENTREGA_DIRECTA',
     String? centroSaludId,
     int expiraDias = 7,
   }) async {
@@ -152,7 +152,7 @@ class InvitationsApi {
 
   /// El Administrador invita a un Trabajador de Salud para un Centro de Salud
   Future<Map<String, dynamic>> createHealthWorkerInvitation({
-    required String contacto,
+    String contacto = 'ENTREGA_DIRECTA',
     required String centroSaludId,
     int expiraDias = 7,
   }) async {

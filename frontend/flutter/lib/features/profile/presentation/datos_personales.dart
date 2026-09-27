@@ -164,7 +164,8 @@ class _DatosPersonalesScreenState extends State<DatosPersonalesScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildSeccionTitulo('Mis antecedentes'),
+                    Expanded(child: _buildSeccionTitulo('Mis antecedentes')),
+                    const SizedBox(width: 8),
                     TextButton.icon(
                       onPressed: () async {
                         await Navigator.push(

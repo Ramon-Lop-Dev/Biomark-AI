@@ -663,19 +663,22 @@ class _AddReminderModalState extends State<_AddReminderModal> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Nuevo Recordatorio',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
+                  const Expanded(
+                    child: Text(
+                      'Nuevo Recordatorio',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
                 const SizedBox(height: 20),
                 // Tipo de recordatorio
                 const Text(
@@ -754,8 +757,12 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                                 size: 18,
                               ),
                               const SizedBox(width: 8),
-                              Text(
-                                '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                              Expanded(
+                                child: Text(
+                                  '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),
@@ -923,14 +930,18 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                   : Theme.of(context).colorScheme.onSurface,
             ),
             const SizedBox(width: 6),
-            Text(
-              typeLabel,
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
+            Flexible(
+              child: Text(
+                typeLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
@@ -966,14 +977,18 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                   : Theme.of(context).colorScheme.onSurface,
             ),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
@@ -1009,14 +1024,18 @@ class _AddReminderModalState extends State<_AddReminderModal> {
                   : Theme.of(context).colorScheme.onSurface,
             ),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? Colors.white
-                    : Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],

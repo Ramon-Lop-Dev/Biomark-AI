@@ -699,12 +699,16 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
                       const Icon(Icons.check_circle_rounded, size: 16, color: BiomarkColors.primary),
                       const SizedBox(width: 8),
                     ],
-                    Text(
-                      opcion,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
-                        color: activo ? BiomarkColors.primary : textDark,
+                    Flexible(
+                      child: Text(
+                        opcion,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+                          color: activo ? BiomarkColors.primary : textDark,
+                        ),
                       ),
                     ),
                   ],
@@ -993,9 +997,13 @@ class _HealthSurveyScreenState extends State<HealthSurveyScreen> {
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    textoBoton,
-                    style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
+                  Flexible(
+                    child: Text(
+                      textoBoton,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Icon(

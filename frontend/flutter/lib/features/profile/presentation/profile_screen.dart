@@ -463,6 +463,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Text(
                     _nombreUsuario,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
@@ -472,6 +474,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 3),
                   Text(
                     _correoUsuario,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12.5,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -551,6 +555,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: Text(
                 item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
