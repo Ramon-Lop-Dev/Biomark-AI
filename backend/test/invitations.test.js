@@ -162,3 +162,46 @@ test('Triaje CCM: Clasifica correctamente la severidad clínica y signos de alar
   });
   assert.equal(reporteLimpio, 'VERDE');
 });
+
+test('Seguridad de Rol: acceptInvitation rechaza suplantación cuando el correo no coincide con el contacto destino', async () => {
+  const invitationsService = require('../src/modules/invitations/invitations.service');
+  const invitationsRepo = require('../src/modules/invitations/invitations.repository');
+
+  const mockToken = 'BM-SEC123';
+  const originalBuscar = invitationsRepo.buscarInvitacionPorToken;
+  invitationsRepo.buscarInvitacionPorToken = async () => ({
+    data: {
+      id: 'mock-inv-id',
+      token: mockToken,
+      contacto: 'dr.pedro@minsa.gob.ni',
+      rol_destino: 'TRABAJADOR_SALUD',
+      centro_salud_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      expira_en: new Date(Date.now() + 86400000).toISOString(),
+      usado_en: null,
+      centros_salud: { nombre: 'Centro de Salud Edgar Lang', municipio: 'Managua' }
+    },
+    error: null
+  });
+
+  try {
+    await assert.rejects(
+      async () => {
+        await invitationsService.acceptInvitation({
+          token: mockToken,
+          email: 'impostor@gmail.com',
+          password: 'Password123!',
+          full_name: 'Usuario No Autorizado'
+        });
+      },
+      (err) => {
+        assert.ok(err instanceof AppError);
+        assert.equal(err.statusCode, 403);
+        assert.ok(err.message.includes('Seguridad de rol'));
+        return true;
+      }
+    );
+  } finally {
+    invitationsRepo.buscarInvitacionPorToken = originalBuscar;
+  }
+});
+

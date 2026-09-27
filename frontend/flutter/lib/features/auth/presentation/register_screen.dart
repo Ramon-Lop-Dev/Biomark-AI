@@ -701,6 +701,9 @@ class _InvitationRegistrationSheetState extends State<_InvitationRegistrationShe
       setState(() {
         _verified = info;
         _verifying = false;
+        if (info.contacto.isNotEmpty && info.contacto.contains('@')) {
+          _emailCtrl.text = info.contacto.trim();
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -879,14 +882,33 @@ class _InvitationRegistrationSheetState extends State<_InvitationRegistrationShe
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Icon(Icons.check_circle_rounded, color: BiomarkColors.green, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            _verified!.rolDestino == 'TRABAJADOR_SALUD'
-                                ? 'Personal de Salud MINSA'
-                                : 'Promotor de Salud Comunitario',
-                            style: const TextStyle(fontWeight: FontWeight.w800, color: BiomarkColors.green, fontSize: 13.5),
+                          Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded, color: BiomarkColors.green, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                _verified!.rolDestino == 'TRABAJADOR_SALUD'
+                                    ? 'Personal de Salud MINSA'
+                                    : 'Promotor de Salud Comunitario',
+                                style: const TextStyle(fontWeight: FontWeight.w800, color: BiomarkColors.green, fontSize: 13.5),
+                              ),
+                            ],
+                          ),
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _verified = null;
+                              _emailCtrl.clear();
+                            }),
+                            child: const Text(
+                              'Cambiar código',
+                              style: TextStyle(
+                                color: BiomarkColors.blue,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -900,6 +922,29 @@ class _InvitationRegistrationSheetState extends State<_InvitationRegistrationShe
                           'Código Normativa 112: ${_verified!.codigoEstablecimiento}',
                           style: TextStyle(fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
+                      if (_verified!.contacto.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(
+                              _verified!.contacto.contains('@') ? Icons.mark_email_read_rounded : Icons.phone_android_rounded,
+                              size: 15,
+                              color: BiomarkColors.green,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Acreditación emitida para: ${_verified!.contacto}',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: BiomarkColors.green,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -921,12 +966,31 @@ class _InvitationRegistrationSheetState extends State<_InvitationRegistrationShe
                       TextFormField(
                         controller: _emailCtrl,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
+                        readOnly: _verified != null && _verified!.contacto.isNotEmpty && _verified!.contacto.contains('@'),
+                        decoration: InputDecoration(
                           labelText: 'Correo electrónico *',
-                          prefixIcon: Icon(Icons.mail_outline_rounded),
-                          border: OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.mail_outline_rounded),
+                          suffixIcon: (_verified != null && _verified!.contacto.isNotEmpty && _verified!.contacto.contains('@'))
+                              ? const Tooltip(
+                                  message: 'Correo verificado y vinculado institucionalmente',
+                                  child: Icon(Icons.lock_rounded, size: 18, color: BiomarkColors.green),
+                                )
+                              : null,
+                          border: const OutlineInputBorder(),
+                          helperText: (_verified != null && _verified!.contacto.isNotEmpty && _verified!.contacto.contains('@'))
+                              ? 'Vinculado a la acreditación institucional'
+                              : null,
                         ),
-                        validator: (v) => (v == null || !v.contains('@')) ? 'Correo inválido' : null,
+                        validator: (v) {
+                          if (v == null || !v.contains('@')) return 'Correo inválido';
+                          if (_verified != null &&
+                              _verified!.contacto.isNotEmpty &&
+                              _verified!.contacto.contains('@') &&
+                              v.trim().toLowerCase() != _verified!.contacto.trim().toLowerCase()) {
+                            return 'Debe ser el correo acreditado (${_verified!.contacto})';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 12),
                       TextFormField(

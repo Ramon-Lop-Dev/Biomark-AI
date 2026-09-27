@@ -5,6 +5,7 @@ import '../../../core/config/app_config.dart';
 
 class VerifiedInvitationInfo {
   final String token;
+  final String contacto;
   final String rolDestino;
   final String centroSaludId;
   final String centroSaludNombre;
@@ -14,6 +15,7 @@ class VerifiedInvitationInfo {
 
   const VerifiedInvitationInfo({
     required this.token,
+    this.contacto = '',
     required this.rolDestino,
     required this.centroSaludId,
     required this.centroSaludNombre,
@@ -29,6 +31,7 @@ class VerifiedInvitationInfo {
 
     return VerifiedInvitationInfo(
       token: '${json['token'] ?? ''}',
+      contacto: '${json['contacto'] ?? ''}',
       rolDestino: '${json['rol_destino'] ?? ''}',
       centroSaludId: '${centro['id'] ?? ''}',
       centroSaludNombre: '${centro['nombre'] ?? 'Centro de Salud'}',

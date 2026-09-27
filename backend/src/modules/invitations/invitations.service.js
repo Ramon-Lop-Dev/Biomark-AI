@@ -4,6 +4,7 @@ const authRepo = require('../auth/auth.repository');
 const auditService = require('../audit/audit.service');
 const AppError = require('../../utils/AppError');
 const supabase = require('../../config/supabase');
+const { publicarEvento } = require('../../config/n8nClient');
 
 const generarCodigoInvitacion = () => {
   const randomBytes = crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -38,13 +39,38 @@ const inviteHealthWorker = async (adminId, { contacto, centro_salud_id, expira_d
     throw new AppError('No se pudo generar la invitación para el trabajador de salud', 500);
   }
 
+  // Auditoría Sanitaria SILAIS
   await auditService.registrar({
     usuarioId: adminId,
     tipoEntidad: 'invitaciones',
     idEntidad: invitacion.id,
     accion: 'INVITACION_TRABAJADOR_CREADA',
-    detalle: { contacto, centro_salud_id, centro_nombre: centro.nombre, rol: 'TRABAJADOR_SALUD' }
+    detalle: {
+      contacto,
+      centro_salud_id,
+      centro_nombre: centro.nombre,
+      rol: 'TRABAJADOR_SALUD',
+      descripcion: `Acreditación emitida por Administrador SILAIS para ${contacto} en ${centro.nombre}`
+    }
   });
+
+  // Entrega automática n8n / SMS
+  try {
+    await publicarEvento('acreditacion_sanitaria.creada', {
+      token,
+      contacto,
+      rol_destino: 'TRABAJADOR_SALUD',
+      centro_salud_id,
+      centro_nombre: centro.nombre,
+      municipio: centro.municipio,
+      expira_en,
+      emitido_por: adminId,
+      tipo_acreditacion: 'PERSONAL_MEDICO_SILAIS',
+      url_registro: `biomark://registro?codigo=${token}`
+    });
+  } catch (err) {
+    console.error('[Invitations] No se pudo despachar evento n8n para trabajador de salud:', err.message);
+  }
 
   return invitacion;
 };
@@ -81,13 +107,37 @@ const invitePromoter = async (workerId, workerCentroSaludId, { contacto, centro_
     throw new AppError('No se pudo generar la invitación para el promotor', 500);
   }
 
+  // Auditoría Sanitaria SILAIS
   await auditService.registrar({
     usuarioId: workerId,
     tipoEntidad: 'invitaciones',
     idEntidad: invitacion.id,
     accion: 'INVITACION_PROMOTOR_CREADA',
-    detalle: { contacto, centro_salud_id: centroId, centro_nombre: centro.nombre, rol: 'PROMOTOR' }
+    detalle: {
+      contacto,
+      centro_salud_id: centroId,
+      centro_nombre: centro.nombre,
+      rol: 'PROMOTOR',
+      descripcion: `Acreditación emitida para promotor comunitario ${contacto} en ${centro.nombre}`
+    }
   });
+
+  // Entrega automática n8n / SMS
+  try {
+    await publicarEvento('acreditacion_sanitaria.creada', {
+      token,
+      contacto,
+      rol_destino: 'PROMOTOR',
+      centro_salud_id: centroId,
+      centro_nombre: centro.nombre,
+      expira_en,
+      emitido_por: workerId,
+      tipo_acreditacion: 'BRIGADISTA_COMUNITARIO_MINSA',
+      url_registro: `biomark://registro?codigo=${token}`
+    });
+  } catch (err) {
+    console.error('[Invitations] No se pudo despachar evento n8n para promotor:', err.message);
+  }
 
   return invitacion;
 };
@@ -126,6 +176,17 @@ const acceptInvitation = async ({ token, email, password, full_name }) => {
   const verificacion = await verifyInvitation(token);
   const tokenLimpio = token.trim().toUpperCase();
 
+  // 0. Seguridad de rol MINSA: Evitar suplantación de identidad
+  const contactoDestino = (verificacion.contacto || '').trim().toLowerCase();
+  const emailIngresado = (email || '').trim().toLowerCase();
+
+  if (contactoDestino.includes('@') && contactoDestino !== emailIngresado) {
+    throw new AppError(
+      `Seguridad de rol: Este código de activación fue emitido exclusivamente para "${verificacion.contacto}". No se puede canjear con un correo diferente ("${email}").`,
+      403
+    );
+  }
+
   // 1. Verificar si ya existe en Supabase Auth o crearlo
   let authUserId = null;
   let session = null;
@@ -159,6 +220,16 @@ const acceptInvitation = async ({ token, email, password, full_name }) => {
     await authRepo.createPerfil(usuario.id, full_name);
   }
 
+  // Si el contacto fue un teléfono, asociarlo al perfil del usuario
+  if (!contactoDestino.includes('@') && contactoDestino.length >= 7) {
+    try {
+      await supabase
+        .from('perfiles')
+        .update({ telefono: verificacion.contacto })
+        .eq('usuario_id', usuario.id);
+    } catch (_) {}
+  }
+
   // 3. Asignar rol y centro de salud de forma atómica e irreversible
   const { data: inv } = await invitationsRepo.buscarInvitacionPorToken(tokenLimpio);
 
@@ -176,18 +247,37 @@ const acceptInvitation = async ({ token, email, password, full_name }) => {
   // 4. Marcar invitación como utilizada
   await invitationsRepo.marcarInvitacionUsada(inv.id, usuario.id);
 
-  // 5. Auditoría
+  // 5. Auditoría Sanitaria SILAIS
   await auditService.registrar({
     usuarioId: usuario.id,
     tipoEntidad: 'invitaciones',
     idEntidad: inv.id,
     accion: 'INVITACION_CANJEADA',
     detalle: {
+      contacto: inv.contacto,
+      email_usuario: email,
       rol_asignado: inv.rol_destino,
       centro_salud_id: inv.centro_salud_id,
-      invitado_por: inv.creado_por
+      centro_nombre: inv.centros_salud?.nombre,
+      invitado_por: inv.creado_por,
+      descripcion: `El usuario ${email} canjeó exitosamente la acreditación emitida para ${inv.contacto} en ${inv.centros_salud?.nombre || inv.centro_salud_id}`
     }
   });
+
+  // Notificación automática a n8n
+  try {
+    await publicarEvento('acreditacion_sanitaria.canjeada', {
+      token: tokenLimpio,
+      usuario_id: usuario.id,
+      email,
+      nombre_completo: full_name,
+      rol_asignado: inv.rol_destino,
+      centro_salud_id: inv.centro_salud_id,
+      centro_nombre: inv.centros_salud?.nombre
+    });
+  } catch (err) {
+    console.error('[Invitations] No se pudo publicar canje en n8n:', err.message);
+  }
 
   return {
     mensaje: `Bienvenido a la Red de Salud. Tu cuenta ha sido activada con rol ${inv.rol_destino}.`,
