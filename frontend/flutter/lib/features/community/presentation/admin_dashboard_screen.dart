@@ -183,13 +183,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     if (result != null) {
       _load();
-      if (result is String && result.isNotEmpty) {
+      if (result is Map<String, dynamic>) {
+        final token = result['token'] as String? ?? '';
+        final contacto = result['contacto'] as String? ?? '';
+        if (token.isNotEmpty) {
+          _showGeneratedTokenDialog(token, contacto: contacto);
+        }
+      } else if (result is String && result.isNotEmpty) {
         _showGeneratedTokenDialog(result);
       }
     }
   }
 
-  void _showGeneratedTokenDialog(String token) {
+  void _showGeneratedTokenDialog(String token, {String contacto = ''}) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -208,6 +214,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
               'Comparte este código seguro de 8 caracteres con el profesional o promotor para activar su credencial institucional:',
@@ -221,16 +228,49 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.35)),
               ),
-              child: SelectableText(
-                token,
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 3.0,
-                  color: BiomarkColors.blue,
+              child: Center(
+                child: SelectableText(
+                  token,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 3.0,
+                    color: BiomarkColors.blue,
+                  ),
                 ),
               ),
             ),
+            if (contacto.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: BiomarkColors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: BiomarkColors.green.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      contacto.contains('@') ? Icons.mark_email_read_rounded : Icons.phone_android_rounded,
+                      size: 16,
+                      color: BiomarkColors.green,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Acreditación vinculada a: $contacto\n(Despacho n8n / SMS activo · Auditoría SILAIS)',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: BiomarkColors.green,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             const Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1060,7 +1100,11 @@ class _AccreditationDialogState extends State<_AccreditationDialog> {
       if (!mounted) return;
       final invMap = res['invitacion'] is Map<String, dynamic> ? res['invitacion'] as Map<String, dynamic> : null;
       final token = (invMap?['token'] ?? res['token'] ?? '') as String;
-      Navigator.pop(context, token.isNotEmpty ? token : true);
+      Navigator.pop(context, {
+        'token': token,
+        'contacto': _contactCtrl.text.trim(),
+        'rol': _selectedRole,
+      });
     } catch (err) {
       if (!mounted) return;
       setState(() => _generating = false);

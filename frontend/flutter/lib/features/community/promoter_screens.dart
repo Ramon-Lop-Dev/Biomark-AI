@@ -838,12 +838,13 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
                           if (!formKey.currentState!.validate()) return;
                           setDialogState(() => generating = true);
                           try {
+                            final contacto = contactCtrl.text.trim();
                             final res = await _invitationsApi.createPromoterInvitation(
-                              contacto: contactCtrl.text.trim(),
+                              contacto: contacto,
                             );
                             if (!ctx.mounted) return;
                             Navigator.pop(ctx, true);
-                            _showTokenDialog(res['token'] as String? ?? '');
+                            _showTokenDialog(res['token'] as String? ?? '', contacto: contacto);
                           } catch (err) {
                             if (!ctx.mounted || !mounted) return;
                             setDialogState(() => generating = false);
@@ -864,7 +865,7 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
     }
   }
 
-  void _showTokenDialog(String token) {
+  void _showTokenDialog(String token, {String contacto = ''}) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -877,6 +878,7 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
               'Comparte este código seguro de un solo uso con el promotor para que active su cuenta institucional:',
@@ -890,18 +892,53 @@ class _MyPromotersScreenState extends State<MyPromotersScreen> {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.3)),
               ),
-              child: SelectableText(
-                token,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2.0,
-                  color: BiomarkColors.blue,
+              child: Center(
+                child: SelectableText(
+                  token,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 2.0,
+                    color: BiomarkColors.blue,
+                  ),
                 ),
               ),
             ),
+            if (contacto.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: BiomarkColors.green.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: BiomarkColors.green.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      contacto.contains('@') ? Icons.mark_email_read_rounded : Icons.phone_android_rounded,
+                      size: 16,
+                      color: BiomarkColors.green,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Acreditación vinculada a: $contacto\n(Despacho n8n / SMS activo · Auditoría SILAIS)',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: BiomarkColors.green,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
-            const Text('Válido por 7 días · Un solo uso', style: TextStyle(fontSize: 11.5, color: Colors.grey)),
+            const Center(
+              child: Text('Válido por 7 días · Un solo uso', style: TextStyle(fontSize: 11.5, color: Colors.grey)),
+            ),
           ],
         ),
         actions: [
