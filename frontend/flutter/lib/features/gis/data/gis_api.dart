@@ -108,6 +108,22 @@ class GisApi {
     return result;
   }
 
+  Future<List<HealthCenter>> fetchAllCenters() async {
+    final response = await _client.get(
+      Uri.parse('${_apiUrl.replaceFirst(RegExp(r'/$'), '')}/api/gis'),
+      headers: _headers,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw GisApiException(
+        'No se pudieron cargar los centros de salud.',
+        statusCode: response.statusCode,
+      );
+    }
+    final body = jsonDecode(response.body);
+    if (body is! List) throw const GisApiException('Respuesta GIS inválida.');
+    return body.whereType<Map<String, dynamic>>().map(HealthCenter.fromJson).toList();
+  }
+
   Future<HealthCenter> fetchCenterDetails(String id, {bool forceRefresh = false}) async {
     if (!forceRefresh) {
       final cached = _centerDetailsCache[id];

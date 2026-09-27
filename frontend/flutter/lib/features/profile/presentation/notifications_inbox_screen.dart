@@ -150,6 +150,85 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
     return '${dt.day}/${dt.month}/${dt.year}';
   }
 
+  Widget _buildStatusBadge(AppNotification item) {
+    final status = (item.extraData['estado_recordatorio'] as String?)?.toUpperCase();
+    if (item.type == 'RECORDATORIO' || status != null) {
+      final isCompleted = status == 'COMPLETADO' || item.message.contains('Completado');
+      final isCanceled = status == 'CANCELADO' || item.message.contains('Cancelado');
+
+      final Color badgeBg;
+      final Color badgeTextColor;
+      final IconData badgeIcon;
+      final String badgeText;
+
+      if (isCompleted) {
+        badgeBg = const Color(0xFF10B981).withValues(alpha: 0.15);
+        badgeTextColor = const Color(0xFF059669);
+        badgeIcon = Icons.check_circle_rounded;
+        badgeText = 'Completado';
+      } else if (isCanceled) {
+        badgeBg = Colors.grey.withValues(alpha: 0.15);
+        badgeTextColor = Colors.grey.shade600;
+        badgeIcon = Icons.cancel_outlined;
+        badgeText = 'Archivado / Cancelado';
+      } else {
+        badgeBg = const Color(0xFF00897B).withValues(alpha: 0.15);
+        badgeTextColor = const Color(0xFF00796B);
+        badgeIcon = Icons.alarm_rounded;
+        badgeText = 'Pendiente';
+      }
+
+      return Container(
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: badgeBg,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(badgeIcon, size: 12, color: badgeTextColor),
+            const SizedBox(width: 4),
+            Text(
+              badgeText,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                color: badgeTextColor,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (item.type == 'ALERTA_EPIDEMIOLOGICA') {
+      return Container(
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE53935).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.shield_outlined, size: 12, color: Color(0xFFE53935)),
+            SizedBox(width: 4),
+            Text(
+              'Aviso MINSA Oficial',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFFE53935),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -347,6 +426,7 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
                                                         : (item.isRead ? Colors.black87 : Colors.black),
                                                   ),
                                                 ),
+                                                _buildStatusBadge(item),
                                               ],
                                             ),
                                           ),

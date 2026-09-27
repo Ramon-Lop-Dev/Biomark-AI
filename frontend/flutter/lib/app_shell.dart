@@ -15,6 +15,7 @@ import 'features/progress/data/progress_api.dart';
 import 'features/reminders/presentation/reminders_screen.dart';
 import 'features/reminders/data/reminders_service.dart';
 import 'features/community/promoter_screens.dart';
+import 'features/community/presentation/admin_dashboard_screen.dart';
 
 /// Transición personalizada para navegación entre pantallas
 class _FadeSlidePageRoute<T> extends MaterialPageRoute<T> {
@@ -65,14 +66,16 @@ class _AppShellState extends State<AppShell> {
     bool focusEvents = false,
     String? highlightTitle,
   }) {
-    final isPromoter = AuthSession.instance.isPromoter;
+    final isStaff = AuthSession.instance.isAdmin ||
+        AuthSession.instance.isPromoter ||
+        AuthSession.instance.isHealthWorker;
     setState(() {
       _gisTargetLocation = location;
       _gisFocusRisk = focusRisk;
       _gisFocusEvents = focusEvents;
       _gisHighlightTitle = highlightTitle;
       _gisKeyCounter++;
-      _navIndex = isPromoter ? 1 : 2;
+      _navIndex = isStaff ? 1 : 2;
     });
   }
 
@@ -99,6 +102,20 @@ class _AppShellState extends State<AppShell> {
   ];
   final _promoterNavIcons = const [
     Icons.dashboard_rounded,
+    Icons.location_on_rounded,
+    Icons.event_available_rounded,
+    Icons.fact_check_rounded,
+    Icons.person_outline_rounded,
+  ];
+  final _adminNavLabels = const [
+    'Panel Admin',
+    'Mapa Global',
+    'Jornadas',
+    'Reportes',
+    'Perfil',
+  ];
+  final _adminNavIcons = const [
+    Icons.admin_panel_settings_rounded,
     Icons.location_on_rounded,
     Icons.event_available_rounded,
     Icons.fact_check_rounded,
@@ -133,7 +150,10 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final promoter = AuthSession.instance.isPromoter || AuthSession.instance.isHealthWorker;
+    final isAdmin = AuthSession.instance.isAdmin;
+    final isFieldStaff =
+        AuthSession.instance.isPromoter || AuthSession.instance.isHealthWorker;
+    final isStaff = isAdmin || isFieldStaff;
 
     final mapWidget = GisMapScreen(
       key: ValueKey('gis_map_$_gisKeyCounter'),
@@ -143,28 +163,40 @@ class _AppShellState extends State<AppShell> {
       highlightTitle: _gisHighlightTitle,
     );
 
-    final pages = promoter
-        ? <Widget>[
-            PromoterDashboardScreen(
-              onOpenMap: () => _navigateToMap(),
-            ),
-            mapWidget,
-            const PromoterEventsScreen(),
-            const PromoterReportsScreen(),
-          ]
-        : <Widget>[
-            HomeScreen(
-              onOpenMap: () => _navigateToMap(),
-              onOpenMapWithOptions: _navigateToMap,
-              onNavigateToTab: (index) => setState(() => _navIndex = index),
-            ),
-            ProgressScreen(refreshSignal: _progressRefresh),
-            mapWidget,
-            RemindersScreen(
-              refreshSignal: _remindersRefresh,
-              onOpenMap: () => _navigateToMap(),
-            ),
-          ];
+    final List<Widget> pages;
+    if (isAdmin) {
+      pages = <Widget>[
+        AdminDashboardScreen(
+          onOpenMap: () => _navigateToMap(),
+        ),
+        mapWidget,
+        const PromoterEventsScreen(),
+        const PromoterReportsScreen(),
+      ];
+    } else if (isFieldStaff) {
+      pages = <Widget>[
+        PromoterDashboardScreen(
+          onOpenMap: () => _navigateToMap(),
+        ),
+        mapWidget,
+        const PromoterEventsScreen(),
+        const PromoterReportsScreen(),
+      ];
+    } else {
+      pages = <Widget>[
+        HomeScreen(
+          onOpenMap: () => _navigateToMap(),
+          onOpenMapWithOptions: _navigateToMap,
+          onNavigateToTab: (index) => setState(() => _navIndex = index),
+        ),
+        ProgressScreen(refreshSignal: _progressRefresh),
+        mapWidget,
+        RemindersScreen(
+          refreshSignal: _remindersRefresh,
+          onOpenMap: () => _navigateToMap(),
+        ),
+      ];
+    }
     pages.add(
       const _PlaceholderBody(
         title: 'Perfil',
@@ -198,9 +230,9 @@ class _AppShellState extends State<AppShell> {
         ),
       ),
       bottomNavigationBar: _buildBottomNav(),
-      floatingActionButton: !promoter && _navIndex == 3
+      floatingActionButton: !isStaff && _navIndex == 3
           ? _buildAddReminderFAB()
-          : !promoter && _navIndex == 1
+          : !isStaff && _navIndex == 1
           ? _buildAddEvolutionFAB()
           : null,
     );
@@ -419,9 +451,15 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _navItem(int index) {
-    final promoter = AuthSession.instance.isPromoter;
-    final labels = promoter ? _promoterNavLabels : _userNavLabels;
-    final icons = promoter ? _promoterNavIcons : _userNavIcons;
+    final isAdmin = AuthSession.instance.isAdmin;
+    final isFieldStaff =
+        AuthSession.instance.isPromoter || AuthSession.instance.isHealthWorker;
+    final labels = isAdmin
+        ? _adminNavLabels
+        : (isFieldStaff ? _promoterNavLabels : _userNavLabels);
+    final icons = isAdmin
+        ? _adminNavIcons
+        : (isFieldStaff ? _promoterNavIcons : _userNavIcons);
     final selected = _navIndex == index;
     return Semantics(
       label: '${labels[index]}, pestaña ${index + 1} de ${labels.length}',

@@ -13,7 +13,8 @@ const supabase = require('../../config/supabase');
  * cliente JS, así que el rollback se hace a mano aquí.
  */
 const aprovisionarUsuario = async (authId, correo, nombreCompleto) => {
-  const { data: usuario, error: usuarioError } = await authRepo.createUsuario(authId, correo);
+  const correoNormalizado = correo.toLowerCase().trim();
+  const { data: usuario, error: usuarioError } = await authRepo.createUsuario(authId, correoNormalizado);
 
   if (usuarioError) {
     if (usuarioError.code === '23505') { // unique_violation
@@ -22,7 +23,7 @@ const aprovisionarUsuario = async (authId, correo, nombreCompleto) => {
     throw new AppError('No se pudo crear el registro en usuarios', 500);
   }
 
-  const { error: perfilError } = await authRepo.createPerfil(usuario.id, nombreCompleto || correo);
+  const { error: perfilError } = await authRepo.createPerfil(usuario.id, nombreCompleto || correoNormalizado);
 
   if (perfilError) {
     await authRepo.eliminarUsuario(usuario.id);
@@ -33,14 +34,22 @@ const aprovisionarUsuario = async (authId, correo, nombreCompleto) => {
 };
 
 const registerUser = async (email, password, fullName, tipoCuenta = 'PERSONAL') => {
-  const { data, error } = await authRepo.signUpWithPassword(email, password, fullName);
+  const correoNormalizado = email.toLowerCase().trim();
+
+  // Prevenir duplicados antes de crear usuario en Supabase Auth
+  const { data: usuarioExistente } = await authRepo.findUsuarioByEmail(correoNormalizado);
+  if (usuarioExistente) {
+    throw new AppError('Ya existe una cuenta registrada con este correo electrónico. Por favor inicia sesión con tu contraseña o con Google.', 409);
+  }
+
+  const { data, error } = await authRepo.signUpWithPassword(correoNormalizado, password, fullName);
 
   if (error) {
     const status = error.message?.toLowerCase().includes('already registered') ? 409 : 400;
     throw new AppError(error.message, status);
   }
 
-  const usuario = await aprovisionarUsuario(data.user.id, email, fullName);
+  const usuario = await aprovisionarUsuario(data.user.id, correoNormalizado, fullName);
 
   if (tipoCuenta === 'PROMOTOR') {
     const { error: roleRequestError } = await authRepo.createRoleRequest(usuario.id, 'PROMOTOR');
@@ -56,43 +65,47 @@ const registerUser = async (email, password, fullName, tipoCuenta = 'PERSONAL') 
     accion: 'REGISTRO_EMAIL'
   });
 
-    return {
-      user_id: usuario.id,
-      token: data.session?.access_token || null,
-      refresh_token: data.session?.refresh_token || null,
-      expires_in: data.session?.expires_in || null,
-      email: email,
-      nombre_completo: fullName || email.split('@')[0]
-    };
+  return {
+    user_id: usuario.id,
+    token: data.session?.access_token || null,
+    refresh_token: data.session?.refresh_token || null,
+    expires_in: data.session?.expires_in || null,
+    email: correoNormalizado,
+    nombre_completo: fullName || correoNormalizado.split('@')[0],
+    rol: usuario.rol,
+    centro_salud_id: usuario.centro_salud_id || null
   };
+};
 
-  const loginUser = async (email, password) => {
-    const { data, error } = await authRepo.signInWithPassword(email, password);
+const loginUser = async (email, password) => {
+  const correoNormalizado = email.toLowerCase().trim();
+  const { data, error } = await authRepo.signInWithPassword(correoNormalizado, password);
 
-    if (error) {
-      throw new AppError('Credenciales inválidas', 401);
-    }
+  if (error) {
+    throw new AppError('Credenciales inválidas', 401);
+  }
 
-    const { data: usuario, error: usuarioError } = await authRepo.findUsuarioByAuthId(data.user.id);
-    if (usuarioError || !usuario) throw new AppError('No se pudo cargar el perfil de la cuenta', 500);
+  const { data: usuario, error: usuarioError } = await authRepo.findUsuarioByAuthId(data.user.id);
+  if (usuarioError || !usuario) throw new AppError('No se pudo cargar el perfil de la cuenta', 500);
 
-    const { data: perfil } = await supabase
-      .from('perfiles')
-      .select('nombre_completo')
-      .eq('usuario_id', usuario.id)
-      .maybeSingle();
+  const { data: perfil } = await supabase
+    .from('perfiles')
+    .select('nombre_completo')
+    .eq('usuario_id', usuario.id)
+    .maybeSingle();
 
-    const nombreCompleto = perfil?.nombre_completo || data.user?.user_metadata?.full_name || email.split('@')[0];
+  const nombreCompleto = perfil?.nombre_completo || data.user?.user_metadata?.full_name || correoNormalizado.split('@')[0];
 
-    return {
-      token: data.session.access_token,
-      refresh_token: data.session.refresh_token,
-      expires_in: data.session.expires_in || 3600,
-      rol: usuario.rol,
-      email: usuario.correo,
-      nombre_completo: nombreCompleto
-    };
+  return {
+    token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+    expires_in: data.session.expires_in || 3600,
+    rol: usuario.rol,
+    email: usuario.correo,
+    nombre_completo: nombreCompleto,
+    centro_salud_id: usuario.centro_salud_id || null
   };
+};
 
 /**
  * Login (o registro implícito, si es la primera vez) con Google.
@@ -100,9 +113,8 @@ const registerUser = async (email, password, fullName, tipoCuenta = 'PERSONAL') 
  * manda aquí. Supabase valida ese token contra Google y devuelve una
  * sesión igual que con email/password.
  *
- * Como con Google no hay un paso de "registro" separado, si es la
- * primera vez que este auth_id inicia sesión, se aprovisiona
- * usuarios+perfiles aquí mismo (equivalente a un registro automático).
+ * Si ya existía una cuenta con ese correo (creada con email/password), se
+ * vincula el auth_id para mantener su mismo rol, centro de salud e historial.
  */
 const loginWithGoogle = async (idToken, accessToken, fullNameFallback) => {
   const { data, error } = await authRepo.signInWithGoogleIdToken(idToken, accessToken);
@@ -118,20 +130,34 @@ const loginWithGoogle = async (idToken, accessToken, fullNameFallback) => {
     throw new AppError('La cuenta de Google no tiene un correo verificado disponible', 400);
   }
 
-  const { data: usuarioExistente, error: buscarError } = await authRepo.findUsuarioByAuthId(authUser.id);
+  const correoNormalizado = correo.toLowerCase().trim();
+
+  // 1. Buscar primero por auth_id devuelto por Supabase Auth
+  const { data: usuarioPorAuthId, error: buscarError } = await authRepo.findUsuarioByAuthId(authUser.id);
 
   if (buscarError) {
     throw new AppError('Error al verificar el usuario en el sistema', 500);
   }
 
-  let usuario = usuarioExistente;
+  let usuario = usuarioPorAuthId;
   let esNuevo = false;
 
+  // 2. Si no se encontró por auth_id, buscar si ya existe una cuenta con este correo
   if (!usuario) {
-    const nombreCompleto = authUser.user_metadata?.full_name || fullNameFallback || correo;
-    usuario = await aprovisionarUsuario(authUser.id, correo, nombreCompleto);
-    esNuevo = true;
-  } else if (!usuario.activo) {
+    const { data: usuarioPorEmail } = await authRepo.findUsuarioByEmail(correoNormalizado);
+    if (usuarioPorEmail) {
+      // Vinculación segura de cuenta: actualiza auth_id preservando rol y datos sanitarios
+      const { data: usuarioVinculado, error: vincularError } = await authRepo.actualizarAuthId(usuarioPorEmail.id, authUser.id);
+      usuario = (!vincularError && usuarioVinculado) ? usuarioVinculado : { ...usuarioPorEmail, auth_id: authUser.id };
+    } else {
+      // 3. Si realmente es un usuario nuevo en el sistema, aprovisionar cuenta
+      const nombreCompleto = authUser.user_metadata?.full_name || fullNameFallback || correoNormalizado;
+      usuario = await aprovisionarUsuario(authUser.id, correoNormalizado, nombreCompleto);
+      esNuevo = true;
+    }
+  }
+
+  if (!usuario.activo) {
     throw new AppError('Esta cuenta ha sido desactivada', 403);
   }
 
@@ -157,7 +183,8 @@ const loginWithGoogle = async (idToken, accessToken, fullNameFallback) => {
     is_new_user: esNuevo,
     rol: usuario.rol,
     email: usuario.correo,
-    nombre_completo: nombreFinal
+    nombre_completo: nombreFinal,
+    centro_salud_id: usuario.centro_salud_id || null
   };
 };
 

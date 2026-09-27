@@ -61,6 +61,12 @@ const deleteAuthUser = (authUserId) => supabase.auth.admin.deleteUser(authUserId
 const findUsuarioByAuthId = (authId) =>
   supabase.from('usuarios').select('*').eq('auth_id', authId).maybeSingle();
 
+const findUsuarioByEmail = (correo) =>
+  supabase.from('usuarios').select('*').ilike('correo', correo.trim()).maybeSingle();
+
+const actualizarAuthId = (usuarioId, authId) =>
+  supabase.from('usuarios').update({ auth_id: authId, fecha_actualizacion: new Date().toISOString() }).eq('id', usuarioId).select().single();
+
 const createUsuario = (authId, correo) =>
   supabase.from('usuarios').insert({ auth_id: authId, correo }).select().single();
 
@@ -106,6 +112,8 @@ module.exports = {
   updateUserPasswordById,
   deleteAuthUser,
   findUsuarioByAuthId,
+  findUsuarioByEmail,
+  actualizarAuthId,
   createUsuario,
   createPerfil,
   createRoleRequest,

@@ -162,7 +162,9 @@ const listarRecomendaciones = async ({ categoria, estado = 'PUBLICADO' } = {}) =
 
     const { data, error } = await query;
     if (!error && Array.isArray(data) && data.length > 0) {
-      return { data, error: null };
+      const categoriasExistentes = new Set(data.map((r) => r.categoria));
+      const faltantes = SEMILLAS_OFICIALES.filter((s) => !categoriasExistentes.has(s.categoria));
+      return { data: [...data, ...faltantes], error: null };
     }
     // Si la tabla no existe en la base o está vacía, retornar fallback
     let filtradas = fallbackStore;

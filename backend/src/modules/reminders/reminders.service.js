@@ -57,6 +57,17 @@ const addReminder = async (usuarioId, payload) => {
     }
   });
 
+  try {
+    const notificationsService = require('../notifications/notifications.service');
+    await notificationsService.notificar({
+      usuarioId,
+      tipo: 'RECORDATORIO',
+      titulo: `Recordatorio programado: ${registro.titulo}`,
+      mensaje: `${registro.descripcion || 'Dosis o cita de salud'}. Fecha: ${registro.fecha_programada}`,
+      datosAdicionales: { reminder_id: registro.id, estado: registro.estado, tipo: registro.tipo }
+    });
+  } catch (_) {}
+
   return registro;
 };
 
@@ -162,6 +173,18 @@ const updateReminderStatus = async (usuarioId, recordatorioId, estado) => {
     accion: 'ACTUALIZACION_ESTADO',
     detalle: { estado_nuevo: estado }
   });
+
+  try {
+    const notificationsService = require('../notifications/notifications.service');
+    const label = estado === 'COMPLETADO' ? 'completado' : estado === 'CANCELADO' ? 'cancelado/archivado' : estado.toLowerCase();
+    await notificationsService.notificar({
+      usuarioId,
+      tipo: 'RECORDATORIO',
+      titulo: `Recordatorio ${label}: ${data.titulo}`,
+      mensaje: `${data.descripcion || 'Dosis o cita médica'}. Estado: ${estado}`,
+      datosAdicionales: { reminder_id: data.id, estado, tipo: data.tipo }
+    });
+  } catch (_) {}
 
   return data;
 };
