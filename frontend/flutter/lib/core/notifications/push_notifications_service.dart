@@ -97,6 +97,21 @@ class PushNotificationsService {
           android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         );
         await _localNotifications.initialize(initializationSettings);
+
+        final androidPlugin = _localNotifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+        await androidPlugin?.createNotificationChannel(
+          const AndroidNotificationChannel(
+            'biomark_notifications',
+            'Notificaciones de Biomark AI',
+            description:
+                'Recordatorios, jornadas de salud y alertas epidemiológicas de Biomark AI',
+            importance: Importance.high,
+            playSound: true,
+            enableVibration: true,
+          ),
+        );
       }
 
       final preferences = await SharedPreferences.getInstance();
@@ -201,11 +216,16 @@ class PushNotificationsService {
         android: AndroidNotificationDetails(
           'biomark_notifications',
           'Notificaciones de Biomark AI',
-          channelDescription: 'Recordatorios y alertas de Biomark AI',
+          channelDescription:
+              'Recordatorios, jornadas de salud y alertas epidemiológicas de Biomark AI',
           importance: Importance.high,
           priority: Priority.high,
+          playSound: true,
+          enableVibration: true,
+          icon: '@mipmap/ic_launcher',
         ),
       ),
+      payload: message.data['tipo']?.toString(),
     );
   }
 

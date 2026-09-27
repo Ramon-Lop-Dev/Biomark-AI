@@ -78,12 +78,12 @@ const createEvent = async (usuarioId, payload) => {
     detalle: { titulo: evento.titulo }
   });
 
-  // Publica el evento hacia n8n para notificar por push la nueva
-  // jornada comunitaria a los dispositivos activos.
+  // Emite notificación push y registra la nueva jornada comunitaria
   try {
-    await publicarEvento('evento_comunitario.creado', { evento_comunitario: evento });
+    const notificationsService = require('../notifications/notifications.service');
+    await notificationsService.notificarJornadaSalud(evento);
   } catch (error) {
-    console.error('[Community] No se pudo publicar el evento en n8n:', error.message);
+    console.error('[Community] No se pudo notificar la jornada comunitaria:', error.message);
   }
 
   return evento;
@@ -214,12 +214,13 @@ const updateReportStatus = async (usuarioValidadorId, reporteId, estado, scopeCe
     detalle: { estado_nuevo: estado }
   });
 
-  // Publicar evento hacia n8n para difusión de alerta epidemiológica comunitaria a los usuarios
+  // Notificar a la población sobre alerta comunitaria y difusión en n8n
   if (estado === 'VALIDADO') {
     try {
-      await publicarEvento('reporte_comunitario.validado', { reporte: data });
+      const notificationsService = require('../notifications/notifications.service');
+      await notificationsService.notificarAlertaReporte(data);
     } catch (n8nError) {
-      console.error('[Community] No se pudo publicar reporte validado en n8n:', n8nError.message);
+      console.error('[Community] No se pudo notificar el reporte validado:', n8nError.message);
     }
   }
 

@@ -116,8 +116,11 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
     return _notifications;
   }
 
-  Color _typeColor(String type) {
-    switch (type) {
+  Color _typeColor(AppNotification item) {
+    if (item.extraData['subtipo'] == 'JORNADA' || item.title.startsWith('Jornada')) {
+      return BiomarkColors.blue;
+    }
+    switch (item.type) {
       case 'ALERTA_EPIDEMIOLOGICA':
         return const Color(0xFFE53935);
       case 'RECORDATORIO':
@@ -128,10 +131,15 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
     }
   }
 
-  IconData _typeIcon(String type) {
-    switch (type) {
+  IconData _typeIcon(AppNotification item) {
+    if (item.extraData['subtipo'] == 'JORNADA' || item.title.startsWith('Jornada')) {
+      return Icons.campaign_rounded;
+    }
+    switch (item.type) {
       case 'ALERTA_EPIDEMIOLOGICA':
-        return Icons.warning_amber_rounded;
+        return item.title.contains('Brote')
+            ? Icons.coronavirus_outlined
+            : Icons.warning_amber_rounded;
       case 'RECORDATORIO':
         return Icons.alarm_on_rounded;
       case 'SISTEMA':
@@ -205,28 +213,59 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
           ],
         ),
       );
-    } else if (item.type == 'ALERTA_EPIDEMIOLOGICA') {
+    } else if (item.extraData['subtipo'] == 'JORNADA' || item.title.startsWith('Jornada')) {
       return Container(
         margin: const EdgeInsets.only(top: 6),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
-          color: const Color(0xFFE53935).withValues(alpha: 0.12),
+          color: BiomarkColors.blue.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Row(
+        child: const Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Icon(Icons.shield_outlined, size: 12, color: Color(0xFFE53935)),
+          children: [
+            Icon(Icons.event_available_rounded, size: 12, color: BiomarkColors.blue),
             SizedBox(width: 4),
             Flexible(
               child: Text(
-                'Aviso MINSA Oficial',
+                'Jornada Comunitaria',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFFE53935),
+                  color: BiomarkColors.blue,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (item.type == 'ALERTA_EPIDEMIOLOGICA') {
+      final esBrote = item.title.contains('Brote');
+      final badgeColor = esBrote ? const Color(0xFFD32F2F) : const Color(0xFFE53935);
+      final badgeLabel = esBrote ? 'Brote en Terreno' : 'Aviso MINSA Oficial';
+      return Container(
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: badgeColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(esBrote ? Icons.warning_amber_rounded : Icons.shield_outlined, size: 12, color: badgeColor),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                badgeLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: badgeColor,
                 ),
               ),
             ),
@@ -359,8 +398,8 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
                                 separatorBuilder: (_, _) => const SizedBox(height: 10),
                                 itemBuilder: (context, index) {
                                   final item = filtered[index];
-                                  final color = _typeColor(item.type);
-                                  final icon = _typeIcon(item.type);
+                                  final color = _typeColor(item);
+                                  final icon = _typeIcon(item);
 
                                   return InkWell(
                                     onTap: () => _markAsRead(item),

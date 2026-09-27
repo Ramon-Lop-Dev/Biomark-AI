@@ -245,23 +245,27 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final onSurface = theme.colorScheme.onSurface;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0D131A), // Fondo médico oscuro para contraste
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios_new, color: onSurface, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Sismocardiografía (SCG)',
           maxLines: 2,
           softWrap: true,
           style: TextStyle(
             fontFamily: 'Syne',
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: onSurface,
             fontSize: 18,
           ),
         ),
@@ -269,8 +273,8 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
           IconButton(
             tooltip: _isTtsMuted ? 'Activar voz' : 'Silenciar voz',
             icon: Icon(
-              _isTtsMuted ? Icons.volume_off : Icons.volume_up,
-              color: _isTtsMuted ? Colors.white38 : BiomarkColors.green,
+              _isTtsMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+              color: _isTtsMuted ? (isDark ? Colors.white38 : Colors.black38) : BiomarkColors.green,
             ),
             onPressed: () {
               setState(() {
@@ -296,6 +300,9 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
   }
 
   Widget _buildMeasuringView() {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -314,17 +321,17 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.35)),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.devices_other, color: BiomarkColors.blue, size: 22),
-                          SizedBox(width: 12),
+                          const Icon(Icons.devices_other, color: BiomarkColors.blue, size: 22),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               'La sismocardiografía torácica mide las micro-vibraciones cardíacas con el celular apoyado sobre tu pecho. Para registrar tu pulso en vivo, abre Biomark AI desde tu dispositivo móvil.',
                               style: TextStyle(
                                 fontFamily: 'Poppins',
                                 fontSize: 11.5,
-                                color: Colors.white,
+                                color: onSurface,
                                 height: 1.35,
                               ),
                             ),
@@ -402,6 +409,11 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
     required bool isSelected,
     required bool isLocked,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final unselectedIcon = isDark ? Colors.white60 : Colors.black54;
+    final unselectedTitle = isDark ? Colors.white70 : Colors.black87;
+    final unselectedSub = isDark ? Colors.white38 : Colors.black45;
+
     return GestureDetector(
       onTap: isLocked ? null : () => _onPostureChanged(posture),
       child: AnimatedContainer(
@@ -417,7 +429,7 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
             Icon(
               icon,
               size: 20,
-              color: isSelected ? Colors.white : Colors.white60,
+              color: isSelected ? Colors.white : unselectedIcon,
             ),
             const SizedBox(width: 8),
             Flexible(
@@ -432,7 +444,7 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                       fontFamily: 'Syne',
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
-                      color: isSelected ? Colors.white : Colors.white70,
+                      color: isSelected ? Colors.white : unselectedTitle,
                     ),
                   ),
                   Text(
@@ -442,7 +454,7 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                     style: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 10,
-                      color: isSelected ? Colors.white.withValues(alpha: 0.85) : Colors.white38,
+                      color: isSelected ? Colors.white.withValues(alpha: 0.85) : unselectedSub,
                     ),
                   ),
                 ],
@@ -455,7 +467,11 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
   }
 
   Widget _buildInstructionCard() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final onSurface = theme.colorScheme.onSurface;
     final isSupine = _selectedPosture == ScgPosture.supine;
+
     return BiomarkGlassSurface(
       borderRadius: BorderRadius.circular(16),
       borderColor: _isDisturbed ? const Color(0xFFFF9800) : null,
@@ -492,7 +508,7 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                     fontFamily: 'Syne',
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
-                    color: _isDisturbed ? const Color(0xFFFF9800) : Colors.white,
+                    color: _isDisturbed ? const Color(0xFFFF9800) : onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -502,10 +518,10 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                       : (isSupine
                           ? 'Coloca el teléfono plano sobre tu pecho (lado izquierdo). Suéltalo y no hables.'
                           : 'Apoya tu espalda y codos. Sostén el celular plano contra tu esternón sin presionar.'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 11,
-                    color: Colors.white70,
+                    color: isDark ? Colors.white70 : Colors.black87,
                     height: 1.3,
                   ),
                 ),
@@ -518,6 +534,9 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
   }
 
   Widget _buildCentralVisualizer() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final onSurface = theme.colorScheme.onSurface;
     final progress = _isMeasuring ? (1.0 - (_measurementSecondsRemaining / 18.0)) : 0.0;
 
     return Stack(
@@ -532,7 +551,7 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                 ? (3 - _prepSecondsRemaining) / 3.0
                 : (_isMeasuring ? progress : 0.0),
             strokeWidth: 8,
-            backgroundColor: Colors.white10,
+            backgroundColor: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.08),
             valueColor: AlwaysStoppedAnimation<Color>(
               _isPreparing ? const Color(0xFFFFB300) : BiomarkColors.green,
             ),
@@ -545,12 +564,15 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
           height: 190,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFF161F2A),
+            color: isDark ? const Color(0xFF161F2A) : theme.cardColor,
+            border: isDark ? null : Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
             boxShadow: [
               BoxShadow(
-                color: BiomarkColors.green.withValues(alpha: _isMeasuring ? 0.2 : 0.05),
-                blurRadius: 30,
-                spreadRadius: 5,
+                color: isDark
+                    ? BiomarkColors.green.withValues(alpha: _isMeasuring ? 0.2 : 0.05)
+                    : Colors.black.withValues(alpha: 0.08),
+                blurRadius: 26,
+                spreadRadius: 2,
               ),
             ],
           ),
@@ -561,7 +583,9 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                 scale: _heartScale,
                 child: Icon(
                   Icons.favorite,
-                  color: _isMeasuring ? const Color(0xFFFF3366) : Colors.white24,
+                  color: _isMeasuring
+                      ? const Color(0xFFFF3366)
+                      : (isDark ? Colors.white24 : Colors.black12),
                   size: 52,
                 ),
               ),
@@ -576,27 +600,27 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                     color: Color(0xFFFFB300),
                   ),
                 ),
-                const Text(
+                Text(
                   'Prepárate...',
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 12,
-                    color: Colors.white60,
+                    color: isDark ? Colors.white60 : Colors.black54,
                   ),
                 ),
               ] else if (_isMeasuring) ...[
                 Text(
                   _liveBpm != null ? '$_liveBpm' : '--',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Syne',
                     fontSize: 40,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: onSurface,
                   ),
                 ),
-                Text(
-                  'BPM · ${_measurementSecondsRemaining}s restantes',
-                  style: const TextStyle(
+                const Text(
+                  'BPM · 18s restantes',
+                  style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 11,
                     color: BiomarkColors.green,
@@ -604,21 +628,21 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                   ),
                 ),
               ] else ...[
-                const Text(
+                Text(
                   'Listo',
                   style: TextStyle(
                     fontFamily: 'Syne',
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: onSurface,
                   ),
                 ),
-                const Text(
+                Text(
                   'Presiona Iniciar',
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 12,
-                    color: Colors.white54,
+                    color: isDark ? Colors.white54 : Colors.black45,
                   ),
                 ),
               ],
@@ -630,6 +654,8 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
   }
 
   Widget _buildOscilloscopeCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return BiomarkGlassSurface(
       borderRadius: BorderRadius.circular(16),
       blurSigma: 10,
@@ -644,9 +670,9 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
               children: [
                 Expanded(
                   child: Row(
-                    children: const [
-                      Icon(Icons.show_chart, color: BiomarkColors.green, size: 16),
-                      SizedBox(width: 6),
+                    children: [
+                      const Icon(Icons.show_chart, color: BiomarkColors.green, size: 16),
+                      const SizedBox(width: 6),
                       Flexible(
                         child: Text(
                           'Micro-aceleraciones torácicas (SCG)',
@@ -655,7 +681,7 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                           style: TextStyle(
                             fontFamily: 'Poppins',
                             fontSize: 11,
-                            color: Colors.white70,
+                            color: isDark ? Colors.white70 : Colors.black87,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -685,6 +711,7 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                   painter: _ScgOscilloscopePainter(
                     samples: _processor.waveform,
                     lineColor: _isDisturbed ? const Color(0xFFFF9800) : BiomarkColors.green,
+                    isDark: isDark,
                   ),
                   child: const SizedBox.expand(),
                 ),
@@ -697,6 +724,8 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
   }
 
   Widget _buildActionButton() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (_isMeasuring || _isPreparing) {
       return SizedBox(
         width: double.infinity,
@@ -711,13 +740,17 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
             });
             _speak('Medición cancelada');
           },
-          icon: const Icon(Icons.cancel_outlined, color: Colors.white70),
-          label: const Text(
+          icon: Icon(Icons.cancel_outlined, color: isDark ? Colors.white70 : Colors.black87),
+          label: Text(
             'Cancelar medición',
-            style: TextStyle(fontFamily: 'Poppins', color: Colors.white70, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              color: isDark ? Colors.white70 : Colors.black87,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Colors.white24),
+            side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
         ),
@@ -764,6 +797,10 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
       statusIcon = Icons.check_circle_outline_rounded;
     }
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final onSurface = theme.colorScheme.onSurface;
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -806,13 +843,13 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
             child: Column(
               children: [
-                const Text(
+                Text(
                   'FRECUENCIA CARDÍACA',
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 12,
                     letterSpacing: 1.2,
-                    color: Colors.white54,
+                    color: isDark ? Colors.white54 : Colors.black54,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -824,11 +861,11 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                   children: [
                     Text(
                       '${m.bpm}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Syne',
                         fontSize: 68,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: onSurface,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -851,16 +888,22 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                       label: 'Método',
                       value: 'SCG Acelerómetro',
                       icon: Icons.sensors_outlined,
+                      isDark: isDark,
+                      onSurface: onSurface,
                     ),
                     _buildResultMetric(
                       label: 'Postura',
                       value: _selectedPosture == ScgPosture.supine ? 'Acostado' : 'Sentado',
                       icon: _selectedPosture == ScgPosture.supine ? Icons.bed_outlined : Icons.chair_outlined,
+                      isDark: isDark,
+                      onSurface: onSurface,
                     ),
                     _buildResultMetric(
                       label: 'Calidad',
                       value: '${(m.qualityScore * 100).toInt()}%',
                       icon: Icons.high_quality_outlined,
+                      isDark: isDark,
+                      onSurface: onSurface,
                     ),
                   ],
                 ),
@@ -874,18 +917,18 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
             borderRadius: BorderRadius.circular(16),
             blurSigma: 10,
             padding: const EdgeInsets.all(16),
-            child: const Row(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline, color: BiomarkColors.blue, size: 20),
-                SizedBox(width: 12),
+                const Icon(Icons.info_outline, color: BiomarkColors.blue, size: 20),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Esta medición utiliza sismocardiografía para fines preventivos de bienestar. No constituye un diagnóstico médico formal ni sustituye a un electrocardiograma clínico.',
                     style: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 11,
-                      color: Colors.white70,
+                      color: isDark ? Colors.white70 : Colors.black87,
                       height: 1.4,
                     ),
                   ),
@@ -929,13 +972,13 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
                   _completedMeasurement = null;
                 });
               },
-              child: const Text(
+              child: Text(
                 'Realizar otra medición',
                 style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Colors.white70,
+                  color: isDark ? Colors.white70 : Colors.black87,
                 ),
               ),
             ),
@@ -949,26 +992,28 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
     required String label,
     required String value,
     required IconData icon,
+    required bool isDark,
+    required Color onSurface,
   }) {
     return Column(
       children: [
-        Icon(icon, color: Colors.white54, size: 18),
+        Icon(icon, color: isDark ? Colors.white54 : Colors.black45, size: 18),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'Poppins',
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: Colors.white,
+            color: onSurface,
           ),
         ),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'Poppins',
             fontSize: 9,
-            color: Colors.white38,
+            color: isDark ? Colors.white38 : Colors.black38,
           ),
         ),
       ],
@@ -980,14 +1025,21 @@ class _ScgScreenState extends State<ScgScreen> with SingleTickerProviderStateMix
 class _ScgOscilloscopePainter extends CustomPainter {
   final List<double> samples;
   final Color lineColor;
+  final bool isDark;
 
-  _ScgOscilloscopePainter({required this.samples, required this.lineColor});
+  _ScgOscilloscopePainter({
+    required this.samples,
+    required this.lineColor,
+    this.isDark = true,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     // Línea base central
     final basePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.06)
+      ..color = isDark
+          ? Colors.white.withValues(alpha: 0.06)
+          : Colors.black.withValues(alpha: 0.08)
       ..strokeWidth = 1.0;
     canvas.drawLine(
       Offset(0, size.height / 2),

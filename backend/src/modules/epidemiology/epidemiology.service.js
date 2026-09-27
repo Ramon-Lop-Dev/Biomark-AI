@@ -49,14 +49,12 @@ const createAlert = async (usuarioId, payload) => {
     detalle: { nivel_alerta: alerta.nivel_alerta, zona_riesgo_id: alerta.zona_riesgo_id }
   });
 
-  // Publica el evento hacia n8n para que la alerta se traduzca en
-  // notificaciones push a los usuarios del municipio de la zona
-  // afectada. No debe bloquear ni hacer fallar la creación de la
-  // alerta si n8n está caído: mismo patrón que reminders.service.js.
+  // Notificación push directa y evento epidemiológico
   try {
-    await publicarEvento('alerta.epidemiologica.creada', { alerta });
+    const notificationsService = require('../notifications/notifications.service');
+    await notificationsService.notificarAlertaSanitaria(alerta);
   } catch (error) {
-    console.error('[Epidemiology] No se pudo publicar el evento en n8n:', error.message);
+    console.error('[Epidemiology] No se pudo notificar la alerta sanitaria:', error.message);
   }
 
   return alerta;

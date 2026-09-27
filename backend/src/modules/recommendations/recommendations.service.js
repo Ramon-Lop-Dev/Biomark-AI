@@ -42,6 +42,14 @@ const createRecommendation = async (usuarioId, payload) => {
     console.warn('[Recomendaciones] No se pudo auditar la creación:', err.message);
   }
 
+  // Notificación push y difusión comunitaria de la pauta MINSA
+  try {
+    const notificationsService = require('../notifications/notifications.service');
+    await notificationsService.notificarPautaMinsa(data);
+  } catch (err) {
+    console.warn('[Recomendaciones] No se pudo notificar la pauta MINSA:', err.message);
+  }
+
   return data;
 };
 
