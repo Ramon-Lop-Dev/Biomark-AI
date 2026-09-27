@@ -205,17 +205,41 @@ Para dar estricto cumplimiento a los derechos de privacidad y protección de dat
 - **Procedimiento en Base de Datos:** La función `eliminar_cuenta_usuario(usuario_uuid)` en `010_eliminar_cuenta_usuario.sql` ejecuta un borrado transaccional en cascada de: `perfiles`, `historial_medico`, `alergias`, `medicamentos`, `antecedentes_familiares`, `vacunas`, `sintomas`, `seguimiento_salud`, `recordatorios`, `sesiones_chat`, `mensajes_chat`, `consentimientos`, `dispositivos_push` y la cuenta de `auth.users`.
 - **Endpoint seguro:** Expuesto en `DELETE /api/auth/account`, protegido con JWT del usuario activo.
 
+### 4.17 Roles de Confianza en Cascada, Scoping Territorial y Triaje Comunitario CCM (Piloto Managua)
+
+Diseñado para resolver la autoasignación no autorizada de roles privilegiados y descentralizar la gobernanza epidemiológica territorial en Managua:
+
+- **Cadena de Delegación de Confianza:**
+  - El `ADMIN` (SILAIS Managua / Dirección) genera invitaciones institucionales de un solo uso vinculadas obligatoriamente a un `centro_salud_id` para acreditar a `TRABAJADOR_SALUD` (médicos o enfermeros de centros de salud).
+  - El `TRABAJADOR_SALUD` genera invitaciones institucionales de un solo uso para acreditar y supervisar a `PROMOTOR` (promotores comunitarios de la Red Comunitaria) exclusivamente dentro de su jurisdicción territorial.
+  - Se eliminó cualquier mecanismo de autoasignación de roles en el registro público.
+- **Scoping Territorial Forzado (`requireScope.middleware.js`):**
+  - Todo endpoint comunitario y epidemiológico filtra automáticamente las consultas por `centro_salud_id`, `distrito` y `municipio`. Un promotor o personal de salud solo puede acceder y gestionar los reportes e incidentes de su unidad territorial asignada.
+- **Motor de Triaje Clínico Comunitario CCM (Normativa 112 / Manejo Comunitario de Casos):**
+  - Clasificación automática determinista basada en banderas rojas clínicas:
+    - **`ROJO` (Urgente / Requiere Traslado):** Convulsiones, vómito persistente, letargo o inconsciencia, signos de choque, tiraje subcostal grave o incapacidad para beber. Dispara inmediatamente el evento `reporte_comunitario.urgente_rojo` hacia n8n para notificar en tiempo real al personal médico del centro de salud correspondiente.
+    - **`AMARILLO` (Alerta / Prioridad Media):** Fiebre persistente sin foco evidente, diarrea acuosa profusa o brote sospechoso de más de 3 casos sin signos de choque.
+    - **`VERDE` (Rutinario / Sin Alarma):** Criaderos potenciales de zancudos, basura acumulada o factores de riesgo ambientales sin personas enfermas graves.
+- **Recepción Clarificada:** Los reportes de los ciudadanos indican claramente que son recibidos y atendidos por el *Personal de Salud del MINSA / Autoridades Correspondientes del Centro de Salud local*, no por entidades genéricas o externas.
+- **Documentación Completa:** Para especificaciones detalladas, diagramas de flujo y esquemas DDL, consulte [docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md](ROLES_CONFANZA_Y_TRIAJE_CCM.md).
+
+### 4.18 Cálculo Dinámico de Edad y Notificaciones Sanitarias Reales (Zero-Seed)
+
+- **Cálculo Dinámico de Edad:** En el formulario de perfil y la encuesta clínica de salud, el usuario registra su fecha de nacimiento (`fecha_nacimiento`). El sistema calcula automáticamente la edad exacta en años, meses y días en tiempo de ejecución, eliminando la necesidad de actualizar anualmente el campo de edad.
+- **Limpieza de Semillas y Avisos Reales:** Se removieron los datos ficticios precargados (seeds obsoletos). La bandeja de notificaciones y avisos oficiales del MINSA se conecta de forma directa y en tiempo real a la API (`GET /api/content/avisos`), segmentada por el municipio y distrito del usuario.
+
 ## 5. Estructura modular
 
 ```text
 backend/src/
   app.js                         Express, middleware, healthchecks y rutas
   index.js                       Arranque HTTP
-  config/                        Supabase, AI Service y n8n
-  middleware/                    JWT, RBAC, validación, errores y webhooks
+  config/                        Supabase, AI Service y n8nClient
+  middleware/                    JWT, RBAC, requireScope (territorial), validación y webhooks
   modules/
     auth/                        Registro, login, Google, refresh, logout y eliminación de cuenta
-    users/                       Perfil, foto de perfil, consentimiento y tokens push
+    invitations/                 Invitaciones institucionales, tokens de 8 caracteres y roles en cascada
+    users/                       Perfil, foto de perfil, cálculo dinámico de edad y tokens push
     medical/                     Historial, alergias, medicamentos y familia
     symptoms/                    Síntomas y registros asociados
     vaccines/                    Vacunas y recomendaciones
@@ -225,7 +249,8 @@ backend/src/
     chat/                        Sesiones, contexto y conversación
     voice/                       ASR/TTS y conversación por voz
     vision/                      Análisis de piel/garganta y Storage
-    community/                   Eventos, reportes, heatmap y estadísticas
+    community/                   Triaje CCM, reportes, eventos, heatmap y gestión de promotores
+    content/                     Avisos oficiales MINSA segmentados por territorio (Zero-Seed)
     epidemiology/                Reportes, alertas y zonas de riesgo
     gis/                         Centros, eventos, mapa y navegación
     notifications/               Notificaciones persistidas
@@ -257,15 +282,18 @@ frontend/flutter/lib/
     home/
       data/                      RecommendationsService (priorización contextual)
       presentation/              HomeScreen y tarjetas glassmorphism
+    community/
+      data/                      InvitationsApi, CommunityApi y modelos CCM
+      presentation/              MyPromotersScreen, reportes con triaje e insignias
     gis/
       presentation/              GisMapScreen (filtros y geolocalización de precisión)
     progress/
       presentation/              ProgressScreen (evolución de síntomas e hitos)
 
-database/migrations/             Migraciones aplicadas en Supabase (001 a 013)
-docs/                            OpenAPI, Postman y manuales técnicos
+database/migrations/             Migraciones aplicadas en Supabase (001 a 021)
+docs/                            Documentación técnica, guías de roles y OpenAPI
 docker-compose.contabo.yml       Compose de producción para Contabo
-database/seeds/                  Datasets iniciales controlados
+database/seeds/                  Datasets iniciales controlados (centros de salud oficiales)
 ```
 
 Cada archivo de código incluye un encabezado breve con su responsabilidad.
@@ -286,6 +314,7 @@ El AI Service puede requerir varios GB de RAM. El Compose usa un worker para evi
 
 - Todo endpoint de dominio usa JWT y resuelve propiedad mediante `req.usuarioId`.
 - RBAC limita escritura epidemiológica y organización comunitaria.
+- `requireScope.middleware.js` garantiza el scoping territorial por `centro_salud_id`, `distrito` y `municipio`.
 - `SUPABASE_SERVICE_ROLE_KEY` solo vive en backend/AI Service, nunca en Flutter.
 - AI Service solo acepta `X-Internal-Key` en inferencia.
 - n8n usa `X-Webhook-Secret` para eventos y confirmación interna.
@@ -299,7 +328,7 @@ Antes de VPS, rotar las claves que hayan estado en archivos locales o conversaci
 
 ## 8. Base de datos
 
-Las tablas principales son `usuarios`, `perfiles`, `historial_medico`, `alergias`, `medicamentos`, `antecedentes_familiares`, `vacunas`, `sintomas`, `registros_sintomas`, `seguimiento_salud`, `objetivos_salud`, `hitos_objetivo`, `recomendaciones_salud`, `solicitudes_rol_promotor`, `eventos_medicos`, `imagenes_medicas`, `recordatorios`, `notificaciones`, `sesiones_chat`, `mensajes_chat`, `centros_salud`, `eventos_comunitarios`, `zonas_riesgo`, `reportes_epidemiologicos`, `alertas_epidemiologicas`, `reportes_comunitarios`, `registros_auditoria`, `consentimientos` y `dispositivos_push`.
+Las tablas principales son `usuarios`, `perfiles`, `historial_medico`, `alergias`, `medicamentos`, `antecedentes_familiares`, `vacunas`, `sintomas`, `registros_sintomas`, `seguimiento_salud`, `objetivos_salud`, `hitos_objetivo`, `recomendaciones_salud`, `solicitudes_rol_promotor`, `eventos_medicos`, `imagenes_medicas`, `recordatorios`, `notificaciones`, `sesiones_chat`, `mensajes_chat`, `centros_salud`, `eventos_comunitarios`, `zonas_riesgo`, `reportes_epidemiologicos`, `alertas_epidemiologicas`, `reportes_comunitarios`, `invitaciones`, `registros_auditoria`, `consentimientos` y `dispositivos_push`.
 
 Las migraciones aplicadas de forma secuencial en Supabase son:
 - `002_auditoria_operativa.sql`: Auditoría de operaciones críticas.
@@ -314,6 +343,12 @@ Las migraciones aplicadas de forma secuencial en Supabase son:
 - `011_recordatorios_frecuencia.sql`: Frecuencias avanzadas de recordatorios (`DIARIA`, `SEMANAL`, etc.).
 - `012_recordatorios_aviso_previo.sql`: Anticipación configurable para notificaciones.
 - `013_recomendaciones_salud.sql`: Catálogo y administración de recomendaciones de salud con validación normativa MINSA.
+- `014_consolidacion_esquema_salud.sql`: Consolidación del esquema clínico y perfiles de salud.
+- `015_consolidacion_definitiva_tablas.sql`: Consolidación integral de tablas comunitarias y de auditoría.
+- `016_onboarding_entrevista_contenido.sql`: Estructura para cuestionario de salud y contenido educativo.
+- `017_avisos_minsa_segmentacion.sql`: Segmentación territorial de avisos oficiales por municipio y distrito.
+- `018_reportes_comunitarios_robustos.sql`: Campos enriquecidos para vigilancia comunitaria y geolocalización.
+- `021_roles_cascada_minsa_ccm.sql`: Roles de confianza institucional (`ADMIN` -> `TRABAJADOR_SALUD` -> `PROMOTOR`), tabla `invitaciones`, scoping territorial (`centro_salud_id`, `distrito`, `municipio`), triaje clínico CCM (`triaje_sugerido`, `signos_alarma`, `requiere_traslado_urgente`, `estado_resolucion`) y llaves foráneas.
 
 Después de `005` debe cargarse `database/seeds/seed_centros_salud_managua.sql`.
 
@@ -323,24 +358,38 @@ El backend espera que los enums de Supabase tengan exactamente los valores usado
 
 ## 9. Automatizaciones n8n
 
-Al crear un recordatorio, el backend publica `recordatorio.creado` en `N8N_WEBHOOK_URL`. El workflow debe:
+El backend publica eventos asíncronos hacia `N8N_WEBHOOK_URL` protegidos por `X-Webhook-Secret`:
 
+1. **`recordatorio.creado`:** Recordatorios farmacológicos y citas médicas.
+2. **`reporte_comunitario.urgente_rojo`:** Disparo crítico inmediato ante reportes con banderas rojas o signos de peligro (triaje `ROJO`), notificando en tiempo real al personal médico del centro de salud correspondiente para intervención y traslado.
+3. **`evento_comunitario.creado`:** Difusión de jornadas comunitarias (vacunación, abatización, fumigación) a los promotores y usuarios del sector.
+4. **`reporte_comunitario.validado`:** Difusión de alerta epidemiológica comunitaria a los usuarios de la zona una vez confirmada por el personal de salud.
+5. **`alerta_epidemiologica.creada`:** Emisión de alertas sanitarias oficiales segmentadas por municipio y distrito.
+
+El workflow en n8n debe:
 1. Validar `X-Webhook-Secret`.
-2. Leer el `recordatorio` y `usuario_id`.
+2. Leer los datos del evento y destinatarios.
 3. Buscar tokens activos en `dispositivos_push`.
-4. Enviar FCM.
-5. Llamar `PATCH /internal/reminders/:id/sent` con el secreto.
+4. Enviar notificación push mediante Firebase Cloud Messaging (HTTP v1).
+5. Para recordatorios, confirmar entrega llamando a `PATCH /internal/reminders/:id/sent`.
 6. Reintentar fallos transitorios y no duplicar envíos.
 
 n8n conserva su configuración en el volumen `n8n_data`. Fijar una versión de imagen en producción y respaldar ese volumen.
 
-La configuracion de push esta separada por responsabilidad: Flutter conserva los tokens FCM y la configuracion publica Web; el backend registra los tokens en `dispositivos_push`; n8n envia FCM HTTP v1 con `FCM_PROJECT_ID` y una credencial Google API; Firebase Admin del backend se configura con `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` y `FIREBASE_PRIVATE_KEY` cuando se necesita inicializar el SDK. La referencia operativa completa esta en [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md).
-
-## 10. Pruebas
+## 10. Pruebas y Verificación
 
 ```bash
+# Backend (Node.js - 22 pruebas unitarias pasando)
 npm --prefix backend test
-(cd ai-service && python3 -m unittest discover -p 'test*.py')
+
+# Flutter (16 pruebas unitarias pasando y 0 advertencias de análisis)
+cd frontend/flutter && flutter test
+cd frontend/flutter && flutter analyze
+
+# AI Service (Python)
+cd ai-service && TESTING=1 python3 -m unittest discover -s . -p "test_*.py"
+
+# Chequeo estático de sintaxis
 find backend/src -name '*.js' -print0 | xargs -0 -n1 node --check
 python3 -m compileall -q ai-service
 ```

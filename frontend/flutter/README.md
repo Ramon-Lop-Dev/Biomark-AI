@@ -28,9 +28,10 @@ lib/
 │   │   ├── data/                 # Motor de priorización contextual (RecommendationsService)
 │   │   └── presentation/         # HomeScreen con Glassmorphism y tarjetas interactivas
 │   │
-│   ├── community/                # Gestión de salud comunitaria y pautas sanitarias
+│   ├── community/                # Gestión comunitaria, triaje CCM y gobernanza en cascada
+│   │   ├── data/                 # InvitationsApi, CommunityApi y modelos clínicos
 │   │   ├── recommendations_management_screen.dart # Formulario de publicación con RBAC
-│   │   └── presentation/         # Listado epidemiológico y eventos de salud
+│   │   └── presentation/         # MyPromotersScreen, reportes triados y badges CCM
 │   │
 │   ├── chat/                     # Asistente virtual de salud multimodal
 │   │   ├── domain/               # Modelos de mensajes y estados de conversación
@@ -79,6 +80,28 @@ lib/
   3. Alteraciones en la última medición de pulso registrada (+7 pts).
   4. Indicación de tratamientos farmacológicos vigentes (+5 pts).
 * **Gestión autorizada por roles (RBAC):** Interfaz para promotores y personal médico que permite publicar nuevas recomendaciones verificadas, validando el respaldo de normativas técnicas del MINSA.
+
+### Gobernanza Sanitaria en Cascada y Supervisión de Promotores
+* **Acreditación Institucional en Registro (`RegisterScreen`):** Diálogo de activación mediante código alfanumérico institucional emitido por la autoridad sanitaria. Previene la autoasignación no autorizada de roles médicos.
+* **Módulo de Gestión de Promotores (`MyPromotersScreen`):** Exclusivo para personal de salud (`TRABAJADOR_SALUD`, `ADMIN`). Permite:
+  * Generar códigos de acreditación de un solo uso con vigencia de 7 días para promotores de la comunidad.
+  * Copiar códigos con un toque al portapapeles para compartirlos por canales oficiales.
+  * Listar los promotores acreditados bajo la supervisión del centro de salud territorial.
+  * Suspender temporalmente (`REVOCADO`) o reactivar (`ACTIVO`) la acreditación operativa de cada promotor.
+* **Cliente API Especializado (`InvitationsApi`):** Gestiona los endpoints `/api/invitations/*` de verificación, aceptación y gestión de promotores.
+* **Navegación Dinámica (`app_shell.dart`):** Ajusta las opciones y pestañas de la interfaz según el rol del usuario (`USUARIO`, `PROMOTOR`, `TRABAJADOR_SALUD`, `ADMIN`).
+
+### Vigilancia Comunitaria y Triaje CCM (Piloto Managua)
+* **Reportes Comunitarios Inteligentes:** Formulario de registro de brotes, criaderos y factores de riesgo ambiental. Incluye campo descriptivo obligatorio cuando se marca la opción "Otro".
+* **Motor de Triaje Clínico CCM (Normativa 112 MINSA):**
+  * Detección interactiva de signos de peligro clínicos (convulsiones, vómito persistente, letargo, hipotensión, dificultad respiratoria grave).
+  * Distintivos visuales inmediatos de criticidad: `ROJO` (Urgente / Requiere Traslado), `AMARILLO` (Alerta / Prioridad Media) y `VERDE` (Rutinario).
+* **Claridad Institucional:** Los mensajes informativos explicitan al ciudadano que sus reportes son canalizados y atendidos por el *Personal de Salud del MINSA / Autoridades del Centro de Salud local*.
+* *(Documentación técnica completa en [docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md](../../docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md))*.
+
+### Cálculo Dinámico de Edad y Notificaciones en Tiempo Real
+* **Edad Automatizada:** Selección de fecha de nacimiento (`fecha_nacimiento`) en el perfil y cuestionario clínico con cálculo dinámico de edad exacta en años, meses y días.
+* **Bandeja de Avisos Conectada (Zero-Seed):** Eliminación de seeds o datos simulados; conexión directa y reactiva con la API de avisos MINSA segmentados por municipio y distrito.
 
 ### Asistente Clínico Multimodal con Motor Offline Autónomo
 * **Motor Clínico Offline (`OfflineChatEngine` y `MinsaOfflineKnowledge`):**
@@ -130,10 +153,10 @@ flutter run -d <ID_DISPOSITIVO> --dart-define=BIOMARK_API_URL=https://tu-servido
 Ejecución de la suite de pruebas unitarias y de integración de widgets:
 
 ```bash
-# Pruebas automatizadas de dominio, servicios y lógica matemática
+# Pruebas automatizadas de dominio, servicios y lógica matemática (16 pruebas pasando)
 flutter test
 
-# Análisis estático de código y directrices de estilo
+# Análisis estático de código y directrices de estilo (0 advertencias)
 flutter analyze
 ```
 

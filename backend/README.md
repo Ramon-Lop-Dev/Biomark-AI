@@ -21,6 +21,29 @@ flowchart LR
 
 ## 2. Módulos y Rutas de la API
 
+### Gobernanza Sanitaria e Invitaciones en Cascada (`/api/invitations`)
+* `POST /api/invitations/health-worker`: Solo `ADMIN`. Invita a un profesional de salud (`TRABAJADOR_SALUD`) vinculándolo obligatoriamente a un `centro_salud_id` con cobertura distrital o municipal.
+* `POST /api/invitations/promoter`: Solo `TRABAJADOR_SALUD` o `ADMIN`. Invita a un promotor comunitario (`PROMOTOR`) asignado al territorio del centro de salud emisor.
+* `GET /api/invitations/my-promoters`: Permite al trabajador de salud listar y supervisar a los promotores acreditados bajo su jurisdicción.
+* `PATCH /api/invitations/promoters/:id/status`: Revoca (`REVOCADO`) o reactiva (`ACTIVO`) la acreditación operativa de un promotor comunitario.
+* `GET /api/invitations/verify/:token`: Verificación pública previa al registro institucional para validar el código antes de la elevación de rol.
+* `POST /api/invitations/accept`: Aceptación de código de invitación y acreditación del rol correspondiente.
+* *(Consulte la especificación completa en [docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md](../docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md))*.
+
+### Vigilancia Comunitaria y Triaje CCM (`/api/community`)
+* `POST /api/community/reports`: Registro de reportes de salud por ciudadanos o promotores. Incluye:
+  * Motor de triaje clínico CCM (Normativa 112 MINSA) que evalúa banderas rojas deterministas (`ROJO`, `AMARILLO`, `VERDE`).
+  * Despacho inmediato del evento crítico `reporte_comunitario.urgente_rojo` hacia n8n cuando se detectan signos de peligro.
+  * Soporte de texto descriptivo detallado cuando se reporta la categoría "Otro".
+  * Claridad al usuario de que el reporte es recibido y gestionado por el Personal de Salud del MINSA / autoridades correspondientes del centro de salud.
+* `GET /api/community/reports`: Consulta de reportes protegida por `requireScope.middleware.js` (scoping territorial por centro de salud o municipio/distrito).
+* `PATCH /api/community/reports/:id/review`: Validación y resolución clínica del reporte comunitario por personal autorizado. Dispara evento `reporte_comunitario.validado` a n8n.
+* `GET /api/community/events` y `POST /api/community/events`: Gestión de jornadas de salud (vacunación, fumigación, abatización) georreferenciadas con publicación a n8n (`evento_comunitario.creado`).
+
+### Avisos Oficiales MINSA (`/api/content`)
+* `GET /api/content/avisos`: Bandeja de notificaciones y avisos oficiales en tiempo real, segmentada por municipio y distrito (Zero-Seed).
+* `POST /api/content/avisos`: Creación y difusión de avisos por personal de salud autorizado (`TRABAJADOR_SALUD`, `ADMIN`).
+
 ### Recomendaciones de Salud MINSA y Control de Roles (RBAC)
 * `GET /api/recommendations`: Consulta pública para usuarios autenticados del catálogo de recomendaciones oficiales y comunitarias validadas.
 * `POST /api/recommendations`: Publicación de nuevas pautas preventivas. Valida obligatoriamente mediante Zod la cita de la normativa MINSA de respaldo, categorías aprobadas y formato visual. Protegido para roles `TRABAJADOR_SALUD`, `PROMOTOR` y `ADMIN`.
@@ -34,10 +57,9 @@ flowchart LR
 * `POST /api/vision`: Envía imágenes para evaluación asistida de patologías cutáneas o faríngeas.
 
 ### Gestión de Usuarios, Autenticación y Baja de Cuenta
-* `GET /api/users/profile` y `PUT /api/users/profile`: Consulta y actualización de datos personales y preferencias de salud.
+* `GET /api/users/profile` y `PUT /api/users/profile`: Consulta y actualización de datos personales, cálculo dinámico de edad a partir de `fecha_nacimiento` y preferencias de salud.
 * `POST /api/users/avatar`: Subida de fotografía de perfil vinculada al bucket seguro de Supabase Storage.
 * `POST /api/users/push-token`: Registro de tokens de Firebase Cloud Messaging (FCM).
-* `POST /api/auth/promotor/solicitud` y `GET /api/auth/promotor/solicitudes`: Solicitud y validación administrativa para rol de Promotor de Salud.
 * `DELETE /api/auth/account`: Proceso de baja definitiva y eliminación segura en cascada del usuario mediante procedimiento almacenado (`eliminar_cuenta_usuario`).
 
 ### Seguimiento de Evolución de Síntomas
@@ -45,7 +67,7 @@ flowchart LR
 * `GET /api/progress`: Cálculo del porcentaje de evolución semanal y resumen histórico.
 
 ### Red de Salud y Geolocalización (GIS)
-* `GET /api/gis/smart-map`: Obtención de centros de salud, eventos comunitarios y zonas epidemiológicas dentro de un radio geográfico determinado.
+* `GET /api/gis/smart-map`: Obtención de centros de salud, eventos comunitarios y zonas epidemiológicas dentro de un radio geográfico determinado con alta precisión GPS.
 * `GET /api/navigation/recommend`: Sugerencia del centro de salud más apropiado según el cuadro clínico del paciente y la especialidad requerida.
 
 ### Recordatorios y Notificaciones
@@ -77,6 +99,6 @@ CORS_ORIGINS=https://tu-dominio.org,http://localhost:3000
 # Instalación de dependencias del proyecto
 npm install
 
-# Ejecución de la suite completa de pruebas unitarias
+# Ejecución de la suite completa de pruebas unitarias (22 pruebas pasando)
 npm test
 ```

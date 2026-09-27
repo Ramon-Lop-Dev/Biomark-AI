@@ -6,11 +6,37 @@ Motor de automatización y orquestación de flujos de trabajo de salud preventiv
 
 ## 1. Función dentro del Ecosistema
 
-n8n se encarga de la ejecución asíncrona de eventos preventivos y la entrega de alertas programadas:
+n8n se encarga de la ejecución asíncrona de eventos preventivos, orquestación de alertas programadas y despacho de notificaciones críticas comunitarias hacia **Firebase Cloud Messaging (FCM)**:
 
-1. **Recepción de Eventos:** Escucha los eventos emitidos por el backend cuando un paciente programa una toma de medicamento o una cita de vacunación.
-2. **Despacho de Alertas Push:** Conexión con **Firebase Cloud Messaging (FCM)** para enviar la notificación directamente al dispositivo móvil del paciente en el horario programado.
-3. **Confirmación de Entrega:** Llama al endpoint interno protegido del backend (`PATCH /internal/reminders/:id/sent`) para registrar la confirmación del aviso en el historial médico.
+### Catálogo de Eventos Procesados
+
+| Evento | Origen en Backend | Destinatarios / Acción | Criticidad |
+| :--- | :--- | :--- | :--- |
+| `recordatorio.creado` | `reminders.service.js` | Dispositivo del paciente (dosis farmacológica o cita) | Media |
+| `reporte_comunitario.urgente_rojo` | `community.service.js` | Personal médico del centro de salud territorial (`TRABAJADOR_SALUD`) | **Crítica Inmediata** |
+| `evento_comunitario.creado` | `community.service.js` | Usuarios y promotores del sector geográfico (jornadas de salud) | Normal |
+| `reporte_comunitario.validado` | `community.service.js` | Población de la zona (alerta comunitaria confirmada) | Alta |
+| `alerta_epidemiologica.creada` | `epidemiology.service.js` | Población del municipio/distrito (brote oficial MINSA) | Alta |
+
+### Flujo de Notificación Crítica (Triaje CCM Rojo)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant C as Paciente / Promotor
+  participant B as Backend Node.js
+  participant N as n8n Automatizaciones
+  participant F as Firebase (FCM)
+  participant M as Personal Médico (Centro de Salud)
+
+  C->>B: POST /api/community/reports (Signos de Alarma CCM)
+  B->>B: Motor de Triaje clasifica "ROJO" (Urgente / Traslado)
+  B->>N: Webhook reporte_comunitario.urgente_rojo (X-Webhook-Secret)
+  N->>F: Enviar push de alta prioridad con sonido de alerta
+  F->>M: Alerta en pantalla de guardia del Centro de Salud territorial
+```
+
+### Flujo de Recordatorios y Confirmación
 
 ```mermaid
 sequenceDiagram
@@ -20,11 +46,13 @@ sequenceDiagram
   participant F as Firebase (FCM)
   participant C as Dispositivo Paciente
 
-  B->>N: Webhook con evento de recordatorio (X-Webhook-Secret)
+  B->>N: Webhook recordatorio.creado (X-Webhook-Secret)
   N->>F: Solicitud de envío de notificación push
   F->>C: Alerta de dosis o jornada en pantalla
   N->>B: Confirmación de envío (PATCH /internal/reminders/:id/sent)
 ```
+
+*(Consulte la arquitectura completa de triaje y roles en [docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md](../docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md))*.
 
 ---
 

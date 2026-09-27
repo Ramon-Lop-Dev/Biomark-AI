@@ -9,6 +9,7 @@
 | Documento | Descripción y Alcance |
 | :--- | :--- |
 | [Documentación Técnica](TECHNICAL_DOCUMENTATION.md) | Arquitectura integral, descripción de módulos, diagramas de flujo, base de datos y modelo de seguridad. |
+| [Roles de Confianza en Cascada y Triaje CCM](ROLES_CONFANZA_Y_TRIAJE_CCM.md) | Gobernanza comunitaria MINSA, alta delegada por invitaciones, control de ámbito territorial (`requireScope`) y triaje semafórico CCM para el piloto de Managua. |
 | [Manual de Despliegue en VPS](INSTALLATION_VPS.md) | Guía paso a paso para la preparación de servidores Linux, Docker Compose, configuración de firewall y certificados SSL. |
 | [Despliegue Distribuido (Contabo + RunPod)](DEPLOYMENT_CONTABO_RUNPOD.md) | Procedimiento para operar el backend y automatizaciones en VPS y el microservicio de IA en GPU Cloud. |
 | [Configuración de Dominio con DuckDNS](DUCKDNS_CONTABO.md) | Configuración de DNS dinámico, certificados HTTPS de Let's Encrypt y enrutamiento en Nginx. |

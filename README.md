@@ -87,17 +87,27 @@ flowchart TD
 * **Ergonomía táctil:** Áreas de interacción táctil con dimensiones mínimas de 48x48 dp para facilitar la pulsación.
 * **Auditoría Antisolapamiento:** Interfaz responsiva con controles de scroll y restricciones de altura para evitar errores de desbordamiento en cualquier pantalla.
 
-### Panorama Comunitario y Geolocalización Sanitaria
+### Panorama Comunitario, Triaje CCM y Gobernanza en Cascada (Piloto Managua)
+* **Gobernanza Sanitaria en Cascada:** Arquitectura de delegación de confianza donde el `ADMIN` acredita a `TRABAJADOR_SALUD` adscrito a su centro de salud de referencia, y este a su vez acredita y supervisa a `PROMOTOR` comunitario con códigos institucionales de un solo uso. Se erradica la autoasignación no autorizada de roles privilegiados.
+* **Scoping Territorial Forzado:** Restricción estricta mediante middleware (`requireScope`) que limita la consulta y gestión de reportes comunitarios y eventos a la jurisdicción territorial de cada promotor y centro médico.
+* **Motor de Triaje Comunitario CCM (Normativa 112 MINSA):**
+  * Detección automatizada de banderas rojas clínicas: convulsiones, letargo, vómito persistente, signos de choque y tiraje grave.
+  * Clasificación determinista en `ROJO` (urgente / requiere traslado), `AMARILLO` (alerta) y `VERDE` (rutinario).
+  * Disparo automático de eventos críticos `reporte_comunitario.urgente_rojo` hacia n8n para alertar de inmediato al equipo médico territorial.
+  * *(Consulte la documentación técnica completa en [docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md](docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md))*.
+* **Recepción Clarificada:** Los reportes de la comunidad indican expresamente que son recibidos y atendidos por el *Personal de Salud del MINSA / Autoridades Correspondientes del Centro de Salud local*.
 * **Mapa GIS de Alta Precisión:** Geolocalización con precisión en metros (`LocationAccuracy.high`), cálculo geodésico de distancias en tiempo real y chips de filtrado rápido por nivel de unidad (Hospitales, Centros de Salud, Puestos Médicos).
-* **Alertas y Eventos Comunitarios:** Visualización de jornadas de vacunación, abatización y fumigación en el sector.
+* **Alertas y Eventos Comunitarios:** Visualización de jornadas de vacunación, abatización y fumigación en el sector con datos reales (Zero-Seed).
 * **Historial de Progreso:** Registro de evolución de síntomas (*Mejoró*, *Igual*, *Empeoró*, *No seguro*) con metas e hitos de recuperación.
 
 ### Módulo RAG con Persistencia Incremental
 * **Persistencia Inteligente en ChromaDB:** Manifiesto de control local (`chroma_db/indexed_files.json`) que almacena fragmentos de normativas MINSA con metadatos de fuente, página y chunk. Evita re-descargas o cálculos redundantes de embeddings al iniciar el servicio.
 * **Modelo Especializado BioMistral 7B:** Total compatibilidad con el modelo de producción en Hugging Face (`BiomarkAI/Biomark-AI-Produccion`) adaptado con plantilla de instrucciones clínicas.
 
-### Gestión de Cuenta y Privacidad
+### Gestión de Cuenta, Edad Dinámica y Privacidad
 * Autenticación segura mediante correo electrónico o inicio de sesión con Google.
+* Activación institucional opcional mediante código para personal médico y promotores de salud.
+* **Cálculo Dinámico de Edad:** Registro de fecha de nacimiento (`fecha_nacimiento`) con cálculo automático de edad cronológica exacta, evitando actualizaciones manuales anuales.
 * Gestión de perfil de usuario y avatar alojado en Supabase Storage.
 * Encuesta clínica inicial de antecedentes personales y factores de riesgo.
 * Eliminación definitiva y segura de cuenta con baja de datos en cascada mediante procedimientos almacenados (`eliminar_cuenta_usuario`).
@@ -163,14 +173,14 @@ flutter run -d chrome --dart-define=BIOMARK_API_URL=http://localhost:3000
 
 El proyecto cuenta con suites de pruebas automatizadas en cada uno de sus niveles:
 
-* **Pruebas del cliente Flutter:**
+* **Pruebas del cliente Flutter (16 pruebas unitarias pasando y 0 advertencias de análisis):**
   ```bash
   cd frontend/flutter
   flutter test
   flutter analyze
   ```
 
-* **Pruebas del backend (Node.js):**
+* **Pruebas del backend (Node.js - 22 pruebas unitarias pasando):**
   ```bash
   cd backend
   npm test
