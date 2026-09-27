@@ -7,6 +7,9 @@ import 'package:flutter_biomark/core/config/app_config.dart';
 import 'package:flutter_biomark/core/ui/biomark_dialog.dart';
 import 'package:flutter_biomark/core/ui/loading_service.dart';
 import 'package:flutter_biomark/features/onboarding/presentation/permissions_screen.dart';
+import '../../community/data/invitations_api.dart';
+import '../../../app_shell.dart';
+import '../../../biomark_brand.dart';
 /// ---------------------------------------------------------------
 /// REGISTER SCREEN — mismo estilo "claymorfismo" que el login,
 /// con pestañas Iniciar Sesión / Registrarse arriba (igual que login)
@@ -492,9 +495,50 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
             const SizedBox(height: 24),
             _buildRegisterButton(),
+            const SizedBox(height: 14),
+            _buildInvitationButton(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildInvitationButton() {
+    return Center(
+      child: OutlinedButton.icon(
+        onPressed: _openInvitationModal,
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(
+            color: _isDark ? const Color(0xFF60A5FA).withValues(alpha: 0.5) : _accentBlue.withValues(alpha: 0.4),
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        ),
+        icon: Icon(
+          Icons.verified_user_rounded,
+          size: 18,
+          color: _isDark ? const Color(0xFF60A5FA) : _accentBlue,
+        ),
+        label: Text(
+          'Tengo un código de invitación oficial\n(Personal MINSA / Promotor)',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: _isDark ? const Color(0xFF60A5FA) : _accentBlue,
+            height: 1.25,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openInvitationModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _InvitationRegistrationSheet(),
     );
   }
 
@@ -604,5 +648,337 @@ class _RegisterScreenState extends State<RegisterScreen>
       ),
     );
   }
+}
 
+class _InvitationRegistrationSheet extends StatefulWidget {
+  const _InvitationRegistrationSheet();
+
+  @override
+  State<_InvitationRegistrationSheet> createState() => _InvitationRegistrationSheetState();
+}
+
+class _InvitationRegistrationSheetState extends State<_InvitationRegistrationSheet> {
+  final _invitationsApi = InvitationsApi();
+  final _tokenCtrl = TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  VerifiedInvitationInfo? _verified;
+  bool _verifying = false;
+  bool _submitting = false;
+  bool _obscurePass = true;
+  String? _error;
+
+  @override
+  void dispose() {
+    _tokenCtrl.dispose();
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    _confirmPassCtrl.dispose();
+    _invitationsApi.dispose();
+    super.dispose();
+  }
+
+  Future<void> _verifyToken() async {
+    final token = _tokenCtrl.text.trim();
+    if (token.isEmpty) {
+      setState(() => _error = 'Ingresa el código de invitación recibido.');
+      return;
+    }
+
+    setState(() {
+      _verifying = true;
+      _error = null;
+    });
+
+    try {
+      final info = await _invitationsApi.verifyInvitation(token);
+      if (!mounted) return;
+      setState(() {
+        _verified = info;
+        _verifying = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$e';
+        _verifying = false;
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_verified == null) return;
+
+    if (_passCtrl.text != _confirmPassCtrl.text) {
+      setState(() => _error = 'Las contraseñas no coinciden.');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    try {
+      final res = await _invitationsApi.acceptInvitation(
+        token: _verified!.token,
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text,
+        fullName: _nameCtrl.text.trim(),
+      );
+
+      final token = res['token'] as String?;
+      final refreshToken = res['refresh_token'] as String?;
+
+      if (token != null && token.isNotEmpty) {
+        await AuthSession.instance.saveSession(
+          accessToken: token,
+          refreshToken: refreshToken,
+          expiresIn: 3600 * 24 * 7,
+          role: _verified!.rolDestino,
+          userName: _nameCtrl.text.trim(),
+          userEmail: _emailCtrl.text.trim(),
+          healthCenterId: _verified!.centroSaludId,
+          healthCenterName: _verified!.centroSaludNombre,
+        );
+
+        if (!mounted) return;
+        Navigator.pop(context);
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AppShell()),
+          (route) => false,
+        );
+      } else {
+        if (!mounted) return;
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cuenta activada. Por favor inicia sesión.')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$e';
+        _submitting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardBg = isDark ? const Color(0xFF1E293B) : Colors.white;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.88,
+        maxChildSize: 0.95,
+        minChildSize: 0.5,
+        builder: (_, scrollCtrl) => Container(
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+          child: ListView(
+            controller: scrollCtrl,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.verified_user_rounded, color: BiomarkColors.blue, size: 24),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Activación Institucional MINSA',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Ingresa el código oficial de un solo uso recibido por tu supervisor para validar tu establecimiento.',
+                style: TextStyle(fontSize: 12.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 16),
+              if (_error != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline_rounded, color: Colors.red, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12.5)),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // PASO 1: Ingreso y verificación de Token
+              if (_verified == null) ...[
+                TextField(
+                  controller: _tokenCtrl,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    labelText: 'Código de invitación *',
+                    hintText: 'ej. BM-9F2B81',
+                    prefixIcon: Icon(Icons.vpn_key_rounded),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: _verifying ? null : _verifyToken,
+                  icon: _verifying
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.check_circle_outline_rounded),
+                  label: Text(_verifying ? 'Verificando...' : 'Verificar código'),
+                ),
+              ],
+
+              // PASO 2: Token verificado -> Formulario de Registro
+              if (_verified != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: BiomarkColors.green.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: BiomarkColors.green.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.check_circle_rounded, color: BiomarkColors.green, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            _verified!.rolDestino == 'TRABAJADOR_SALUD'
+                                ? 'Personal de Salud MINSA'
+                                : 'Promotor de Salud Comunitario',
+                            style: const TextStyle(fontWeight: FontWeight.w800, color: BiomarkColors.green, fontSize: 13.5),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Centro de Salud: ${_verified!.centroSaludNombre}',
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
+                      ),
+                      if (_verified!.codigoEstablecimiento != null)
+                        Text(
+                          'Código Normativa 112: ${_verified!.codigoEstablecimiento}',
+                          style: TextStyle(fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Nombre completo *',
+                          prefixIcon: Icon(Icons.person_outline_rounded),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) => (v == null || v.trim().length < 2) ? 'Ingresa tu nombre completo' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _emailCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Correo electrónico *',
+                          prefixIcon: Icon(Icons.mail_outline_rounded),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) => (v == null || !v.contains('@')) ? 'Correo inválido' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _passCtrl,
+                        obscureText: _obscurePass,
+                        decoration: InputDecoration(
+                          labelText: 'Contraseña *',
+                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscurePass ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                            onPressed: () => setState(() => _obscurePass = !_obscurePass),
+                          ),
+                        ),
+                        validator: (v) {
+                          if (v == null || v.length < 8) return 'Mínimo 8 caracteres';
+                          if (!RegExp(r'[A-Za-z]').hasMatch(v)) return 'Debe incluir al menos una letra';
+                          if (!RegExp(r'[0-9]').hasMatch(v)) return 'Debe incluir al menos un número';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _confirmPassCtrl,
+                        obscureText: _obscurePass,
+                        decoration: const InputDecoration(
+                          labelText: 'Confirmar contraseña *',
+                          prefixIcon: Icon(Icons.lock_outline_rounded),
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) => v != _passCtrl.text ? 'Las contraseñas no coinciden' : null,
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: FilledButton.icon(
+                          onPressed: _submitting ? null : _submit,
+                          icon: _submitting
+                              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : const Icon(Icons.how_to_reg_rounded),
+                          label: Text(_submitting ? 'Activando credencial...' : 'Activar Cuenta Institucional'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

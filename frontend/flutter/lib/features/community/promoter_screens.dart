@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
@@ -8,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 import '../../biomark_brand.dart';
 import '../../core/auth/auth_session.dart';
 import '../../core/config/app_config.dart';
+import 'data/invitations_api.dart';
 
 class CommunityReportItem {
   final String id;
@@ -24,6 +26,9 @@ class CommunityReportItem {
   final String? contactoReportante;
   final String? reporterName;
   final String? reporterEmail;
+  final String clasificacionCcm;
+  final String? centroSaludId;
+  final String? centroSaludNombre;
 
   const CommunityReportItem({
     required this.id,
@@ -40,11 +45,15 @@ class CommunityReportItem {
     this.contactoReportante,
     this.reporterName,
     this.reporterEmail,
+    this.clasificacionCcm = 'VERDE',
+    this.centroSaludId,
+    this.centroSaludNombre,
   });
 
   factory CommunityReportItem.fromJson(Map<String, dynamic> json) {
     final usuario = json['usuarios'] is Map<String, dynamic> ? json['usuarios'] as Map<String, dynamic> : null;
     final perfil = usuario?['perfiles'] is Map<String, dynamic> ? usuario!['perfiles'] as Map<String, dynamic> : null;
+    final centro = json['centros_salud'] is Map<String, dynamic> ? json['centros_salud'] as Map<String, dynamic> : null;
 
     return CommunityReportItem(
       id: '${json['id'] ?? ''}',
@@ -61,6 +70,9 @@ class CommunityReportItem {
       contactoReportante: json['contacto_reportante'] as String?,
       reporterName: perfil?['nombre_completo'] as String?,
       reporterEmail: usuario?['correo'] as String?,
+      clasificacionCcm: '${json['clasificacion_ccm'] ?? 'VERDE'}'.toUpperCase(),
+      centroSaludId: json['centro_salud_id'] as String?,
+      centroSaludNombre: centro?['nombre'] as String?,
     );
   }
 }
@@ -175,7 +187,85 @@ class _PromoterDashboardScreenState extends State<PromoterDashboardScreen> {
                 'Coordina jornadas y revisa las señales de salud del territorio.',
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
+              // Cabecera de jurisdicción territorial
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: BiomarkColors.blue.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.local_hospital_rounded, color: BiomarkColors.blue, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            AuthSession.instance.healthCenterName ?? 'Jurisdicción Piloto Managua',
+                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: BiomarkColors.blue),
+                          ),
+                          Text(
+                            AuthSession.instance.isHealthWorker
+                                ? 'Personal de Salud MINSA · Cobertura asignada'
+                                : 'Promotor de Salud Comunitario · Red Territorial',
+                            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (AuthSession.instance.canManagePromoters) ...[
+                const SizedBox(height: 12),
+                Card(
+                  elevation: 0,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: BiomarkColors.green.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.people_alt_rounded, color: BiomarkColors.green, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Red de Promotores Comunitarios', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Supervisa y emite invitaciones para los promotores de tu centro.',
+                                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.tonal(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const MyPromotersScreen()),
+                          ),
+                          child: const Text('Gestionar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
               if (_error != null) _PanelMessage(message: _error!, icon: Icons.cloud_off_rounded),
               if (_loading) const LinearProgressIndicator(),
           Row(children: [
@@ -370,6 +460,24 @@ class _ReportTile extends StatelessWidget {
     final hasDisease = report.tipoEnfermedad != null && report.tipoEnfermedad!.isNotEmpty;
     final hasAddress = report.direccionExacta != null && report.direccionExacta!.isNotEmpty;
 
+    final ccm = report.clasificacionCcm;
+    final Color ccmColor;
+    final IconData ccmIcon;
+    final String ccmLabel;
+    if (ccm == 'ROJO') {
+      ccmColor = const Color(0xFFEF4444);
+      ccmIcon = Icons.warning_amber_rounded;
+      ccmLabel = 'CCM: ALTO RIESGO (ROJO)';
+    } else if (ccm == 'AMARILLO') {
+      ccmColor = const Color(0xFFF59E0B);
+      ccmIcon = Icons.priority_high_rounded;
+      ccmLabel = 'CCM: MODERADO (AMARILLO)';
+    } else {
+      ccmColor = const Color(0xFF10B981);
+      ccmIcon = Icons.check_circle_outline_rounded;
+      ccmLabel = 'CCM: LEVE (VERDE)';
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -380,6 +488,53 @@ class _ReportTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Fila 1: Triaje semafórico CCM y Centro de Salud asignado
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: ccmColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: ccmColor.withValues(alpha: 0.4), width: 0.8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(ccmIcon, size: 13, color: ccmColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        ccmLabel,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w900,
+                          color: ccmColor,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (report.centroSaludNombre != null) ...[
+                  const Spacer(),
+                  const Icon(Icons.local_hospital_rounded, size: 13, color: BiomarkColors.blue),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      report.centroSaludNombre!,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: BiomarkColors.blue,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Container(
@@ -581,3 +736,355 @@ class _MetricCard extends StatelessWidget {
 class _SectionHeading extends StatelessWidget { final String title; final IconData icon; const _SectionHeading({required this.title, required this.icon}); @override Widget build(BuildContext context) => Row(children: [Icon(icon, color: BiomarkColors.blue), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800))]); }
 class _PanelMessage extends StatelessWidget { final String message; final IconData icon; const _PanelMessage({required this.message, required this.icon}); @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 20), child: Row(children: [Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant), const SizedBox(width: 10), Expanded(child: Text(message, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)))])); }
 class _EventTile extends StatelessWidget { final Map<String, dynamic> event; const _EventTile({required this.event}); @override Widget build(BuildContext context) => Card(margin: const EdgeInsets.only(bottom: 10), child: ListTile(leading: const CircleAvatar(child: Icon(Icons.event_available_rounded)), title: Text('${event['titulo'] ?? 'Jornada comunitaria'}', style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text('${event['ubicacion'] ?? 'Ubicación por confirmar'}\n${event['fecha_evento'] ?? ''}'))); }
+
+class MyPromotersScreen extends StatefulWidget {
+  const MyPromotersScreen({super.key});
+
+  @override
+  State<MyPromotersScreen> createState() => _MyPromotersScreenState();
+}
+
+class _MyPromotersScreenState extends State<MyPromotersScreen> {
+  final _invitationsApi = InvitationsApi();
+  List<PromoterItem> _promoters = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _invitationsApi.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final list = await _invitationsApi.getMyPromoters();
+      if (!mounted) return;
+      setState(() {
+        _promoters = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = '$e';
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _openInviteModal() async {
+    final contactCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        bool generating = false;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.person_add_alt_1_rounded, color: BiomarkColors.green),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text('Invitar Promotor', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  ),
+                ],
+              ),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'El promotor quedará adscrito a tu centro de salud (${AuthSession.instance.healthCenterName ?? 'Managua'}).',
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: contactCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Correo o teléfono celular *',
+                        hintText: 'ej. +505 8888 1234 o nombre@minsa.gob.ni',
+                        prefixIcon: Icon(Icons.contact_mail_outlined),
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Ingresa el contacto' : null,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: generating ? null : () => Navigator.pop(ctx, false),
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton(
+                  onPressed: generating
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          setDialogState(() => generating = true);
+                          try {
+                            final res = await _invitationsApi.createPromoterInvitation(
+                              contacto: contactCtrl.text.trim(),
+                            );
+                            if (!ctx.mounted) return;
+                            Navigator.pop(ctx, true);
+                            _showTokenDialog(res['token'] as String? ?? '');
+                          } catch (err) {
+                            if (!ctx.mounted || !mounted) return;
+                            setDialogState(() => generating = false);
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$err')));
+                          }
+                        },
+                  child: Text(generating ? 'Generando...' : 'Generar código'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (created == true) {
+      _load();
+    }
+  }
+
+  void _showTokenDialog(String token) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.vpn_key_rounded, color: BiomarkColors.blue),
+            SizedBox(width: 8),
+            Text('Código de Invitación', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Comparte este código seguro de un solo uso con el promotor para que active su cuenta institucional:',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: BiomarkColors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: BiomarkColors.blue.withValues(alpha: 0.3)),
+              ),
+              child: SelectableText(
+                token,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2.0,
+                  color: BiomarkColors.blue,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text('Válido por 7 días · Un solo uso', style: TextStyle(fontSize: 11.5, color: Colors.grey)),
+          ],
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: token));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Código copiado al portapapeles.')),
+              );
+              Navigator.pop(ctx);
+            },
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Copiar código'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Listo'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _toggleStatus(PromoterItem promoter) async {
+    final nuevoEstado = promoter.isActivo ? 'SUSPENDIDO' : 'ACTIVO';
+    final accion = promoter.isActivo ? 'suspender' : 'reactivar';
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${promoter.isActivo ? 'Suspender' : 'Reactivar'} Promotor'),
+        content: Text('¿Seguro que deseas $accion la cuenta de "${promoter.fullName}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(
+            style: promoter.isActivo ? FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444)) : null,
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(promoter.isActivo ? 'Suspender' : 'Reactivar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await _invitationsApi.updatePromoterStatus(promoter.id, nuevoEstado);
+      _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cuenta de promotor actualizada a $nuevoEstado.')),
+        );
+      }
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$err')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Red de Promotores', maxLines: 2, softWrap: true),
+        actions: [
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh_rounded)),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openInviteModal,
+        backgroundColor: BiomarkColors.green,
+        icon: const Icon(Icons.person_add_rounded, color: Colors.white),
+        label: const Text('Invitar Promotor', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.cloud_off_rounded, size: 48, color: Colors.grey),
+                            const SizedBox(height: 12),
+                            Text(_error!, textAlign: TextAlign.center),
+                            const SizedBox(height: 12),
+                            FilledButton(onPressed: _load, child: const Text('Reintentar')),
+                          ],
+                        ),
+                      ),
+                    )
+                  : _promoters.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.people_outline_rounded, size: 56, color: Colors.grey),
+                                const SizedBox(height: 14),
+                                const Text(
+                                  'Aún no hay promotores registrados en tu centro.',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Toca "Invitar Promotor" para generar un código institucional de acceso.',
+                                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 18),
+                                FilledButton.icon(
+                                  onPressed: _openInviteModal,
+                                  icon: const Icon(Icons.person_add_rounded),
+                                  label: const Text('Invitar Promotor'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+                          itemCount: _promoters.length,
+                          itemBuilder: (ctx, index) {
+                            final p = _promoters[index];
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: p.isActivo
+                                      ? BiomarkColors.green.withValues(alpha: 0.15)
+                                      : Colors.red.withValues(alpha: 0.15),
+                                  child: Icon(
+                                    Icons.person_rounded,
+                                    color: p.isActivo ? BiomarkColors.green : Colors.red,
+                                  ),
+                                ),
+                                title: Text(p.fullName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                                subtitle: Text(p.email),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: p.isActivo
+                                            ? BiomarkColors.green.withValues(alpha: 0.12)
+                                            : Colors.red.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        p.estadoCuenta,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: p.isActivo ? BiomarkColors.green : Colors.red,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: p.isActivo ? 'Suspender acceso' : 'Reactivar acceso',
+                                      icon: Icon(
+                                        p.isActivo ? Icons.block_rounded : Icons.check_circle_rounded,
+                                        size: 20,
+                                        color: p.isActivo ? Colors.red : BiomarkColors.green,
+                                      ),
+                                      onPressed: () => _toggleStatus(p),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+        ),
+      ),
+    );
+  }
+}
+

@@ -133,7 +133,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final promoter = AuthSession.instance.isPromoter;
+    final promoter = AuthSession.instance.isPromoter || AuthSession.instance.isHealthWorker;
 
     final mapWidget = GisMapScreen(
       key: ValueKey('gis_map_$_gisKeyCounter'),

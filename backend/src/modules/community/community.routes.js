@@ -3,6 +3,7 @@ const express = require('express');
 const { getEvents, createEvent, createReport, getStatistics, getHeatmap, getOperationalReports, updateReportStatus } = require('./community.controller');
 const { verifyToken } = require('../../middleware/auth.middleware');
 const { requireRole } = require('../../middleware/rbac.middleware');
+const { requireScope } = require('../../middleware/requireScope.middleware');
 const { validate } = require('../../middleware/validate.middleware');
 const { createEventSchema, createReportSchema, updateReportStatusSchema } = require('./community.validator');
 const router = express.Router();
@@ -30,16 +31,24 @@ router.post('/reports', verifyToken, validate(createReportSchema), createReport)
 // Validar/descartar un reporte comunitario sí requiere criterio clínico o
 // de coordinación territorial: se restringe a quien puede confirmar que
 // el reporte es real antes de que cuente en estadísticas/heatmap.
+// Se aplica requireScope para asegurar que el usuario pertenezca al centro del reporte.
 router.patch(
   '/reports/:id/estado',
   verifyToken,
   requireRole('TRABAJADOR_SALUD', 'LIDER_COMUNITARIO', 'PROMOTOR', 'ADMIN'),
+  requireScope,
   validate(updateReportStatusSchema),
   updateReportStatus
 );
 
 router.get('/statistics', verifyToken, getStatistics);
 router.get('/heatmap', verifyToken, getHeatmap);
-router.get('/reports/operational', verifyToken, requireRole('TRABAJADOR_SALUD', 'LIDER_COMUNITARIO', 'PROMOTOR', 'ADMIN'), getOperationalReports);
+router.get(
+  '/reports/operational',
+  verifyToken,
+  requireRole('TRABAJADOR_SALUD', 'LIDER_COMUNITARIO', 'PROMOTOR', 'ADMIN'),
+  requireScope,
+  getOperationalReports
+);
 
 module.exports = router;

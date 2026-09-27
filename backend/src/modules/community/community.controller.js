@@ -36,7 +36,7 @@ const getHeatmap = asyncHandler(async (req, res) => {
 });
 
 const getOperationalReports = asyncHandler(async (req, res) => {
-    const data = await communityService.getOperationalReports(req.query.estado);
+    const data = await communityService.getOperationalReports(req.query.estado, req.scopeCentroSaludId);
     return res.status(200).json(data);
 });
 
@@ -48,7 +48,7 @@ const updateReportStatus = asyncHandler(async (req, res) => {
         throw new AppError('El id del reporte debe ser un UUID válido', 400);
     }
 
-    const data = await communityService.updateReportStatus(req.usuarioId, id, req.body.estado);
+    const data = await communityService.updateReportStatus(req.usuarioId, id, req.body.estado, req.scopeCentroSaludId);
     return res.status(200).json(data);
 });
 

@@ -12,6 +12,8 @@ class AuthSession extends ChangeNotifier {
   static const _kRole = 'biomark_role';
   static const _kUserName = 'biomark_user_name';
   static const _kUserEmail = 'biomark_user_email';
+  static const _kHealthCenterId = 'biomark_health_center_id';
+  static const _kHealthCenterName = 'biomark_health_center_name';
 
   String? _accessToken;
   String? _refreshToken;
@@ -19,6 +21,8 @@ class AuthSession extends ChangeNotifier {
   String _role = 'USUARIO';
   String? _userName;
   String? _userEmail;
+  String? _healthCenterId;
+  String? _healthCenterName;
   bool _ready = false;
 
   bool get ready => _ready;
@@ -27,9 +31,14 @@ class AuthSession extends ChangeNotifier {
   bool get isLoggedIn => _accessToken != null && _accessToken!.isNotEmpty;
   String get role => _role;
   bool get isPromoter => _role == 'PROMOTOR';
+  bool get isHealthWorker => _role == 'TRABAJADOR_SALUD';
   bool get isAdmin => _role == 'ADMIN';
+  bool get canManagePromoters => isHealthWorker || isAdmin;
+  bool get isFieldAgent => isPromoter || isHealthWorker;
   String? get userName => _userName;
   String? get userEmail => _userEmail;
+  String? get healthCenterId => _healthCenterId;
+  String? get healthCenterName => _healthCenterName;
   bool get isExpired => _expiresAt != null &&
       DateTime.now().isAfter(_expiresAt!.subtract(const Duration(seconds: 60)));
 
@@ -41,6 +50,8 @@ class AuthSession extends ChangeNotifier {
     _role = await _storage.read(key: _kRole) ?? 'USUARIO';
     _userName = await _storage.read(key: _kUserName);
     _userEmail = await _storage.read(key: _kUserEmail);
+    _healthCenterId = await _storage.read(key: _kHealthCenterId);
+    _healthCenterName = await _storage.read(key: _kHealthCenterName);
     _ready = true;
     notifyListeners();
   }
@@ -52,6 +63,8 @@ class AuthSession extends ChangeNotifier {
     String? role,
     String? userName,
     String? userEmail,
+    String? healthCenterId,
+    String? healthCenterName,
   }) async {
     _accessToken = accessToken;
     if (refreshToken != null && refreshToken.isNotEmpty) {
@@ -61,6 +74,8 @@ class AuthSession extends ChangeNotifier {
     if (role != null && role.isNotEmpty) _role = role;
     if (userName != null && userName.isNotEmpty) _userName = userName;
     if (userEmail != null && userEmail.isNotEmpty) _userEmail = userEmail;
+    if (healthCenterId != null) _healthCenterId = healthCenterId;
+    if (healthCenterName != null) _healthCenterName = healthCenterName;
 
     await _storage.write(key: _kAccessToken, value: _accessToken);
     if (_refreshToken != null) {
@@ -73,6 +88,22 @@ class AuthSession extends ChangeNotifier {
     }
     if (_userEmail != null) {
       await _storage.write(key: _kUserEmail, value: _userEmail!);
+    }
+    if (_healthCenterId != null) {
+      await _storage.write(key: _kHealthCenterId, value: _healthCenterId!);
+    }
+    if (_healthCenterName != null) {
+      await _storage.write(key: _kHealthCenterName, value: _healthCenterName!);
+    }
+    notifyListeners();
+  }
+
+  Future<void> updateHealthCenter({required String id, String? name}) async {
+    _healthCenterId = id;
+    await _storage.write(key: _kHealthCenterId, value: id);
+    if (name != null) {
+      _healthCenterName = name;
+      await _storage.write(key: _kHealthCenterName, value: name);
     }
     notifyListeners();
   }
@@ -96,6 +127,8 @@ class AuthSession extends ChangeNotifier {
     _role = 'USUARIO';
     _userName = null;
     _userEmail = null;
+    _healthCenterId = null;
+    _healthCenterName = null;
     await _storage.deleteAll();
     notifyListeners();
   }

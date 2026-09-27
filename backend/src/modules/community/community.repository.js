@@ -28,7 +28,9 @@ const crearReporte = async (usuarioId, payload) => {
     direccion_exacta,
     fecha_inicio_sintomas,
     medidas_tomadas,
-    contacto_reportante
+    contacto_reportante,
+    centro_salud_id,
+    clasificacion_ccm
   } = payload;
 
   const baseInsert = {
@@ -46,7 +48,9 @@ const crearReporte = async (usuarioId, payload) => {
     ...(direccion_exacta ? { direccion_exacta } : {}),
     ...(fecha_inicio_sintomas ? { fecha_inicio_sintomas } : {}),
     ...(medidas_tomadas ? { medidas_tomadas } : {}),
-    ...(contacto_reportante ? { contacto_reportante } : {})
+    ...(contacto_reportante ? { contacto_reportante } : {}),
+    ...(centro_salud_id ? { centro_salud_id } : {}),
+    ...(clasificacion_ccm ? { clasificacion_ccm } : {})
   };
 
   const res = await supabase
@@ -54,7 +58,7 @@ const crearReporte = async (usuarioId, payload) => {
     .insert([extendedInsert])
     .select();
 
-  // Fallback seguro si la migración 018 no está aplicada en esta instancia de base de datos
+  // Fallback seguro si las migraciones 018/021 no están aplicadas en esta instancia de base de datos
   if (res.error && (res.error.code === '42703' || res.error.message?.includes('column'))) {
     return supabase
       .from('reportes_comunitarios')
@@ -81,12 +85,15 @@ const listarReportesParaEstadisticas = () =>
 const listarReportesParaHeatmap = () =>
   supabase.from('reportes_comunitarios').select('latitud, longitud, cantidad_casos, descripcion').eq('estado', 'VALIDADO');
 
-const listarReportesParaOperacion = async (estado) => {
+const listarReportesParaOperacion = async (estado, scopeCentroSaludId = null) => {
   let query = supabase
     .from('reportes_comunitarios')
-    .select('id, usuario_id, cantidad_casos, descripcion, latitud, longitud, estado, fecha_creacion, tipo_enfermedad, direccion_exacta, fecha_inicio_sintomas, medidas_tomadas, contacto_reportante, usuarios(correo, perfiles(nombre_completo))')
+    .select('id, usuario_id, cantidad_casos, descripcion, latitud, longitud, estado, clasificacion_ccm, centro_salud_id, fecha_creacion, tipo_enfermedad, direccion_exacta, fecha_inicio_sintomas, medidas_tomadas, contacto_reportante, centros_salud(id, nombre, codigo_establecimiento), usuarios(correo, perfiles(nombre_completo))')
     .order('fecha_creacion', { ascending: false });
+
   if (estado) query = query.eq('estado', estado);
+  if (scopeCentroSaludId) query = query.eq('centro_salud_id', scopeCentroSaludId);
+
   const res = await query;
   if (res.error && (res.error.code === '42703' || res.error.message?.includes('column'))) {
     let fallbackQuery = supabase
@@ -94,6 +101,7 @@ const listarReportesParaOperacion = async (estado) => {
       .select('id, usuario_id, cantidad_casos, descripcion, latitud, longitud, estado, fecha_creacion, usuarios(correo, perfiles(nombre_completo))')
       .order('fecha_creacion', { ascending: false });
     if (estado) fallbackQuery = fallbackQuery.eq('estado', estado);
+    if (scopeCentroSaludId) fallbackQuery = fallbackQuery.eq('centro_salud_id', scopeCentroSaludId);
     return fallbackQuery;
   }
   return res;
@@ -101,16 +109,23 @@ const listarReportesParaOperacion = async (estado) => {
 
 // Transición de estado (PENDIENTE_VALIDACION -> VALIDADO/DESCARTADO) hecha
 // por un TRABAJADOR_SALUD/LIDER_COMUNITARIO/ADMIN (ver requireRole en
-// community.routes.js). No se filtra por usuario_id a propósito: quien
-// valida un reporte comunitario no es necesariamente quien lo creó.
-const actualizarEstadoReporte = (reporteId, estado) =>
-  supabase
+// community.routes.js). Si se especifica scopeCentroSaludId, restringe la acción
+// a reportes que pertenezcan a la jurisdicción territorial de ese centro.
+const actualizarEstadoReporte = (reporteId, estado, scopeCentroSaludId = null) => {
+  let query = supabase
     .from('reportes_comunitarios')
     .update({ estado })
     .eq('id', reporteId)
-    .eq('estado', 'PENDIENTE_VALIDACION')
+    .eq('estado', 'PENDIENTE_VALIDACION');
+
+  if (scopeCentroSaludId) {
+    query = query.eq('centro_salud_id', scopeCentroSaludId);
+  }
+
+  return query
     .select()
     .maybeSingle();
+};
 
 module.exports = {
   listarEventos,

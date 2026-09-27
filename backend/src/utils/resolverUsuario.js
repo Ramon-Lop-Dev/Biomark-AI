@@ -16,9 +16,21 @@ const supabase = require('../config/supabase');
 async function resolverUsuario(authId) {
   const { data, error } = await supabase
     .from('usuarios')
-    .select('id, rol, activo')
+    .select('id, rol, activo, centro_salud_id, estado_cuenta')
     .eq('auth_id', authId)
     .single();
+
+  // Degradar con elegancia si la migración de las nuevas columnas aún no se ha ejecutado en este entorno
+  if (error && (error.code === '42703' || error.message?.includes('column'))) {
+    const fallback = await supabase
+      .from('usuarios')
+      .select('id, rol, activo')
+      .eq('auth_id', authId)
+      .single();
+    if (!fallback.error && fallback.data) {
+      return { ...fallback.data, centro_salud_id: null, estado_cuenta: 'ACTIVO' };
+    }
+  }
 
   if (error || !data) {
     const err = new Error('Usuario no encontrado en el sistema (tabla usuarios)');

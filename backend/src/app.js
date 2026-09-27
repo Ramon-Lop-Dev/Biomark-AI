@@ -71,10 +71,12 @@ const navigationRoutes = require('./modules/gis/navigation.routes');
 const recommendationsRoutes = require('./modules/recommendations/recommendations.routes');
 const notificationsRoutes = require('./modules/notifications/notifications.routes');
 const contentRoutes = require('./modules/content/content.routes');
+const invitationsRoutes = require('./modules/invitations/invitations.routes');
 const { markReminderSent } = require('./modules/reminders/internal.controller');
 const { verifyInternalWebhook } = require('./middleware/internalWebhook.middleware');
 // --- APLICAR RUTAS ---
 app.use('/api/auth', authRoutes);
+app.use('/api/invitations', invitationsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/medical-history', medicalRoutes);
 app.use('/api/symptoms', symptomsRoutes);

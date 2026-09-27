@@ -35,13 +35,14 @@ const verifyToken = async (req, res, next) => {
         //    req.usuarioRol para chequeos de RBAC (ver rbac.middleware.js).
         const usuario = await resolverUsuario(data.user.id);
 
-        if (!usuario.activo) {
-            return next(new AppError('Esta cuenta ha sido desactivada.', 403));
+        if (!usuario.activo || usuario.estado_cuenta === 'SUSPENDIDO') {
+            return next(new AppError('Esta cuenta ha sido desactivada o suspendida por su establecimiento de salud.', 403));
         }
 
         req.usuario = usuario;
         req.usuarioId = usuario.id;
         req.usuarioRol = usuario.rol;
+        req.centroSaludId = usuario.centro_salud_id || null;
 
         // 6. Dar paso al controlador
         next();
