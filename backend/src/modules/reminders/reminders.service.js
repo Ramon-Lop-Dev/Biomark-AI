@@ -39,7 +39,10 @@ const addReminder = async (usuarioId, payload) => {
     aviso_previo: avisoPrevio,
     fecha_notificacion: fechaNotificacion
   });
-  if (error) throw new AppError('Error al crear recordatorio', 500);
+  if (error) {
+    console.error('[Reminders] Error al crear recordatorio:', error.message || error);
+    throw new AppError(error.message || 'Error al crear recordatorio', 500);
+  }
 
   const registro = data[0];
 
@@ -106,48 +109,88 @@ const processDueReminders = async () => {
 
   if (!data || data.length === 0) return [];
 
+  const ahora = new Date();
   const procesados = [];
+
   for (const registro of data) {
     try {
+      const fechaProg = new Date(registro.fecha_programada);
+      const fechaNotif = registro.fecha_notificacion ? new Date(registro.fecha_notificacion) : fechaProg;
+      const esPreAviso = fechaNotif < fechaProg && ahora < fechaProg;
+
+      let tituloEnvio = registro.titulo;
+      let descEnvio = registro.descripcion || '';
+
+      if (esPreAviso) {
+        const avisoLabel = registro.aviso_previo === '1_HORA_ANTES' ? 'en 1 hora'
+          : registro.aviso_previo === '1_DIA_ANTES' ? 'mañana'
+          : 'en 2 días';
+        tituloEnvio = `⏰ Aviso previo: ${registro.titulo}`;
+        descEnvio = `Aviso programado (${avisoLabel}): ${descEnvio || 'Dosis o cita de salud'}`.trim();
+      } else {
+        tituloEnvio = `⏰ Recordatorio: ${registro.titulo}`;
+      }
+
       const nombreEvento = process.env.N8N_REMINDER_EVENT || 'recordatorio.creado';
       await publicarEvento(nombreEvento, {
-        recordatorio: registro,
+        recordatorio: {
+          ...registro,
+          titulo: tituloEnvio,
+          descripcion: descEnvio
+        },
         usuario_id: registro.usuario_id,
         recordatorio_id: registro.id,
-        titulo: registro.titulo,
-        descripcion: registro.descripcion || '',
+        titulo: tituloEnvio,
+        descripcion: descEnvio,
         tipo: registro.tipo,
         frecuencia: registro.frecuencia || 'UNA_VEZ',
         aviso_previo: registro.aviso_previo || 'AL_MOMENTO',
         fecha_programada: registro.fecha_programada,
-        fecha_notificacion: registro.fecha_notificacion
+        fecha_notificacion: registro.fecha_notificacion,
+        es_pre_aviso: esPreAviso
       });
 
-      const siguienteFecha = calcularSiguienteFecha(registro.fecha_programada, registro.frecuencia);
-      if (siguienteFecha) {
-        const siguienteNotificacion = calcularFechaNotificacion(
-          siguienteFecha,
-          registro.aviso_previo || 'AL_MOMENTO'
-        );
+      if (esPreAviso) {
+        // Al disparar el pre-aviso, programamos la fecha_notificacion a la hora exacta del evento
         await remindersRepo.reprogramarSiguienteCiclo(
           registro.id,
-          siguienteFecha,
-          siguienteNotificacion
+          registro.fecha_programada,
+          registro.fecha_programada
         );
-        await auditService.registrar({
-          usuarioId: registro.usuario_id,
-          tipoEntidad: 'recordatorios',
-          idEntidad: registro.id,
-          accion: 'REPROGRAMACION_CICLO',
-          detalle: {
-            nueva_fecha: siguienteFecha,
-            nueva_notificacion: siguienteNotificacion,
-            frecuencia: registro.frecuencia,
-            aviso_previo: registro.aviso_previo
-          }
-        });
+      } else if (registro.frecuencia && registro.frecuencia !== 'UNA_VEZ') {
+        // Al disparar la hora exacta de un recordatorio recurrente, calcular siguiente ciclo futuro
+        let siguienteFecha = calcularSiguienteFecha(registro.fecha_programada, registro.frecuencia);
+        let guard = 0;
+        while (siguienteFecha && new Date(siguienteFecha) <= ahora && guard < 500) {
+          siguienteFecha = calcularSiguienteFecha(siguienteFecha, registro.frecuencia);
+          guard++;
+        }
+
+        if (siguienteFecha) {
+          const siguienteNotificacion = calcularFechaNotificacion(
+            siguienteFecha,
+            registro.aviso_previo || 'AL_MOMENTO'
+          );
+          await remindersRepo.reprogramarSiguienteCiclo(
+            registro.id,
+            siguienteFecha,
+            siguienteNotificacion
+          );
+          await auditService.registrar({
+            usuarioId: registro.usuario_id,
+            tipoEntidad: 'recordatorios',
+            idEntidad: registro.id,
+            accion: 'REPROGRAMACION_CICLO',
+            detalle: {
+              nueva_fecha: siguienteFecha,
+              nueva_notificacion: siguienteNotificacion,
+              frecuencia: registro.frecuencia,
+              aviso_previo: registro.aviso_previo
+            }
+          });
+        }
       }
-      // Si es UNA_VEZ, se queda en PENDIENTE hasta que n8n confirme recepción vía PATCH /internal/reminders/:id/sent (markReminderSent)
+      // Si es UNA_VEZ a la hora exacta, se queda en PENDIENTE hasta que n8n confirme recepción vía PATCH /internal/reminders/:id/sent (markReminderSent)
       procesados.push(registro.id);
     } catch (err) {
       const detalleError = err.response?.data ? JSON.stringify(err.response.data) : err.message;

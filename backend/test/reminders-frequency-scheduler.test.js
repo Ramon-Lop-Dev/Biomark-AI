@@ -87,3 +87,29 @@ test('calcularSiguienteFecha proyecta la fecha según la frecuencia', () => {
   const unaVez = calcularSiguienteFecha(baseIso, 'UNA_VEZ');
   assert.equal(unaVez, null);
 });
+
+test('normalizarRegistro decodifica correctamente prefijos y preserva frecuencias', () => {
+  const { normalizarRegistro } = require('../src/modules/reminders/reminders.repository');
+
+  const normal = { id: '1', frecuencia: 'DIARIA', descripcion: 'Dosis matutina' };
+  assert.deepEqual(normalizarRegistro(normal), normal);
+
+  const fallbackHoraria = {
+    id: '2',
+    frecuencia: 'DIARIA',
+    descripcion: '[FREQ:HORARIA] Tomar agua cada hora'
+  };
+  const resHoraria = normalizarRegistro(fallbackHoraria);
+  assert.equal(resHoraria.frecuencia, 'HORARIA');
+  assert.equal(resHoraria.descripcion, 'Tomar agua cada hora');
+
+  const fallbackQuincenal = {
+    id: '3',
+    frecuencia: 'SEMANAL',
+    descripcion: '[FREQ:QUINCENAL]'
+  };
+  const resQuincenal = normalizarRegistro(fallbackQuincenal);
+  assert.equal(resQuincenal.frecuencia, 'QUINCENAL');
+  assert.equal(resQuincenal.descripcion, '');
+});
+
