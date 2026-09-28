@@ -13,6 +13,40 @@ import '../config/firebase_config.dart';
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('FCM background message: ${message.messageId}');
+  // Si es un mensaje data-only y la app está en segundo plano o cerrada,
+  // el sistema operativo no muestra notificación automáticamente, por lo que
+  // la emitimos directamente usando flutter_local_notifications.
+  if (message.notification == null && message.data.isNotEmpty) {
+    final title = message.data['title']?.toString() ??
+        message.data['titulo']?.toString() ??
+        'Biomark AI';
+    final body = message.data['body']?.toString() ??
+        message.data['mensaje']?.toString();
+    if (body != null && body.isNotEmpty) {
+      final localNotifications = FlutterLocalNotificationsPlugin();
+      const initializationSettings = InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      );
+      await localNotifications.initialize(initializationSettings);
+      await localNotifications.show(
+        message.hashCode,
+        title,
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'biomark_notifications',
+            'Notificaciones de Biomark AI',
+            channelDescription:
+                'Recordatorios, jornadas de salud y alertas epidemiológicas de Biomark AI',
+            importance: Importance.high,
+            priority: Priority.high,
+            playSound: true,
+            enableVibration: true,
+          ),
+        ),
+      );
+    }
+  }
 }
 
 class PushNotificationsService {

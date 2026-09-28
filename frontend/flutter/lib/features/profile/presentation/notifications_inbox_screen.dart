@@ -117,12 +117,16 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
   }
 
   Color _typeColor(AppNotification item) {
-    if (item.extraData['subtipo'] == 'JORNADA' || item.title.startsWith('Jornada')) {
+    if (item.title.contains('🚨') || item.type == 'ALERTA_EPIDEMIOLOGICA') {
+      return const Color(0xFFE53935);
+    }
+    if (item.title.contains('💉') || item.title.contains('Vacun')) {
+      return BiomarkColors.green;
+    }
+    if (item.extraData['subtipo'] == 'JORNADA' || item.title.contains('Jornada')) {
       return BiomarkColors.blue;
     }
     switch (item.type) {
-      case 'ALERTA_EPIDEMIOLOGICA':
-        return const Color(0xFFE53935);
       case 'RECORDATORIO':
         return const Color(0xFF00897B);
       case 'SISTEMA':
@@ -132,12 +136,21 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
   }
 
   IconData _typeIcon(AppNotification item) {
-    if (item.extraData['subtipo'] == 'JORNADA' || item.title.startsWith('Jornada')) {
+    if (item.title.contains('💉') || item.title.contains('Vacun')) {
+      return Icons.vaccines_rounded;
+    }
+    if (item.title.contains('🦟') || item.title.contains('Fumig')) {
+      return Icons.sanitizer_rounded;
+    }
+    if (item.title.contains('📋') || item.title.contains('Aviso') || item.title.contains('Directriz')) {
+      return Icons.assignment_outlined;
+    }
+    if (item.extraData['subtipo'] == 'JORNADA' || item.title.contains('Jornada')) {
       return Icons.campaign_rounded;
     }
     switch (item.type) {
       case 'ALERTA_EPIDEMIOLOGICA':
-        return item.title.contains('Brote')
+        return item.title.contains('Brote') || item.title.contains('Foco')
             ? Icons.coronavirus_outlined
             : Icons.warning_amber_rounded;
       case 'RECORDATORIO':
@@ -148,14 +161,37 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
     }
   }
 
-  String _formatDate(DateTime dt) {
+  String _formatFriendlyDateTime(DateTime dt) {
+    final local = dt.toLocal();
     final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inMinutes < 1) return 'Ahora';
-    if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes} min';
-    if (diff.inHours < 24) return 'Hace ${diff.inHours} h';
-    if (diff.inDays < 7) return 'Hace ${diff.inDays} días';
-    return '${dt.day}/${dt.month}/${dt.year}';
+
+    final isToday = local.year == now.year && local.month == now.month && local.day == now.day;
+    final yesterday = now.subtract(const Duration(days: 1));
+    final isYesterday = local.year == yesterday.year && local.month == yesterday.month && local.day == yesterday.day;
+
+    final hour12 = local.hour == 0 ? 12 : (local.hour > 12 ? local.hour - 12 : local.hour);
+    final minute = local.minute.toString().padLeft(2, '0');
+    final period = local.hour >= 12 ? 'PM' : 'AM';
+    final timeStr = '$hour12:$minute $period';
+
+    if (isToday) {
+      return 'Hoy, $timeStr';
+    }
+    if (isYesterday) {
+      return 'Ayer, $timeStr';
+    }
+
+    const months = [
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+    ];
+    final monthStr = months[local.month - 1];
+
+    if (local.year == now.year) {
+      return '${local.day} $monthStr, $timeStr';
+    } else {
+      return '${local.day} $monthStr ${local.year}, $timeStr';
+    }
   }
 
   Widget _buildStatusBadge(AppNotification item) {
@@ -455,7 +491,7 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
                                                       const SizedBox(width: 6),
                                                     ],
                                                     Text(
-                                                      _formatDate(item.createdAt),
+                                                      _formatFriendlyDateTime(item.createdAt),
                                                       style: TextStyle(
                                                         fontSize: 11,
                                                         color: isDark ? Colors.white54 : Colors.black45,
@@ -466,6 +502,7 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
                                                 const SizedBox(height: 6),
                                                 Text(
                                                   item.message,
+                                                  softWrap: true,
                                                   style: TextStyle(
                                                     fontSize: 13,
                                                     height: 1.35,

@@ -1,16 +1,27 @@
 // Consulta y modifica eventos y reportes comunitarios en Supabase.
 const supabase = require('../../config/supabase');
 
-const listarEventos = () =>
+const listarEventos = (ahora = new Date().toISOString()) =>
   supabase
     .from('eventos_comunitarios')
     .select('*')
+    .or(`fecha_fin.gte.${ahora},and(fecha_fin.is.null,fecha_evento.gte.${ahora})`)
     .order('fecha_evento', { ascending: true });
 
-const crearEvento = (organizadorId, { titulo, descripcion, fecha_evento, ubicacion, latitud, longitud, tipo }) =>
+const crearEvento = (organizadorId, { titulo, descripcion, fecha_evento, fecha_fin, ubicacion, latitud, longitud, tipo }) =>
   supabase
     .from('eventos_comunitarios')
-    .insert([{ organizador_id: organizadorId, titulo, descripcion, fecha_evento, ubicacion, latitud, longitud, tipo }])
+    .insert([{
+      organizador_id: organizadorId,
+      titulo,
+      descripcion,
+      fecha_evento,
+      fecha_fin: fecha_fin || null,
+      ubicacion,
+      latitud,
+      longitud,
+      tipo
+    }])
     .select();
 
 // El reporte SIEMPRE se crea como PENDIENTE_VALIDACION (default de la
@@ -115,20 +126,34 @@ const listarReportesParaOperacion = async (estado, scopeCentroSaludId = null) =>
 // por un TRABAJADOR_SALUD/LIDER_COMUNITARIO/ADMIN (ver requireRole en
 // community.routes.js). Si se especifica scopeCentroSaludId, restringe la acción
 // a reportes que pertenezcan a la jurisdicción territorial de ese centro.
-const actualizarEstadoReporte = (reporteId, estado, scopeCentroSaludId = null) => {
+const actualizarEstadoReporte = async (reporteId, estado, scopeCentroSaludId = null) => {
   let query = supabase
     .from('reportes_comunitarios')
     .update({ estado })
-    .eq('id', reporteId)
-    .eq('estado', 'PENDIENTE_VALIDACION');
+    .eq('id', reporteId);
 
   if (scopeCentroSaludId) {
     query = query.eq('centro_salud_id', scopeCentroSaludId);
   }
 
-  return query
-    .select()
+  const res = await query.select().maybeSingle();
+  if (res.data) return res;
+
+  // Si ya tenía ese estado o no hubo cambios, retornar el registro existente
+  const check = await supabase
+    .from('reportes_comunitarios')
+    .select('*')
+    .eq('id', reporteId)
     .maybeSingle();
+
+  if (check.data) {
+    if (scopeCentroSaludId && check.data.centro_salud_id !== scopeCentroSaludId) {
+      return { data: null, error: null };
+    }
+    return { data: check.data, error: null };
+  }
+
+  return res;
 };
 
 module.exports = {

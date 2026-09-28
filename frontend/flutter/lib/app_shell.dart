@@ -51,6 +51,7 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _navIndex = 0;
   final ValueNotifier<int> _remindersRefresh = ValueNotifier(0);
+  final ValueNotifier<DateTime?> _selectedReminderDate = ValueNotifier(null);
   final ValueNotifier<int> _progressRefresh = ValueNotifier(0);
 
   // Estado para enfocar ubicaciones y capas en el mapa sin perder Navbar ni AppBar
@@ -125,6 +126,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void dispose() {
     _remindersRefresh.dispose();
+    _selectedReminderDate.dispose();
     _progressRefresh.dispose();
     super.dispose();
   }
@@ -193,7 +195,9 @@ class _AppShellState extends State<AppShell> {
         mapWidget,
         RemindersScreen(
           refreshSignal: _remindersRefresh,
+          selectedDateSignal: _selectedReminderDate,
           onOpenMap: () => _navigateToMap(),
+          onAddReminder: () => _showAddReminderModal(context),
         ),
       ];
     }
@@ -334,14 +338,15 @@ class _AppShellState extends State<AppShell> {
   }
 
   Future<void> _showAddReminderModal(BuildContext context) async {
-    final created = await showModalBottomSheet<bool>(
+    final created = await showModalBottomSheet<Reminder>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => const _AddReminderModal(),
     );
-    if (created == true) {
+    if (created != null) {
+      _selectedReminderDate.value = created.fechaRecordatorio.toLocal();
       _remindersRefresh.value++;
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -590,7 +595,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
 
     setState(() => _isSaving = true);
     try {
-      await RemindersService(
+      final newReminder = await RemindersService(
         baseUrl: AppConfig.apiUrl,
         accessToken: accessToken,
       ).createReminder(
@@ -605,7 +610,7 @@ class _AddReminderModalState extends State<_AddReminderModal> {
         avisoPrevio: _selectedAvisoPrevio,
       );
       if (!mounted) return;
-      Navigator.pop(context, true);
+      Navigator.pop(context, newReminder);
     } on ReminderException catch (error) {
       if (!mounted) return;
       setState(() => _isSaving = false);

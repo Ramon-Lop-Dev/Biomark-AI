@@ -65,7 +65,17 @@ const getEvents = async () => {
 };
 
 const createEvent = async (usuarioId, payload) => {
-  const { data, error } = await communityRepo.crearEvento(usuarioId, payload);
+  let fechaFin = payload.fecha_fin;
+  if (!fechaFin && payload.fecha_evento) {
+    const d = new Date(payload.fecha_evento);
+    d.setHours(d.getHours() + 4);
+    fechaFin = d.toISOString();
+  }
+
+  const { data, error } = await communityRepo.crearEvento(usuarioId, {
+    ...payload,
+    fecha_fin: fechaFin
+  });
   if (error) throw new AppError('Error al crear evento comunitario', 500);
 
   const evento = data[0];

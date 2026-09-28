@@ -13,13 +13,13 @@ const listarCentrosSalud = () =>
 // cercana". Si en el futuro se quiere mostrar también el historial de
 // eventos pasados en el mapa, este filtro de fecha es lo único que hay
 // que quitar.
-const listarEventosComunitariosConCoordenadas = () =>
+const listarEventosComunitariosConCoordenadas = (ahora = new Date().toISOString()) =>
   supabase
     .from('eventos_comunitarios')
     .select('*')
     .not('latitud', 'is', null)
     .not('longitud', 'is', null)
-    .gte('fecha_evento', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    .or(`fecha_fin.gte.${ahora},and(fecha_fin.is.null,fecha_evento.gte.${ahora})`)
     .order('fecha_evento', { ascending: true });
 
 const listarCentrosEnBbox = async ({ min_lon, min_lat, max_lon, max_lat, nivel_min, zoom }) => {

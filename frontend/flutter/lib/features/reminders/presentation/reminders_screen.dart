@@ -11,11 +11,15 @@ class RemindersScreen extends StatefulWidget {
   const RemindersScreen({
     super.key,
     this.refreshSignal,
+    this.selectedDateSignal,
     this.onOpenMap,
+    this.onAddReminder,
   });
 
   final ValueNotifier<int>? refreshSignal;
+  final ValueNotifier<DateTime?>? selectedDateSignal;
   final VoidCallback? onOpenMap;
+  final VoidCallback? onAddReminder;
 
   @override
   State<RemindersScreen> createState() => _RemindersScreenState();
@@ -32,6 +36,17 @@ class _RemindersScreenState extends State<RemindersScreen> {
     setState(() => _remindersFuture = future);
   }
 
+  void _handleSelectedDateSignal() {
+    if (!mounted) return;
+    final date = widget.selectedDateSignal?.value;
+    if (date != null) {
+      setState(() {
+        _selectedDate = date;
+        _remindersFuture = _remindersService.getReminders();
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -41,11 +56,13 @@ class _RemindersScreenState extends State<RemindersScreen> {
     );
     _remindersFuture = _remindersService.getReminders();
     widget.refreshSignal?.addListener(_handleRefreshSignal);
+    widget.selectedDateSignal?.addListener(_handleSelectedDateSignal);
   }
 
   @override
   void dispose() {
     widget.refreshSignal?.removeListener(_handleRefreshSignal);
+    widget.selectedDateSignal?.removeListener(_handleSelectedDateSignal);
     super.dispose();
   }
 
@@ -690,20 +707,46 @@ class _RemindersScreenState extends State<RemindersScreen> {
 
   Widget _buildEmptyState() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
+      padding: const EdgeInsets.symmetric(vertical: 36),
       child: Center(
         child: Column(
-          children: const [
-            Icon(
-              Icons.notifications_off_outlined,
-              size: 48,
-              color: Colors.grey,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: BiomarkColors.green.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.event_note_rounded,
+                size: 40,
+                color: BiomarkColors.green,
+              ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
+            const Text(
+              'No tienes recordatorios para este día',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
             Text(
-              'No tienes recordatorios hoy',
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+              'Mantén al día tus medicamentos, vacunas y citas médicas.',
+              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
             ),
+            if (widget.onAddReminder != null) ...[
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: widget.onAddReminder,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Crear recordatorio'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: BiomarkColors.green,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
           ],
         ),
       ),

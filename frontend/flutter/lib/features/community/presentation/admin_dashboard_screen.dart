@@ -791,8 +791,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           child: Text(
             'Reportes Epidemiológicos y Comunitarios',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            softWrap: true,
           ),
         ),
         const SizedBox(width: 8),
@@ -864,6 +863,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ? const Color(0xFFEF4444)
         : (isYellow ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
 
+    final String statusLabel = report.status == 'VALIDADO'
+        ? 'Validado MINSA'
+        : (report.status == 'DESCARTADO' ? 'Descartado' : 'Pendiente de revisión');
+    final Color statusColor = report.status == 'VALIDADO'
+        ? BiomarkColors.green
+        : (report.status == 'DESCARTADO' ? Colors.grey : Colors.orange.shade800);
+    final Color statusBg = statusColor.withValues(alpha: 0.12);
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
@@ -880,7 +887,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Fila 1: Triaje CCM y Centro de Salud asignado
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -909,58 +919,52 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ],
                   ),
                 ),
-                if (report.centroSaludNombre != null) ...[
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        const Icon(Icons.local_hospital_rounded, size: 13, color: BiomarkColors.blue),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            report.centroSaludNombre!,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: BiomarkColors.blue,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                if (report.centroSaludNombre != null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.local_hospital_rounded, size: 13, color: BiomarkColors.blue),
+                      const SizedBox(width: 4),
+                      Text(
+                        report.centroSaludNombre!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: BiomarkColors.blue,
                         ),
-                      ],
-                    ),
+                        softWrap: true,
+                      ),
+                    ],
                   ),
-                ],
               ],
             ),
             const SizedBox(height: 8),
 
             // Fila 2: Enfermedad y Casos
-            Row(
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 6,
               children: [
-                Expanded(
-                  child: Text(
-                    report.tipoEnfermedad ?? 'Reporte de Salud',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                Text(
+                  report.tipoEnfermedad ?? 'Reporte de Salud',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                  softWrap: true,
                 ),
-                const SizedBox(width: 8),
-                Flexible(
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: statusBg,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
                   child: Text(
-                    '${report.cases} ${report.cases == 1 ? 'caso' : 'casos'} · ${report.status}',
+                    '${report.cases} ${report.cases == 1 ? 'caso' : 'casos'} · $statusLabel',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 11.5,
-                      color: report.status == 'VALIDADO'
-                          ? BiomarkColors.green
-                          : (report.status == 'DESCARTADO' ? Colors.grey : Colors.orange),
+                      fontSize: 11,
+                      color: statusColor,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -978,6 +982,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     child: Text(
                       report.direccionExacta!,
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      softWrap: true,
                     ),
                   ),
                 ],
@@ -986,7 +991,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ],
 
             // Descripción
-            Text(report.description, style: const TextStyle(fontSize: 12.5, height: 1.3)),
+            Text(
+              report.description,
+              style: const TextStyle(fontSize: 12.5, height: 1.3),
+              softWrap: true,
+            ),
 
             // Datos del informante si existen
             if (report.contactoReportante != null && report.contactoReportante!.isNotEmpty) ...[
@@ -994,8 +1003,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Text(
                 'Contacto: ${report.contactoReportante} ${report.reporterName != null ? "(${report.reporterName})" : ""}',
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                softWrap: true,
               ),
             ],
 
@@ -1007,17 +1015,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _updateReportStatus(report.id, 'DESCARTADO'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      ),
                       icon: const Icon(Icons.close_rounded, size: 16),
-                      label: const Text('Descartar', maxLines: 1, overflow: TextOverflow.ellipsis),
+                      label: const Text(
+                        'Descartar',
+                        style: TextStyle(fontSize: 12.5),
+                        maxLines: 1,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: () => _updateReportStatus(report.id, 'VALIDADO'),
-                      style: FilledButton.styleFrom(backgroundColor: BiomarkColors.green),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: BiomarkColors.green,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                      ),
                       icon: const Icon(Icons.verified_rounded, size: 16),
-                      label: const Text('Validar MINSA', maxLines: 1, overflow: TextOverflow.ellipsis),
+                      label: const Text(
+                        'Validar MINSA',
+                        style: TextStyle(fontSize: 12.5),
+                        maxLines: 1,
+                      ),
                     ),
                   ),
                 ],
@@ -1169,6 +1191,7 @@ class _AccreditationDialogState extends State<_AccreditationDialog> {
                 // 1. Selector de Rol
                 DropdownButtonFormField<String>(
                   initialValue: _selectedRole,
+                  isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Rol institucional a otorgar *',
                     prefixIcon: Icon(Icons.badge_rounded),
@@ -1177,11 +1200,19 @@ class _AccreditationDialogState extends State<_AccreditationDialog> {
                   items: const [
                     DropdownMenuItem(
                       value: 'TRABAJADOR_SALUD',
-                      child: Text('Personal de Salud (Médico / Enfermero)'),
+                      child: Text(
+                        'Personal de Salud (Médico / Enfermero)',
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     DropdownMenuItem(
                       value: 'PROMOTOR',
-                      child: Text('Promotor de Salud Comunitario'),
+                      child: Text(
+                        'Promotor de Salud Comunitario',
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                   onChanged: (val) {

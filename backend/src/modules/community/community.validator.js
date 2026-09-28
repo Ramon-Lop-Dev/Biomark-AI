@@ -5,6 +5,7 @@ const createEventSchema = z.object({
   titulo: z.string().trim().min(1, 'El título es obligatorio'),
   descripcion: z.string().trim().max(2000).optional(),
   fecha_evento: z.string().datetime({ offset: true, message: 'fecha_evento debe ser una fecha/hora ISO 8601 válida' }),
+  fecha_fin: z.string().datetime({ offset: true, message: 'fecha_fin debe ser una fecha/hora ISO 8601 válida' }).optional(),
   ubicacion: z.string().trim().max(500).optional(),
   tipo: z.enum(['VACUNACION', 'FUMIGACION', 'CONSULTA_MEDICA', 'PREVENCION_DENGUE', 'SALUD_COMUNITARIA']).default('SALUD_COMUNITARIA'),
   latitud: z.number().min(-90).max(90).optional(),
@@ -12,6 +13,12 @@ const createEventSchema = z.object({
 }).refine(
   ({ latitud, longitud }) => (latitud === undefined) === (longitud === undefined),
   { message: 'latitud y longitud deben enviarse juntas', path: ['latitud'] }
+).refine(
+  ({ fecha_evento, fecha_fin }) => {
+    if (!fecha_fin) return true;
+    return new Date(fecha_fin) > new Date(fecha_evento);
+  },
+  { message: 'fecha_fin debe ser posterior a la fecha y hora de inicio del evento', path: ['fecha_fin'] }
 );
 
 const createReportSchema = z.object({

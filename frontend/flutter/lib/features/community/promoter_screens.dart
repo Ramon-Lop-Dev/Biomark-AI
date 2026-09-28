@@ -128,11 +128,29 @@ class PromoterApi {
     ));
   }
 
-  Future<void> createEvent({required String title, required String description, required String date, required String location, required String type, double? latitude, double? longitude}) async {
+  Future<void> createEvent({
+    required String title,
+    required String description,
+    required String date,
+    String? endDate,
+    required String location,
+    required String type,
+    double? latitude,
+    double? longitude,
+  }) async {
     await _jsonRequest(_client.post(
       Uri.parse('$_base/api/community/events'),
       headers: _headers,
-      body: jsonEncode({'titulo': title, 'descripcion': description, 'fecha_evento': date, 'ubicacion': location, 'tipo': type, if (latitude != null && longitude != null) 'latitud': latitude, if (latitude != null && longitude != null) 'longitud': longitude}),
+      body: jsonEncode({
+        'titulo': title,
+        'descripcion': description,
+        'fecha_evento': date,
+        'fecha_fin': ?endDate,
+        'ubicacion': location,
+        'tipo': type,
+        if (latitude != null && longitude != null) 'latitud': latitude,
+        if (latitude != null && longitude != null) 'longitud': longitude,
+      }),
     ));
   }
 
@@ -164,7 +182,14 @@ class _PromoterDashboardScreenState extends State<PromoterDashboardScreen> {
       final results = await Future.wait([_api.statistics(), _api.reports(), _api.events()]);
       if (!mounted) return;
       final reports = results[1] as List<CommunityReportItem>;
-      setState(() { _stats = results[0] as Map<String, dynamic>; _allReports = reports; _pending = reports.where((report) => report.status == 'PENDIENTE_VALIDACION').toList(); _events = results[2] as List<Map<String, dynamic>>; _loading = false; });
+      final rawEvents = results[2] as List<Map<String, dynamic>>;
+      setState(() {
+        _stats = results[0] as Map<String, dynamic>;
+        _allReports = reports;
+        _pending = reports.where((report) => report.status == 'PENDIENTE_VALIDACION').toList();
+        _events = rawEvents.where(_isCommunityEventActive).toList();
+        _loading = false;
+      });
     } catch (error) {
       if (mounted) setState(() { _loading = false; _error = '$error'; });
     }
@@ -323,7 +348,19 @@ class _PromoterEventsScreenState extends State<PromoterEventsScreen> {
   bool _loading = true;
   @override
   void initState() { super.initState(); _load(); }
-  Future<void> _load() async { try { final events = await _api.events(); if (mounted) setState(() { _events = events; _loading = false; }); } catch (_) { if (mounted) setState(() => _loading = false); } }
+  Future<void> _load() async {
+    try {
+      final events = await _api.events();
+      if (mounted) {
+        setState(() {
+          _events = events.where(_isCommunityEventActive).toList();
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
   @override
   void dispose() { _api.dispose(); super.dispose(); }
   Future<void> _create() async { final created = await showModalBottomSheet<bool>(context: context, isScrollControlled: true, builder: (_) => _CreateEventSheet(api: _api)); if (created == true) _load(); }
@@ -590,6 +627,21 @@ class _ReportTile extends StatelessWidget {
   }
 }
 
+bool _isCommunityEventActive(Map<String, dynamic> event) {
+  final now = DateTime.now();
+  final endIso = event['fecha_fin']?.toString();
+  if (endIso != null && endIso.isNotEmpty) {
+    final end = DateTime.tryParse(endIso);
+    if (end != null) return end.isAfter(now);
+  }
+  final startIso = event['fecha_evento']?.toString();
+  if (startIso != null && startIso.isNotEmpty) {
+    final start = DateTime.tryParse(startIso);
+    if (start != null) return start.isAfter(now);
+  }
+  return true;
+}
+
 class _CreateEventSheet extends StatefulWidget {
   final PromoterApi api;
   const _CreateEventSheet({required this.api});
@@ -603,18 +655,264 @@ class _CreateEventSheetState extends State<_CreateEventSheet> {
   final _location = TextEditingController();
   final _latitude = TextEditingController();
   final _longitude = TextEditingController();
-  DateTime _date = DateTime.now().add(const Duration(days: 1));
+  DateTime _startDate = DateTime.now().add(const Duration(days: 1));
+  DateTime _endDate = DateTime.now().add(const Duration(days: 1, hours: 4));
   String _type = 'SALUD_COMUNITARIA';
   bool _saving = false;
   LatLng? _selectedLocation;
-  final _types = const {'VACUNACION': 'Vacunación', 'FUMIGACION': 'Fumigación', 'CONSULTA_MEDICA': 'Consulta médica', 'PREVENCION_DENGUE': 'Prevención de dengue', 'SALUD_COMUNITARIA': 'Salud comunitaria'};
+  final _types = const {
+    'VACUNACION': 'Vacunación',
+    'FUMIGACION': 'Fumigación',
+    'CONSULTA_MEDICA': 'Consulta médica',
+    'PREVENCION_DENGUE': 'Prevención de dengue',
+    'SALUD_COMUNITARIA': 'Salud comunitaria'
+  };
+
   @override
-  void dispose() { _title.dispose(); _description.dispose(); _location.dispose(); _latitude.dispose(); _longitude.dispose(); super.dispose(); }
-  Future<void> _pickDateTime() async { final pickedDate = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365))); if (pickedDate == null || !mounted) return; final pickedTime = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_date)); if (pickedTime != null && mounted) setState(() => _date = DateTime(pickedDate.year, pickedDate.month, pickedDate.day, pickedTime.hour, pickedTime.minute)); }
-  Future<void> _pickLocation() async { final point = await showDialog<LatLng>(context: context, builder: (_) => const _EventLocationPicker()); if (point != null && mounted) { setState(() { _selectedLocation = point; _latitude.text = point.latitude.toStringAsFixed(6); _longitude.text = point.longitude.toStringAsFixed(6); }); } }
-  Future<void> _save() async { if (_title.text.trim().isEmpty || _location.text.trim().isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Completa título y ubicación.'))); return; } if (_selectedLocation == null) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona el lugar de la jornada en el mapa.'))); return; } final latitude = double.tryParse(_latitude.text.trim()); final longitude = double.tryParse(_longitude.text.trim()); setState(() => _saving = true); try { await widget.api.createEvent(title: _title.text.trim(), description: _description.text.trim(), date: _date.toUtc().toIso8601String(), location: _location.text.trim(), type: _type, latitude: latitude, longitude: longitude); if (mounted) Navigator.pop(context, true); } catch (error) { if (mounted) { setState(() => _saving = false); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error'))); } } }
+  void dispose() {
+    _title.dispose();
+    _description.dispose();
+    _location.dispose();
+    _latitude.dispose();
+    _longitude.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickStartDateTime() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (pickedDate == null || !mounted) return;
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_startDate),
+    );
+    if (pickedTime != null && mounted) {
+      setState(() {
+        _startDate = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+        if (!_endDate.isAfter(_startDate)) {
+          _endDate = _startDate.add(const Duration(hours: 4));
+        }
+      });
+    }
+  }
+
+  Future<void> _pickEndDateTime() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _endDate.isAfter(_startDate) ? _endDate : _startDate,
+      firstDate: _startDate,
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (pickedDate == null || !mounted) return;
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_endDate),
+    );
+    if (pickedTime != null && mounted) {
+      setState(() {
+        _endDate = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+      });
+    }
+  }
+
+  Future<void> _pickLocation() async {
+    final point = await showDialog<LatLng>(
+      context: context,
+      builder: (_) => const _EventLocationPicker(),
+    );
+    if (point != null && mounted) {
+      setState(() {
+        _selectedLocation = point;
+        _latitude.text = point.latitude.toStringAsFixed(6);
+        _longitude.text = point.longitude.toStringAsFixed(6);
+      });
+    }
+  }
+
+  String _formatDt(DateTime dt) {
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    final h = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '${dt.day} ${months[dt.month - 1]}, ${h.toString().padLeft(2, '0')}:$m $period';
+  }
+
+  Future<void> _save() async {
+    if (_title.text.trim().isEmpty || _location.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, completa el título y la dirección textual de la jornada.')),
+      );
+      return;
+    }
+    if (_selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona el punto geográfico en el mapa.')),
+      );
+      return;
+    }
+    if (!_endDate.isAfter(_startDate)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La fecha y hora de fin debe ser posterior al inicio.')),
+      );
+      return;
+    }
+    final latitude = double.tryParse(_latitude.text.trim());
+    final longitude = double.tryParse(_longitude.text.trim());
+    setState(() => _saving = true);
+    try {
+      await widget.api.createEvent(
+        title: _title.text.trim(),
+        description: _description.text.trim(),
+        date: _startDate.toUtc().toIso8601String(),
+        endDate: _endDate.toUtc().toIso8601String(),
+        location: _location.text.trim(),
+        type: _type,
+        latitude: latitude,
+        longitude: longitude,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context) => Padding(padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom), child: DraggableScrollableSheet(initialChildSize: .82, maxChildSize: .95, builder: (_, controller) => Material(borderRadius: const BorderRadius.vertical(top: Radius.circular(24)), child: ListView(controller: controller, padding: const EdgeInsets.all(20), children: [Row(children: [const Expanded(child: Text('Crear jornada', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800))), IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded))]), TextField(controller: _title, decoration: const InputDecoration(labelText: 'Título *')), const SizedBox(height: 12), TextField(controller: _description, maxLines: 2, decoration: const InputDecoration(labelText: 'Descripción')), const SizedBox(height: 12), DropdownButtonFormField<String>(initialValue: _type, isExpanded: true, decoration: const InputDecoration(labelText: 'Tipo de jornada'), items: _types.entries.map((entry) => DropdownMenuItem(value: entry.key, child: Text(entry.value))).toList(), onChanged: (value) => setState(() => _type = value ?? _type)), const SizedBox(height: 12), TextField(controller: _location, decoration: const InputDecoration(labelText: 'Ubicación textual *', hintText: 'Ej. Casa comunal del barrio')), const SizedBox(height: 12), OutlinedButton.icon(onPressed: _pickLocation, icon: const Icon(Icons.map_outlined), label: Text(_selectedLocation == null ? 'Seleccionar punto en el mapa' : 'Punto seleccionado')), if (_selectedLocation != null) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Ubicación lista para publicar: ${_selectedLocation!.latitude.toStringAsFixed(5)}, ${_selectedLocation!.longitude.toStringAsFixed(5)}', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant))), const SizedBox(height: 12), ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.calendar_month_rounded), title: Text('Fecha y hora: ${_date.day}/${_date.month}/${_date.year} ${_date.hour.toString().padLeft(2, '0')}:${_date.minute.toString().padLeft(2, '0')}'), onTap: _pickDateTime), const SizedBox(height: 16), FilledButton.icon(onPressed: _saving ? null : _save, icon: const Icon(Icons.event_available_rounded), label: Text(_saving ? 'Guardando...' : 'Publicar jornada'))]))));
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    child: DraggableScrollableSheet(
+      initialChildSize: .85,
+      maxChildSize: .95,
+      builder: (_, controller) => Material(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: ListView(
+          controller: controller,
+          padding: const EdgeInsets.all(20),
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Crear jornada comunitaria',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                    softWrap: true,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _title,
+              decoration: const InputDecoration(
+                labelText: 'Título de la jornada *',
+                hintText: 'Ej. Jornada de Vacunación Infantil',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _description,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Descripción / Requisitos',
+                hintText: 'Ej. Presentar tarjeta de vacunación y cédula',
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _type,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Tipo de jornada'),
+              items: _types.entries
+                  .map((entry) => DropdownMenuItem(
+                        value: entry.key,
+                        child: Text(entry.value, softWrap: true),
+                      ))
+                  .toList(),
+              onChanged: (value) => setState(() => _type = value ?? _type),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _location,
+              decoration: const InputDecoration(
+                labelText: 'Ubicación textual *',
+                hintText: 'Ej. Casa comunal del barrio, frente al parque',
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _pickLocation,
+              icon: const Icon(Icons.map_outlined),
+              label: Text(
+                _selectedLocation == null ? 'Seleccionar punto en el mapa' : 'Punto geográfico fijado',
+                softWrap: true,
+              ),
+            ),
+            if (_selectedLocation != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Coordenadas: ${_selectedLocation!.latitude.toStringAsFixed(5)}, ${_selectedLocation!.longitude.toStringAsFixed(5)}',
+                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 0,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.event_available_rounded, color: BiomarkColors.green),
+                    title: const Text('Inicio de la jornada', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    subtitle: Text(_formatDt(_startDate), style: const TextStyle(fontSize: 12)),
+                    trailing: const Icon(Icons.edit_calendar_rounded, size: 18),
+                    onTap: _pickStartDateTime,
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  ListTile(
+                    leading: const Icon(Icons.event_busy_rounded, color: Colors.red),
+                    title: const Text('Cierre / Fin de la jornada', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                    subtitle: Text(_formatDt(_endDate), style: const TextStyle(fontSize: 12)),
+                    trailing: const Icon(Icons.edit_calendar_rounded, size: 18),
+                    onTap: _pickEndDateTime,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: const Icon(Icons.check_circle_rounded),
+              label: Text(_saving ? 'Publicando...' : 'Publicar jornada comunitaria'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _EventLocationPicker extends StatefulWidget {
@@ -679,7 +977,106 @@ class _MetricCard extends StatelessWidget {
 
 class _SectionHeading extends StatelessWidget { final String title; final IconData icon; const _SectionHeading({required this.title, required this.icon}); @override Widget build(BuildContext context) => Row(children: [Icon(icon, color: BiomarkColors.blue), const SizedBox(width: 8), Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800))]); }
 class _PanelMessage extends StatelessWidget { final String message; final IconData icon; const _PanelMessage({required this.message, required this.icon}); @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 20), child: Row(children: [Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant), const SizedBox(width: 10), Expanded(child: Text(message, style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)))])); }
-class _EventTile extends StatelessWidget { final Map<String, dynamic> event; const _EventTile({required this.event}); @override Widget build(BuildContext context) => Card(margin: const EdgeInsets.only(bottom: 10), child: ListTile(leading: const CircleAvatar(child: Icon(Icons.event_available_rounded)), title: Text('${event['titulo'] ?? 'Jornada comunitaria'}', style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text('${event['ubicacion'] ?? 'Ubicación por confirmar'}\n${event['fecha_evento'] ?? ''}'))); }
+
+class _EventTile extends StatelessWidget {
+  final Map<String, dynamic> event;
+  const _EventTile({required this.event});
+
+  String _formatEventDate(String? startIso, String? endIso) {
+    if (startIso == null || startIso.isEmpty) return '';
+    final start = DateTime.tryParse(startIso)?.toLocal();
+    final end = (endIso != null && endIso.isNotEmpty) ? DateTime.tryParse(endIso)?.toLocal() : null;
+    if (start == null) return startIso;
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    final sPeriod = start.hour >= 12 ? 'PM' : 'AM';
+    final sH = start.hour % 12 == 0 ? 12 : start.hour % 12;
+    final sM = start.minute.toString().padLeft(2, '0');
+    final startStr = '${start.day} ${months[start.month - 1]}, ${sH.toString().padLeft(2, '0')}:$sM $sPeriod';
+
+    if (end == null) return startStr;
+    final ePeriod = end.hour >= 12 ? 'PM' : 'AM';
+    final eH = end.hour % 12 == 0 ? 12 : end.hour % 12;
+    final eM = end.minute.toString().padLeft(2, '0');
+
+    final isSameDay = start.year == end.year && start.month == end.month && start.day == end.day;
+    final endStr = isSameDay
+        ? '${eH.toString().padLeft(2, '0')}:$eM $ePeriod'
+        : '${end.day} ${months[end.month - 1]}, ${eH.toString().padLeft(2, '0')}:$eM $ePeriod';
+
+    return '$startStr — $endStr';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = (event['titulo'] ?? 'Jornada comunitaria').toString();
+    final location = (event['ubicacion'] ?? 'Ubicación por confirmar').toString();
+    final dateStr = _formatEventDate(event['fecha_evento']?.toString(), event['fecha_fin']?.toString());
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              backgroundColor: BiomarkColors.green.withValues(alpha: 0.15),
+              child: const Icon(Icons.event_available_rounded, color: BiomarkColors.green),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    softWrap: true,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_outlined, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          location,
+                          softWrap: true,
+                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (dateStr.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time_rounded, size: 14, color: BiomarkColors.blue),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            dateStr,
+                            softWrap: true,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: BiomarkColors.blue),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class MyPromotersScreen extends StatefulWidget {
   const MyPromotersScreen({super.key});

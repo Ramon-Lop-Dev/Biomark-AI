@@ -98,6 +98,7 @@ class CommunityEvent {
   final String title;
   final String description;
   final DateTime date;
+  final DateTime? endDate;
   final String location;
   final double latitude;
   final double longitude;
@@ -109,6 +110,7 @@ class CommunityEvent {
     required this.title,
     required this.description,
     required this.date,
+    this.endDate,
     required this.location,
     required this.latitude,
     required this.longitude,
@@ -126,6 +128,9 @@ class CommunityEvent {
       description: '${json['descripcion'] ?? ''}',
       date:
           DateTime.tryParse('${json['fecha_evento'] ?? ''}') ?? DateTime.now(),
+      endDate: json['fecha_fin'] != null
+          ? DateTime.tryParse('${json['fecha_fin']}')
+          : null,
       location: '${json['ubicacion'] ?? 'Ubicación no disponible'}',
       latitude: number(json['latitud']),
       longitude: number(json['longitud']),

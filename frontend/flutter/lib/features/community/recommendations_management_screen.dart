@@ -38,6 +38,7 @@ class _RecommendationsManagementScreenState
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const _CrearRecomendacionSheet(),
     ).then((creado) {
@@ -484,6 +485,7 @@ class _CrearRecomendacionSheetState extends State<_CrearRecomendacionSheet> {
                     const SizedBox(height: 6),
                     DropdownButtonFormField<RecommendationCategory>(
                       initialValue: _categoria,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -497,6 +499,7 @@ class _CrearRecomendacionSheetState extends State<_CrearRecomendacionSheet> {
                         return DropdownMenuItem(
                           value: cat,
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Container(
                                 width: 12,
@@ -507,10 +510,11 @@ class _CrearRecomendacionSheetState extends State<_CrearRecomendacionSheet> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              Expanded(
+                              Flexible(
                                 child: Text(
                                   HealthRecommendation.labelForCategory(cat),
                                   overflow: TextOverflow.ellipsis,
+                                  softWrap: true,
                                 ),
                               ),
                             ],
