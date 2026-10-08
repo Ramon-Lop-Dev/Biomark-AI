@@ -3,8 +3,8 @@
 # Uso: ./scripts/deploy-frontend-web.sh
 set -euo pipefail
 
-VPS_HOST="biomark@84.247.164.97"
-VPS_PATH="/opt/biomark-ai/frontend-web"
+VPS_HOST="${BIOMARK_VPS_HOST:-${1:-biomark@biomark-api.duckdns.org}}"
+VPS_PATH="${BIOMARK_VPS_PATH:-/opt/biomark-ai/frontend-web}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/../frontend/flutter"
