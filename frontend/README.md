@@ -76,4 +76,6 @@ flutter test
 flutter analyze
 ```
 
-Para más detalles sobre la arquitectura de confianza y triaje clínico, consulte [docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md](../docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md).
+Para más detalles sobre la arquitectura de confianza y triaje clínico, consulte [docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md](../docs/ROLES_CONFANZA_Y_TRIAJE_CCM.md).  
+Para consultar la biblioteca de componentes reutilizables y tokens de diseño, revise [docs/SISTEMA_COMPONENTES_UI.md](../docs/SISTEMA_COMPONENTES_UI.md).  
+Para los diagramas de flujo de usuario, wireframes y auditoría heurística, consulte [docs/VALIDACION_Y_AJUSTE_FLUJO_UX.md](../docs/VALIDACION_Y_AJUSTE_FLUJO_UX.md).

@@ -10,6 +10,8 @@
 | :--- | :--- |
 | [Documentación Técnica](TECHNICAL_DOCUMENTATION.md) | Arquitectura integral, descripción de módulos, diagramas de flujo, base de datos y modelo de seguridad. |
 | [Roles de Confianza en Cascada y Triaje CCM](ROLES_CONFANZA_Y_TRIAJE_CCM.md) | Gobernanza comunitaria MINSA, alta delegada por invitaciones, control de ámbito territorial (`requireScope`) y triaje semafórico CCM para el piloto de Managua. |
+| [Sistema de Componentes de UI](SISTEMA_COMPONENTES_UI.md) | Catálogo oficial de componentes visuales reutilizables (botones, headers, cards, formularios), tokens de diseño, paleta y tipografía (Syne/Poppins). |
+| [Validación y Ajuste de Flujo UX](VALIDACION_Y_AJUSTE_FLUJO_UX.md) | Especificación de flujos de usuario actualizados (User Flows), arquetipos, wireframes de alta fidelidad para móvil/web y evaluación heurística. |
 | [Manual de Despliegue en VPS](INSTALLATION_VPS.md) | Guía paso a paso para la preparación de servidores Linux, Docker Compose, configuración de firewall y certificados SSL. |
 | [Despliegue Distribuido (Contabo + RunPod)](DEPLOYMENT_CONTABO_RUNPOD.md) | Procedimiento para operar el backend y automatizaciones en VPS y el microservicio de IA en GPU Cloud. |
 | [Configuración de Dominio con DuckDNS](DUCKDNS_CONTABO.md) | Configuración de DNS dinámico, certificados HTTPS de Let's Encrypt y enrutamiento en Nginx. |
