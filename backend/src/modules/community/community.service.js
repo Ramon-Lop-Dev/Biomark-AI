@@ -123,9 +123,16 @@ const createReport = async (usuarioId, payload) => {
   };
 
   const { data, error } = await communityRepo.crearReporte(usuarioId, payloadCompleto);
-  if (error) throw new AppError('Error al registrar el reporte comunitario', 500);
+  if (error) {
+    console.error('[Community] Error al registrar reporte en base de datos:', error.message || error);
+    throw new AppError('Error al registrar el reporte comunitario', 500);
+  }
 
-  const reporte = data[0] || {};
+  const reporte = (data && data[0]) ? data[0] : {};
+  if (!reporte.id) {
+    console.error('[Community] El reporte insertado no devolvió datos válidos:', data);
+    throw new AppError('No se pudo confirmar el reporte comunitario', 500);
+  }
 
   await auditService.registrar({
     usuarioId,

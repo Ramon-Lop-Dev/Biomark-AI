@@ -258,7 +258,14 @@ class GisApi {
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw GisApiException('No se pudo registrar el reporte comunitario.', statusCode: response.statusCode);
+      String msg = 'No se pudo registrar el reporte comunitario.';
+      try {
+        final body = jsonDecode(response.body);
+        if (body is Map && body['error'] != null) {
+          msg = body['error'].toString();
+        }
+      } catch (_) {}
+      throw GisApiException(msg, statusCode: response.statusCode);
     }
     // Invalidar caché de reportes para ver el nuevo reporte
     _reportsCache = null;

@@ -173,14 +173,17 @@ class _CommunityReportSheetState extends State<_CommunityReportSheet> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _enviando = true);
     try {
-      final tipoFinal = (_tipoEnfermedad == 'Otro' && _otroTipoCtrl.text.trim().isNotEmpty)
-          ? 'Otro: ${_otroTipoCtrl.text.trim()}'
-          : _tipoEnfermedad;
+      final esOtro = _tipoEnfermedad == 'Otro';
+      final detalleOtro = _otroTipoCtrl.text.trim();
+      final tipoFinal = esOtro ? 'Otro' : _tipoEnfermedad;
+      final descFinal = (esOtro && detalleOtro.isNotEmpty)
+          ? '[Enfermedad reportada: $detalleOtro] ${_descripcionCtrl.text.trim()}'
+          : _descripcionCtrl.text.trim();
 
       await widget.gisApi.createCommunityReport(
         latitude: widget.latitude,
         longitude: widget.longitude,
-        description: _descripcionCtrl.text.trim(),
+        description: descFinal,
         caseCount: int.tryParse(_casosCtrl.text.trim()) ?? 1,
         tipoEnfermedad: tipoFinal,
         direccionExacta: _direccionCtrl.text.trim(),
@@ -215,12 +218,15 @@ class _CommunityReportSheetState extends State<_CommunityReportSheet> {
           duration: const Duration(seconds: 4),
         ),
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _enviando = false);
+      final errorMsg = e is GisApiException
+          ? e.message
+          : 'No se pudo enviar el reporte. Verifica tu conexión.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('No se pudo enviar el reporte. Verifica tu conexión.'),
+          content: Text(errorMsg),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

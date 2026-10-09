@@ -24,6 +24,8 @@ const crearEvento = (organizadorId, { titulo, descripcion, fecha_evento, fecha_f
     }])
     .select();
 
+const ENFERMEDADES_CHECK_VALIDAS = ['Dengue', 'Zika', 'Chikungunya', 'Leptospirosis', 'IRA', 'COVID-19', 'Otro'];
+
 // El reporte SIEMPRE se crea como PENDIENTE_VALIDACION (default de la
 // tabla) — nunca se debe permitir que el cliente marque un reporte como
 // confirmado directamente, por eso "estado" nunca se incluye en el insert.
@@ -44,18 +46,47 @@ const crearReporte = async (usuarioId, payload) => {
     clasificacion_ccm
   } = payload;
 
+  // Normalizar tipo_enfermedad para cumplir estrictamente con el CHECK CONSTRAINT de Postgres:
+  // CHECK (tipo_enfermedad IN ('Dengue', 'Zika', 'Chikungunya', 'Leptospirosis', 'IRA', 'COVID-19', 'Otro'))
+  let tipoEnfermedadSanitizado = tipo_enfermedad;
+  let descripcionFinal = description || '';
+
+  if (tipo_enfermedad) {
+    const matchValido = ENFERMEDADES_CHECK_VALIDAS.find(
+      (e) => e.toLowerCase() === String(tipo_enfermedad).trim().toLowerCase()
+    );
+
+    if (matchValido) {
+      tipoEnfermedadSanitizado = matchValido;
+    } else if (/^otro:\s*/i.test(tipo_enfermedad)) {
+      const detalleOtro = tipo_enfermedad.replace(/^otro:\s*/i, '').trim();
+      tipoEnfermedadSanitizado = 'Otro';
+      if (detalleOtro) {
+        descripcionFinal = descripcionFinal
+          ? `[Diagnóstico reportado: ${detalleOtro}] ${descripcionFinal}`
+          : `[Diagnóstico reportado: ${detalleOtro}]`;
+      }
+    } else {
+      // Diagnóstico personalizado no contemplado en la lista estándar
+      tipoEnfermedadSanitizado = 'Otro';
+      descripcionFinal = descripcionFinal
+        ? `[Diagnóstico reportado: ${tipo_enfermedad}] ${descripcionFinal}`
+        : `[Diagnóstico reportado: ${tipo_enfermedad}]`;
+    }
+  }
+
   const baseInsert = {
     usuario_id: usuarioId,
     zona_riesgo_id: zona_riesgo_id || null,
     cantidad_casos: case_count || 1,
-    descripcion: description,
+    descripcion: descripcionFinal,
     latitud: latitude,
     longitud: longitude
   };
 
   const extendedInsert = {
     ...baseInsert,
-    ...(tipo_enfermedad ? { tipo_enfermedad } : {}),
+    ...(tipoEnfermedadSanitizado ? { tipo_enfermedad: tipoEnfermedadSanitizado } : {}),
     ...(direccion_exacta ? { direccion_exacta } : {}),
     ...(fecha_inicio_sintomas ? { fecha_inicio_sintomas } : {}),
     ...(medidas_tomadas ? { medidas_tomadas } : {}),
@@ -69,7 +100,21 @@ const crearReporte = async (usuarioId, payload) => {
     .insert([extendedInsert])
     .select();
 
-  // Fallback seguro si las migraciones 018/021 no están aplicadas en esta instancia de base de datos
+  // Fallback 1: Si hay error de CHECK CONSTRAINT (código 23514) o conflicto con tipo_enfermedad
+  if (res.error && (res.error.code === '23514' || res.error.message?.includes('tipo_enfermedad'))) {
+    console.warn('[Community] Advertencia: CHECK CONSTRAINT activado en tipo_enfermedad. Reintentando con tipo_enfermedad=Otro...');
+    const fallbackOtro = {
+      ...extendedInsert,
+      tipo_enfermedad: 'Otro'
+    };
+    const resOtro = await supabase
+      .from('reportes_comunitarios')
+      .insert([fallbackOtro])
+      .select();
+    if (!resOtro.error) return resOtro;
+  }
+
+  // Fallback 2: Fallback seguro si las migraciones 018/021 no están aplicadas en esta instancia de base de datos
   if (res.error && (res.error.code === '42703' || res.error.message?.includes('column'))) {
     return supabase
       .from('reportes_comunitarios')
