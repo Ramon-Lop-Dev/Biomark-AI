@@ -17,14 +17,15 @@ flowchart TD
     Sensors["Sensores del Dispositivo (Acelerómetro y Giroscopio)"]
   end
 
-  subgraph ServidorVPS ["Servidor VPS (Contabo)"]
-    Nginx["Proxy Inverso Nginx (SSL / HTTPS)"]
+  subgraph ServidorAzure ["Servidor Producción (Microsoft Azure VM)"]
+    Nginx["Proxy Inverso Nginx (SSL / HTTPS Let's Encrypt)"]
     Backend["API Gateway Node.js :3000"]
     N8N["Motor de Automatización n8n :5678"]
+    Tunnel["Túnel Inverso SSH Systemd :8000"]
   end
 
   subgraph InferenciaIA ["Servicio GPU Cloud (RunPod)"]
-    FastAPI["AI Service FastAPI :8000"]
+    FastAPI["AI Service FastAPI :8000 (CUDA)"]
     Models["BIOMARK AI, Whisper ASR, MMS-TTS y RAG ChromaDB"]
   end
 
@@ -37,7 +38,8 @@ flowchart TD
   Sensors -.->|Procesamiento DSP Local SCG| F
   Nginx -->|Proxy Interno| Backend
   Backend -->|Consultas Seguras con RLS| DB
-  Backend -->|X-Internal-Key| FastAPI
+  Backend -->|host.docker.internal:8000| Tunnel
+  Tunnel -->|Túnel SSH Cifrado| FastAPI
   FastAPI --> Models
   Backend -->|Eventos y Webhooks| N8N
   N8N -->|Notificaciones Push| FCM
@@ -142,8 +144,9 @@ Biomark-AI/
 ├── frontend/flutter/        # Aplicación cliente multiplataforma (móvil y web) en Flutter
 ├── nginx/                   # Configuración del proxy inverso con soporte SSL y límites de tráfico
 ├── n8n/                     # Flujos de automatización para recordatorios y notificaciones push
-├── docker-compose.yml       # Orquestación de servicios para entorno de desarrollo local
-└── docker-compose.contabo.yml # Orquestación optimizada para servidor en producción (VPS Contabo)
+├── docker-compose.yml       # Orquestación de servicios para desarrollo local
+├── docker-compose.azure.yml # Orquestación para producción en Microsoft Azure VM
+└── docker-compose.contabo.yml # Orquestación alternativa para VPS Contabo
 ```
 
 ---
@@ -185,7 +188,75 @@ flutter run -d chrome --dart-define=BIOMARK_API_URL=http://localhost:3000
 
 ---
 
-## 5. Verificación y Pruebas del Sistema
+## 5. Despliegue en Microsoft Azure VM (Producción)
+
+El entorno de producción oficial está alojado en una máquina virtual de **Microsoft Azure** con conectividad cifrada hacia el clúster GPU en **RunPod** y la nube de **Supabase**.
+
+### 5.1 Especificaciones de Infraestructura
+* **Proveedor:** Microsoft Azure VM (`Standard_D2as_v4` — 2 vCPUs AMD EPYC, 8 GB RAM, 30 GB SSD).
+* **IP Pública:** `20.98.43.91`
+* **Dominios Oficiales:**
+  * Web y API Gateway: `https://biomark-api.duckdns.org`
+  * Motor de Notificaciones: `https://biomark-n8n.duckdns.org`
+* **Certificados SSL:** Let's Encrypt con auto-renovación, soporte SAN para ambos dominios y redirección obligatoria HTTP 301 a HTTPS.
+
+### 5.2 Topología y Seguridad de Red (Defensa en Profundidad)
+* **Firewall de Host (UFW):**
+  * Puertos públicos permitidos: `22/tcp` (SSH), `80/tcp` (HTTP) y `443/tcp` (HTTPS).
+  * Puertos internos bloqueados a internet: `3000/tcp` (Express) y `5678/tcp` (n8n).
+  * Subred Docker interna (`172.16.0.0/12`) autorizada para comunicarse con el túnel del AI Service en el puerto 8000.
+* **Seguridad Nginx:**
+  * Ocultamiento de cabeceras de versión (`server_tokens off;`).
+  * Pantallas de error amigables (`404.html` y `50x.html`) sin exposición de stacktraces ni códigos técnicos.
+  * Rate limiting de 10 peticiones/segundo con ráfaga de 20 por IP.
+
+### 5.3 Túnel Seguro con la GPU de RunPod (AI Service)
+El microservicio clínico de IA con aceleración CUDA reside en RunPod y se conecta con Azure mediante un servicio administrado de systemd (`runpod-tunnel.service`):
+```bash
+# Ver estado del túnel seguro de IA en Azure:
+sudo systemctl status runpod-tunnel.service
+```
+El contenedor de backend en Docker accede al servicio a través de `http://host.docker.internal:8000` autenticado mediante la cabecera `X-Internal-Key`.
+
+### 5.4 Flujo de Notificaciones y Webhook en n8n
+El motor de eventos del backend (`n8nClient.js`) publica eventos sanitarios hacia el webhook interno de n8n (`http://n8n:5678/webhook/eventos-backend`):
+* Autenticación obligatoria con cabecera `X-Webhook-Secret`.
+* Flujo de trabajo importado y activo: `n8n/workflows/n8n-eventos-backend.json`.
+* Gestión mediante CLI dentro del contenedor:
+  ```bash
+  docker exec -u node biomark-ai-n8n-1 n8n list:workflow
+  docker exec -u node biomark-ai-n8n-1 n8n update:workflow --id=WTokXGSmeaqUK6OI --active=true
+  ```
+
+### 5.5 Comandos Forenses de Validación (Healthcheck Rápido)
+Desde cualquier terminal local o remota:
+```bash
+# 1. Healthcheck general del sistema
+curl -s https://biomark-api.duckdns.org/health
+
+# 2. Diagnóstico de componentes (Supabase DB y AI Service)
+curl -s https://biomark-api.duckdns.org/ready
+
+# 3. Acceso seguro al panel de n8n
+curl -s -o /dev/null -w "%{http_code}\n" https://biomark-n8n.duckdns.org/
+
+# 4. Redirección HTTP a HTTPS obligatoria
+curl -I http://biomark-api.duckdns.org/
+```
+
+### 5.6 Sincronización Continua con GitHub
+El directorio `/opt/biomark-ai` en Azure está vinculado directamente a la rama `main` del repositorio oficial. Para actualizar el servidor:
+```bash
+cd /opt/biomark-ai
+git fetch origin main
+git checkout main
+git pull origin main
+sudo docker compose -f docker-compose.azure.yml up -d --build
+```
+
+---
+
+## 6. Verificación y Pruebas del Sistema
 
 El proyecto cuenta con suites de pruebas automatizadas en cada uno de sus niveles:
 
@@ -210,6 +281,7 @@ El proyecto cuenta con suites de pruebas automatizadas en cada uno de sus nivele
 
 ---
 
-## 6. Licencia y Cumplimiento Sanitario
+## 7. Licencia y Cumplimiento Sanitario
 
 Este proyecto ha sido desarrollado como una herramienta tecnológica de apoyo preventivo y educación comunitaria. No sustituye la consulta médica presencial ni los criterios clínicos emitidos por profesionales de la salud colegiados.
+

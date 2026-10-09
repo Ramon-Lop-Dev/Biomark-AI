@@ -12,6 +12,7 @@ services:
 
   n8n:
     image: n8nio/n8n:1.123.77
+    env_file: ./deploy/.env
     environment:
       N8N_HOST: ${N8N_HOST}
       N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
